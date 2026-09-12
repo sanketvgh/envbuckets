@@ -102,7 +102,9 @@ jobs:
           GORELEASER_CURRENT_TAG: ${{ steps.version.outputs.tag }}
 
       - name: Lay out npm packages
-        run: go run ./tools/npmpkg | tee npm/dist/packages.txt
+        run: |
+          mkdir -p npm/dist
+          go run ./tools/npmpkg | tee npm/dist/packages.txt
 
       - name: Publish to npm
         env:
