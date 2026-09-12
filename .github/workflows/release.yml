@@ -1,0 +1,140 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: Prerelease channel
+        type: choice
+        default: none
+        options: [none, alpha, beta, rc]
+      version:
+        description: Explicit version (vX.Y.Z), overrides svu
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+env:
+  SVU_VERSION: v3.4.1
+  GORELEASER_VERSION: v2.18.1
+  GOLANGCI_LINT_VERSION: v2.13.2
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main' && github.repository == 'sanketvgh/envbuckets'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    environment: release
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
+      - run: go test ./...
+
+      - name: Cache svu
+        id: cache-svu
+        uses: actions/cache@v4
+        with:
+          path: ~/go/bin/svu
+          key: svu-${{ env.SVU_VERSION }}-${{ runner.os }}
+
+      - name: Install svu
+        if: steps.cache-svu.outputs.cache-hit != 'true'
+        run: go install "github.com/caarlos0/svu/v3@${SVU_VERSION}"
+
+      - name: Compute version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          current="$(svu current)"
+          if [ -n "$INPUT_VERSION" ]; then
+            tag="$INPUT_VERSION"
+          elif [ "$INPUT_PRERELEASE" != "none" ]; then
+            tag="$(svu prerelease --pre-release "$INPUT_PRERELEASE")"
+          else
+            tag="$(svu next)"
+          fi
+          echo "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc)\.[0-9]+)?$' \
+            || { echo "invalid version: $tag"; exit 1; }
+          [ "$tag" != "$current" ] || { echo "nothing to release since $current"; exit 1; }
+          git rev-parse -q --verify "refs/tags/$tag" >/dev/null && { echo "tag $tag exists"; exit 1; }
+          echo "$current -> $tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Tag
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "$TAG"
+          git push origin "$TAG"
+
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: ${{ env.GORELEASER_VERSION }}
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ steps.version.outputs.tag }}
+
+      - name: Lay out npm packages
+        run: go run ./tools/npmpkg | tee npm/dist/packages.txt
+
+      - name: Publish to npm
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          v="$(jq -r .version dist/metadata.json)"
+          test "v$v" = "$TAG" || { echo "metadata version $v != tag $TAG"; exit 1; }
+          case "$v" in
+            *-alpha.*) tag=alpha ;;
+            *-beta.*)  tag=beta ;;
+            *-rc.*)    tag=rc ;;
+            *)         tag=latest ;;
+          esac
+          echo "publishing $v under dist-tag $tag"
+          while read -r name; do
+            if npm view "$name@$v" version >/dev/null 2>&1; then
+              echo "skip $name@$v (already published)"; continue
+            fi
+            npm publish "npm/dist/$name" --access public --provenance --tag "$tag"
+          done < npm/dist/packages.txt
+
+  cleanup:
+    needs: release
+    if: failure() && needs.release.outputs.tag != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Delete dangling tag and release
+        env:
+          TAG: ${{ needs.release.outputs.tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || git push --delete origin "$TAG" || true

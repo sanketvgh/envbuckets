@@ -1,0 +1,18 @@
+{
+  "name": "envbuckets",
+  "version": "0.0.0",
+  "description": "Your .env switches branches with you.",
+  "author": "Sanket Vaghela <sanketvgh@gmail.com>",
+  "license": "MIT",
+  "repository": "github:sanketvgh/envbuckets",
+  "bin": {
+    "envbuckets": "bin/envbuckets.js"
+  },
+  "files": [
+    "bin"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "optionalDependencies": {}
+}
