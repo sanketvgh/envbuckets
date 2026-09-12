@@ -33,6 +33,23 @@ checksum:
 
 release:
   prerelease: auto
+  header: |
+    ## envbuckets {{ .Version }}
+    {{- if .Prerelease }}
+
+    > [!WARNING]
+    > This is a prerelease under active development. Expect breaking changes.
+    {{- end }}
+
+    Install or update:
+
+    ```sh
+    npm install -g envbuckets@{{ .Version }}
+    ```
+  footer: |
+    ---
+
+    **Full Changelog**: https://github.com/sanketvgh/envbuckets/compare/{{ .PreviousTag }}...{{ .Tag }}
 
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
