@@ -128,12 +128,8 @@ jobs:
           while read -r name; do
             if npm view "$name@$v" version >/dev/null 2>&1; then
               echo "skip $name@$v (already published)"; continue
-            else
-              npm publish "npm/dist/$name" --access public --provenance --tag "$tag"
             fi
-            if [ "$tag" != "$channel" ]; then
-              npm dist-tag add "$name@$v" "$channel"
-            fi
+            npm publish "npm/dist/$name" --access public --provenance --tag "$tag"
           done < npm/dist/packages.txt
 
   cleanup:

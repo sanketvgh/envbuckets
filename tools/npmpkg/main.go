@@ -124,7 +124,10 @@ func writePlatformPackage(dir, name, version, osName, arch string, a artifact) e
 		"description": "envbuckets binary for " + osName + "-" + arch,
 		"author":      "Sanket Vaghela <sanketvgh@gmail.com>",
 		"license":     "MIT",
-		"repository":  "github:sanketvgh/envbuckets",
+		"repository": map[string]string{
+			"type": "git",
+			"url":  "git+https://github.com/sanketvgh/envbuckets.git",
+		},
 		"os":          []string{osName},
 		"cpu":         []string{arch},
 		"files":       []string{a.Name},

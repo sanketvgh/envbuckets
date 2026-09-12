@@ -4,7 +4,10 @@
   "description": "Your .env switches branches with you.",
   "author": "Sanket Vaghela <sanketvgh@gmail.com>",
   "license": "MIT",
-  "repository": "github:sanketvgh/envbuckets",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sanketvgh/envbuckets.git"
+  },
   "bin": {
     "envbuckets": "bin/envbuckets.js"
   },
