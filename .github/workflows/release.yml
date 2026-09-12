@@ -107,25 +107,30 @@ jobs:
       - name: Publish to npm
         env:
           TAG: ${{ steps.version.outputs.tag }}
-          # Bootstrap only. Trusted publishing (OIDC) cannot be configured until a
-          # package exists. Remove this line and revoke the token after the first
-          # release, once every package has a trusted publisher set on npmjs.com.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           v="$(jq -r .version dist/metadata.json)"
           test "v$v" = "$TAG" || { echo "metadata version $v != tag $TAG"; exit 1; }
           case "$v" in
-            *-alpha.*) tag=alpha ;;
-            *-beta.*)  tag=beta ;;
-            *-rc.*)    tag=rc ;;
-            *)         tag=latest ;;
+            *-alpha.*) channel=alpha ;;
+            *-beta.*)  channel=beta ;;
+            *-rc.*)    channel=rc ;;
+            *)         channel=latest ;;
           esac
+          tag="$channel"
+          if [ "$channel" != latest ] && ! npm view envbuckets dist-tags.latest 2>/dev/null | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "no stable release yet; publishing $v as latest"
+            tag=latest
+          fi
           echo "publishing $v under dist-tag $tag"
           while read -r name; do
             if npm view "$name@$v" version >/dev/null 2>&1; then
               echo "skip $name@$v (already published)"; continue
+            else
+              npm publish "npm/dist/$name" --access public --provenance --tag "$tag"
             fi
-            npm publish "npm/dist/$name" --access public --provenance --tag "$tag"
+            if [ "$tag" != "$channel" ]; then
+              npm dist-tag add "$name@$v" "$channel"
+            fi
           done < npm/dist/packages.txt
 
   cleanup:
