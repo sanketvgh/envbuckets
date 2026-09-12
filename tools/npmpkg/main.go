@@ -31,6 +31,7 @@ func main() {
 	version := flag.String("version", "", "package version without v prefix (default: from dist/metadata.json)")
 	dist := flag.String("dist", "dist", "GoReleaser dist directory")
 	umbrella := flag.String("umbrella", "npm/envbuckets", "umbrella package source directory")
+	readme := flag.String("readme", "README.md", "README copied into the umbrella package")
 	out := flag.String("out", "npm/dist", "output directory")
 	flag.Parse()
 
@@ -67,7 +68,7 @@ func main() {
 		fail("no Binary artifacts found in " + *dist)
 	}
 
-	if err := writeUmbrella(*umbrella, filepath.Join(*out, "envbuckets"), *version, optional); err != nil {
+	if err := writeUmbrella(*umbrella, *readme, filepath.Join(*out, "envbuckets"), *version, optional); err != nil {
 		fail(err.Error())
 	}
 
@@ -132,10 +133,16 @@ func writePlatformPackage(dir, name, version, osName, arch string, a artifact) e
 		"cpu":   []string{arch},
 		"files": []string{a.Name},
 	}
-	return writeJSON(filepath.Join(dir, "package.json"), pkg)
+	if err := writeJSON(filepath.Join(dir, "package.json"), pkg); err != nil {
+		return err
+	}
+	readme := fmt.Sprintf("# %s\n\nPrebuilt envbuckets binary for %s/%s. Do not install directly; install "+
+		"[envbuckets](https://www.npmjs.com/package/envbuckets), which pulls in the right package for your platform.\n",
+		name, osName, arch)
+	return os.WriteFile(filepath.Join(dir, "README.md"), []byte(readme), 0o644)
 }
 
-func writeUmbrella(src, dir, version string, optional map[string]string) error {
+func writeUmbrella(src, readme, dir, version string, optional map[string]string) error {
 	b, err := os.ReadFile(filepath.Join(src, "package.json"))
 	if err != nil {
 		return err
@@ -151,6 +158,9 @@ func writeUmbrella(src, dir, version string, optional map[string]string) error {
 		return err
 	}
 	if err := copyFile(filepath.Join(src, "bin", "envbuckets.js"), filepath.Join(dir, "bin", "envbuckets.js"), 0o755); err != nil {
+		return err
+	}
+	if err := copyFile(readme, filepath.Join(dir, "README.md"), 0o644); err != nil {
 		return err
 	}
 	return writeJSON(filepath.Join(dir, "package.json"), pkg)
