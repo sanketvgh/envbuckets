@@ -1,0 +1,52 @@
+{
+  "go.useLanguageServer": true,
+  "go.lintTool": "golangci-lint-v2",
+  "go.lintFlags": ["--path-mode=abs"],
+  "go.lintOnSave": "package",
+  "go.alternateTools": {
+    "golangci-lint-v2": "golangci-lint"
+  },
+  "gopls": {
+    "formatting.gofumpt": true,
+    "formatting.local": "github.com/sanketvgh/envbuckets",
+    "ui.semanticTokens": true
+  },
+  "[go]": {
+    "editor.defaultFormatter": "golang.go",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    }
+  },
+  "[go.mod]": {
+    "editor.formatOnSave": true
+  },
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "cSpell.words": [
+    "caarlos",
+    "copyloopvar",
+    "ebtest",
+    "envbuckets",
+    "errorlint",
+    "gitmoji",
+    "gocritic",
+    "gofumpt",
+    "goimports",
+    "golangci",
+    "goreleaser",
+    "gosec",
+    "nolintlint",
+    "npmjs",
+    "npmpkg",
+    "perfsprint",
+    "prealloc",
+    "Taskfile",
+    "trimpath",
+    "unconvert",
+    "unparam",
+    "usestdlibvars",
+    "wastedassign",
+    "winget"
+  ]
+}

@@ -1,0 +1,57 @@
+version: "3"
+
+vars:
+  SVU: svu
+  EXE: '{{if eq OS "windows"}}envbuckets.exe{{else}}envbuckets{{end}}'
+
+tasks:
+  build:
+    cmds:
+      - go build -trimpath -o {{.EXE}} .
+
+  fmt:
+    desc: Format Go code (gofumpt + goimports via golangci-lint).
+    cmds:
+      - golangci-lint fmt ./...
+
+  lint:
+    desc: Lint Go code and fail if formatting differs.
+    cmds:
+      - golangci-lint fmt --diff ./...
+      - golangci-lint run ./...
+
+  test:
+    cmds:
+      - go test ./...
+
+  check:
+    desc: Everything CI runs before building.
+    cmds:
+      - task: lint
+      - task: test
+
+  snapshot:
+    desc: Validate config, cross-compile all targets, lay out npm packages. No tag, no publish.
+    cmds:
+      - goreleaser check
+      - goreleaser release --snapshot --clean
+      - go run ./tools/npmpkg
+
+  next-version:
+    desc: Show what the next release would be tagged. PRE=alpha|beta|rc for a prerelease.
+    cmds:
+      - "{{.SVU}} current"
+      - "{{if .PRE}}{{.SVU}} prerelease --pre-release {{.PRE}}{{else}}{{.SVU}} next{{end}}"
+
+  release:
+    desc: Trigger the release workflow on GitHub. PRE=alpha|beta|rc for a prerelease, VERSION=vX.Y.Z to override.
+    preconditions:
+      - sh: '[ -z "{{.PRE}}" ] || [ "{{.PRE}}" = alpha ] || [ "{{.PRE}}" = beta ] || [ "{{.PRE}}" = rc ]'
+        msg: PRE must be alpha, beta, or rc
+    cmds:
+      - gh workflow run release.yml --ref main -f prerelease={{.PRE | default "none"}} -f version={{.VERSION}}
+      - gh run watch --exit-status $(gh run list --workflow release.yml --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId')
+
+  clean:
+    cmds:
+      - rm -rf dist npm/dist envbuckets envbuckets.exe

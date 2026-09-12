@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "golang.go",
+    "task.vscode-task",
+    "davidanson.vscode-markdownlint",
+    "streetsidesoftware.code-spell-checker"
+  ]
+}
