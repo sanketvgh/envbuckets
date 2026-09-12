@@ -41,7 +41,7 @@ tasks:
     desc: Show what the next release would be tagged. PRE=alpha|beta|rc for a prerelease.
     cmds:
       - "{{.SVU}} current"
-      - "{{if .PRE}}{{.SVU}} prerelease --pre-release {{.PRE}}{{else}}{{.SVU}} next{{end}}"
+      - "{{if .PRE}}{{.SVU}} prerelease --prerelease {{.PRE}}{{else}}{{.SVU}} next{{end}}"
 
   release:
     desc: Trigger the release workflow on GitHub. PRE=alpha|beta|rc for a prerelease, VERSION=vX.Y.Z to override.

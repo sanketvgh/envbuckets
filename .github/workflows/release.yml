@@ -72,7 +72,7 @@ jobs:
           if [ -n "$INPUT_VERSION" ]; then
             tag="$INPUT_VERSION"
           elif [ "$INPUT_PRERELEASE" != "none" ]; then
-            tag="$(svu prerelease --pre-release "$INPUT_PRERELEASE")"
+            tag="$(svu prerelease --prerelease "$INPUT_PRERELEASE")"
           else
             tag="$(svu next)"
           fi
@@ -107,6 +107,10 @@ jobs:
       - name: Publish to npm
         env:
           TAG: ${{ steps.version.outputs.tag }}
+          # Bootstrap only. Trusted publishing (OIDC) cannot be configured until a
+          # package exists. Remove this line and revoke the token after the first
+          # release, once every package has a trusted publisher set on npmjs.com.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           v="$(jq -r .version dist/metadata.json)"
           test "v$v" = "$TAG" || { echo "metadata version $v != tag $TAG"; exit 1; }
