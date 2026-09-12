@@ -1,0 +1,43 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: standard
+  enable:
+    - copyloopvar
+    - errorlint
+    - gocritic
+    - gosec
+    - misspell
+    - nolintlint
+    - perfsprint
+    - prealloc
+    - revive
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - wastedassign
+    - whitespace
+  settings:
+    misspell:
+      locale: US
+    gosec:
+      excludes:
+        - G301 # 0755 directories are correct for published package contents
+        - G304 # file paths come from GoReleaser's artifacts.json, not user input
+        - G306 # 0644 files are correct for published package contents
+  exclusions:
+    generated: lax
+    presets:
+      - std-error-handling
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/sanketvgh/envbuckets
