@@ -41,10 +41,6 @@ envbuckets status               # which env am I on?
 Monorepo? `envbuckets scope add apps/api` gives each service its own
 `.env.d/` while rules stay shared.
 
-## Status
-
-Spec frozen. Release pipeline done. CLI commands not started.
-
 ## License
 
 [MIT](LICENSE)
