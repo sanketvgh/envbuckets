@@ -128,9 +128,9 @@ func writePlatformPackage(dir, name, version, osName, arch string, a artifact) e
 			"type": "git",
 			"url":  "git+https://github.com/sanketvgh/envbuckets.git",
 		},
-		"os":          []string{osName},
-		"cpu":         []string{arch},
-		"files":       []string{a.Name},
+		"os":    []string{osName},
+		"cpu":   []string{arch},
+		"files": []string{a.Name},
 	}
 	return writeJSON(filepath.Join(dir, "package.json"), pkg)
 }
