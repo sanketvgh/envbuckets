@@ -3,6 +3,10 @@ version: "3"
 vars:
   SVU: svu
   EXE: '{{if eq OS "windows"}}envbuckets.exe{{else}}envbuckets{{end}}'
+  BENCH_DIR: '{{.ROOT_DIR}}/tmp/bench'
+  BASE_DIR: '{{.ROOT_DIR}}/tmp/base'
+  WARMUP: '{{.WARMUP | default 20}}'
+  RUNS: '{{.RUNS | default 200}}'
 
 tasks:
   build:
@@ -23,6 +27,11 @@ tasks:
   test:
     cmds:
       - go test ./...
+
+  test:integration:
+    desc: Run the txtar scripts against real git (needs symlink support; use WSL on Windows).
+    cmds:
+      - go test -tags integration -run TestScript .
 
   check:
     desc: Everything CI runs before building.
@@ -52,6 +61,42 @@ tasks:
       - gh workflow run release.yml --ref main -f prerelease={{.PRE | default "none"}} -f version={{.VERSION}}
       - gh run watch --exit-status $(gh run list --workflow release.yml --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId')
 
+  bench:fixture:
+    internal: true
+    deps: [build]
+    cmds:
+      - rm -rf {{.BENCH_DIR}}
+      - mkdir -p {{.BENCH_DIR}}
+      - cd {{.BENCH_DIR}} && git init -q -b main && git config user.email bench@example.com && git config user.name bench && git config commit.gpgsign false
+      - cd {{.BENCH_DIR}} && echo x > README && git add README && git commit -q -m init
+      - cd {{.BENCH_DIR}} && echo A=1 > .env && {{.ROOT_DIR}}/{{.EXE}} init --into dev && {{.ROOT_DIR}}/{{.EXE}} bucket add prod
+      - cd {{.BENCH_DIR}} && {{.ROOT_DIR}}/{{.EXE}} map add 'release/*' prod && {{.ROOT_DIR}}/{{.EXE}} map add '*' dev
+
+  bench:
+    desc: Time the hook's no-op path (branch already on its bucket) with hyperfine. Run on Linux or WSL.
+    deps: [bench:fixture]
+    preconditions:
+      - sh: command -v hyperfine
+        msg: hyperfine is not on PATH (https://github.com/sharkdp/hyperfine)
+    dir: '{{.BENCH_DIR}}'
+    cmds:
+      - hyperfine -N -w {{.WARMUP}} -r {{.RUNS}} -n head '{{.ROOT_DIR}}/{{.EXE}} hook x y 1'
+
+  bench:compare:
+    desc: Time BASE=<sha|ref> against the working tree in one hyperfine run. Builds BASE from a throwaway worktree.
+    deps: [bench:fixture]
+    requires:
+      vars: [BASE]
+    preconditions:
+      - sh: command -v hyperfine
+        msg: hyperfine is not on PATH (https://github.com/sharkdp/hyperfine)
+    cmds:
+      - rm -rf {{.BASE_DIR}} && git worktree prune
+      - git worktree add -q --detach {{.BASE_DIR}} {{.BASE}}
+      - defer: git worktree remove --force {{.BASE_DIR}}
+      - cd {{.BASE_DIR}} && go build -trimpath -o {{.ROOT_DIR}}/tmp/envbuckets-base .
+      - cd {{.BENCH_DIR}} && hyperfine -N -w {{.WARMUP}} -r {{.RUNS}} -n base -n head '{{.ROOT_DIR}}/tmp/envbuckets-base hook x y 1' '{{.ROOT_DIR}}/{{.EXE}} hook x y 1'
+
   clean:
     cmds:
-      - rm -rf dist npm/dist envbuckets envbuckets.exe
+      - rm -rf dist npm/dist tmp envbuckets envbuckets.exe
