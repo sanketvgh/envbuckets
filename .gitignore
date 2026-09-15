@@ -1,5 +1,6 @@
 dist/
 npm/dist/
+/tmp/
 /envbuckets
 /envbuckets.exe
 .private/
