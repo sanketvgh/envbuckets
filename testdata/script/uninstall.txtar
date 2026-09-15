@@ -1,0 +1,29 @@
+# uninstall turns the symlink back into a real file, removes the hook
+# block, and keeps the bucket data.
+[!exec:git] skip 'git is required'
+[!symlink] skip 'symlinks are required'
+
+exec git init -q -b main
+exec git add README
+exec git commit -q -m init
+
+exec envbuckets init --into dev
+readlink .env .env.d/dev/.env
+
+exec envbuckets uninstall
+stdout '\[materialized\] \.env \(was -> \.env\.d/dev/\.env\)'
+stdout '\[removed\] hook \(\.git/hooks/post-checkout, contained only our block\)'
+stdout '\[kept\] \.envbuckets\.toml'
+regular .env
+! exists .git/hooks/post-checkout
+exists .env.d/dev/.env
+exists .envbuckets.toml
+
+exec git checkout -q -b release/1.0
+! stderr 'switched'
+regular .env
+
+-- README --
+x
+-- .env --
+A=1

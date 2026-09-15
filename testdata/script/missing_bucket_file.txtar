@@ -1,0 +1,25 @@
+# A matching rule whose bucket file is gone keeps the previous link and
+# warns instead of breaking .env; the checkout itself still succeeds.
+[!exec:git] skip 'git is required'
+[!symlink] skip 'symlinks are required'
+
+exec git init -q -b main
+exec git add README
+exec git commit -q -m init
+
+exec envbuckets init --into dev
+exec envbuckets bucket add stage
+exec envbuckets map add 'staging/*' stage
+rm .env.d/stage/.env
+
+exec git checkout -q -b staging/x
+! stderr 'switched'
+stderr 'warning: root: missing \.env\.d/stage/\.env, kept previous bucket'
+readlink .env .env.d/dev/.env
+exec git symbolic-ref --short HEAD
+stdout 'staging/x'
+
+-- README --
+x
+-- .env --
+A=1

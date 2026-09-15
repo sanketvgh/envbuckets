@@ -24,6 +24,11 @@ tasks:
     cmds:
       - go test ./...
 
+  test:integration:
+    desc: Run the txtar scripts against real git (needs symlink support; use WSL on Windows).
+    cmds:
+      - go test -tags integration -run TestScript .
+
   check:
     desc: Everything CI runs before building.
     cmds:

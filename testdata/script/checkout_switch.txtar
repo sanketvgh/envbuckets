@@ -1,0 +1,33 @@
+# A rule match on checkout repoints .env through the installed hook,
+# and checking out back restores the previous bucket. Git forwards hook
+# stdout to its own stderr, so the hook line is asserted on stderr.
+[!exec:git] skip 'git is required'
+[!symlink] skip 'symlinks are required'
+
+exec git init -q -b main
+exec git add README
+exec git commit -q -m init
+
+exec envbuckets init --into dev
+stdout '\[created\] \.envbuckets\.toml'
+stdout '\[created\] hook block \(\.git/hooks/post-checkout\)'
+stdout '\[created\] root: \.env moved to \.env\.d/dev/\.env'
+readlink .env .env.d/dev/.env
+exists .git/hooks/post-checkout
+
+exec envbuckets bucket add prod
+exec envbuckets map add 'release/*' prod
+exec envbuckets map add '*' dev
+
+exec git checkout -q -b release/1.0
+stderr 'envbuckets: dev -> prod \(release/\*\) - 1 scope switched'
+readlink .env .env.d/prod/.env
+
+exec git checkout -q main
+stderr 'envbuckets: prod -> dev \(\*\) - 1 scope switched'
+readlink .env .env.d/dev/.env
+
+-- README --
+x
+-- .env --
+A=1
