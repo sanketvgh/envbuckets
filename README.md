@@ -11,7 +11,7 @@
 
 > [!WARNING]
 > **Early alpha, under active development.**
-> Commands and config may change without notice until v1.0.
+> Commands and config may change. Star or watch the repo to stay tuned.
 
 envbuckets keeps one `.env` file per bucket (`dev`, `staging`, `prod`) and
 points `.env` at the right one for the branch you are on. A git hook does
@@ -106,16 +106,6 @@ your-repo/
 | `map add\|rm\|list`      | Add, remove, or list branch rules                                                                          |
 | `scope add\|rm\|list`    | Add, remove, or list scopes (for monorepos)                                                                |
 | `uninstall [--purge]`    | Turn `.env` back into a real file and remove the hook. `--purge` also deletes `.env.d/` after you confirm  |
-
-Every error looks the same and tells you what to do next:
-
-```text
-envbuckets: blocked: bucket prod is still referenced by rules: release/*
-  next: envbuckets map rm <pattern> for each, then retry
-```
-
-Exit codes: `0` ok, `1` stopped by a safety rule, `2` config problem,
-`3` wrong usage, `4` environment problem.
 
 ## Guarantees
 
