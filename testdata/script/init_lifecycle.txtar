@@ -1,0 +1,18 @@
+# Repeated init is idempotent for a project without a real .env.
+[!exec:git] skip 'git is required'
+
+exec git init -q -b main
+exec envbuckets init
+stdout '\[created\] \.envbuckets\.toml'
+stdout '\[created\] hook block'
+exec envbuckets init
+stdout '\[ok\] \.envbuckets\.toml'
+stdout '\[ok\] hook block'
+exec envbuckets uninstall
+stdout 'deactivating in this project'
+exec envbuckets init
+stdout '\[created\] hook block'
+exists .envbuckets.toml
+
+-- README --
+fixture

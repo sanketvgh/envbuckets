@@ -1,0 +1,18 @@
+# Existing hook bytes are preserved across init and uninstall.
+[!exec:git] skip 'git is required'
+
+exec git init -q -b main
+cp .git/hooks/post-checkout original-hook
+exec envbuckets init
+exec envbuckets init
+exec envbuckets uninstall
+cmp original-hook .git/hooks/post-checkout
+grep custom-marker .git/hooks/post-checkout
+! grep '# >>> envbuckets v1 >>>' .git/hooks/post-checkout
+! grep '# <<< envbuckets v1 <<<' .git/hooks/post-checkout
+
+-- README --
+fixture
+-- .git/hooks/post-checkout --
+#!/bin/sh
+echo custom-marker >> marker.txt

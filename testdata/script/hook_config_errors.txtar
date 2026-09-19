@@ -1,0 +1,17 @@
+# Hooks remain dormant on malformed configuration; ordinary commands refuse it.
+[!exec:git] skip 'git is required'
+
+exec git init -q -b main
+exec envbuckets init
+cp broken.toml .envbuckets.toml
+exec envbuckets hook post-checkout 1
+stderr 'acting dormant'
+! exec envbuckets status
+stderr 'envbuckets: config:'
+exec envbuckets uninstall
+stdout 'deactivating in this project'
+
+-- README --
+fixture
+-- broken.toml --
+not = [valid

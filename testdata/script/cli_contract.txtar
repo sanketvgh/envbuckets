@@ -1,0 +1,31 @@
+# Executable-level usage, aliases, flag parsing, and exit classes.
+[!exec:git] skip 'git is required'
+
+exec envbuckets
+stdout 'envbuckets - your \.env switches branches with you'
+exec envbuckets help
+exec envbuckets -h
+exec envbuckets --version
+exec envbuckets version
+stdout 'envbuckets '
+
+! exec envbuckets definitely-not-a-command
+stderr 'envbuckets: usage: unknown command'
+! exec envbuckets bucket
+stderr 'envbuckets: usage: bucket: missing subcommand'
+! exec envbuckets scope add
+stderr 'envbuckets: environment: .*not inside a git repository'
+
+mkdir repo
+cd repo
+exec git init -q -b main
+exec envbuckets init
+exec envbuckets scope list
+stdout 'root'
+! exec envbuckets bucket list --unknown
+stderr 'envbuckets: usage: bucket list: flag provided but not defined: -unknown'
+! exec envbuckets scope add --name=api missing
+stderr 'envbuckets: blocked: missing is not an existing directory'
+
+-- README --
+fixture

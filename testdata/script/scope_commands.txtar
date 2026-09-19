@@ -1,0 +1,34 @@
+# Scope registration and resolution are executable workflows that do not
+# require symlinks when scopes have no .env yet.
+[!exec:git] skip 'git is required'
+
+exec git init -q -b main
+exec envbuckets init
+mkdir apps
+mkdir apps/api
+mkdir apps/web
+exec envbuckets scope list
+stdout 'no scopes declared'
+exec envbuckets scope add apps/api --name api
+stdout 'registered scope api \(apps/api\)'
+exec envbuckets scope add apps/web --name=web
+stdout 'registered scope web \(apps/web\)'
+exec envbuckets scope list
+stdout 'api.*apps/api'
+stdout 'web.*apps/web'
+
+cd apps/api
+exec envbuckets scope list
+exec envbuckets scope rm api
+stdout 'unregistered scope api'
+exists ../../.envbuckets.toml
+exists ../../.gitignore
+
+cd ../..
+! exec envbuckets scope add apps/web --name other
+stderr 'path apps/web is already registered'
+! exec envbuckets scope add apps/api --name web
+stderr 'scope name "web" is already used'
+
+-- .gitignore --
+fixture
