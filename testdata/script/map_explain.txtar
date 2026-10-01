@@ -1,6 +1,7 @@
 # map explain resolves any branch name read-only: pin first, then the
 # first matching rule, with per-scope target availability.
 [!exec:git] skip 'git is required'
+[!symlink] skip 'symlinks are required'
 
 exec git init -q -b main
 exec git add README

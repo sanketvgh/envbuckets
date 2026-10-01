@@ -38,10 +38,10 @@ func TestInitPreflightUnwritableRepo(t *testing.T) {
 		t.Skip("needs POSIX permissions as a non-root user")
 	}
 	r := newRepo(t)
-	if err := os.Chmod(r.root, 0o555); err != nil {
+	if err := os.Chmod(r.root, 0o555); err != nil { //nolint:gosec // test dir made read-only on purpose
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.Chmod(r.root, 0o755) })
+	t.Cleanup(func() { _ = os.Chmod(r.root, 0o755) }) //nolint:gosec // restore so TempDir cleanup works
 	res := r.run("init")
 	if res.code != ExitEnv || !strings.Contains(res.stderr, "nothing was changed") || r.exists(".envbuckets.toml") {
 		t.Fatalf("exit %d\n%s", res.code, res.all())

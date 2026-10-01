@@ -62,6 +62,7 @@ func TestMapExplainPinOverridesRule(t *testing.T) {
 
 func TestMapExplainNoMatch(t *testing.T) {
 	r := newRepo(t)
+	requireSymlinks(t, r.root)
 	r.ok("init")
 	r.ok("bucket", "add", "prod")
 	r.ok("map", "add", "release/*", "prod")
@@ -89,6 +90,7 @@ func TestMapExplainMissingScopeDirectory(t *testing.T) {
 
 func TestMapExplainErrors(t *testing.T) {
 	r := newRepo(t)
+	requireSymlinks(t, r.root)
 	r.ok("init")
 	cases := []struct {
 		args []string

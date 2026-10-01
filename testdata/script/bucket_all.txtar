@@ -1,6 +1,7 @@
 # bucket add --all creates empty files only in existing scope directories,
 # never overwrites, and bucket list --all shows the availability matrix.
 [!exec:git] skip 'git is required'
+[!symlink] skip 'symlinks are required'
 
 exec git init -q -b main
 mkdir apps/api apps/web

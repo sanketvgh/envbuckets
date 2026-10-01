@@ -74,6 +74,7 @@ func TestBucketAddSingleScopeKeepsMissingDirMissing(t *testing.T) {
 
 func TestBucketAllFlagValidation(t *testing.T) {
 	r := newRepo(t)
+	requireSymlinks(t, r.root)
 	r.ok("init")
 	cases := [][]string{
 		{"bucket", "add", "x", "--all", "--scope", "root"},
@@ -144,6 +145,7 @@ func TestBucketListAllMatrix(t *testing.T) {
 
 func TestBucketListAllMissingScopeAndEmpty(t *testing.T) {
 	r := newRepo(t)
+	requireSymlinks(t, r.root)
 	r.ok("init")
 	res := r.ok("bucket", "list", "--all")
 	if !strings.Contains(res.stdout, "no buckets on disk or referenced") {

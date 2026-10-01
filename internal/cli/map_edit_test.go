@@ -10,6 +10,7 @@ import (
 func mapRepo(t *testing.T) *repo {
 	t.Helper()
 	r := newRepo(t)
+	requireSymlinks(t, r.root)
 	r.ok("init")
 	for _, b := range []string{"dev", "staging", "prod"} {
 		r.ok("bucket", "add", b)

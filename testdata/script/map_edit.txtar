@@ -1,6 +1,7 @@
 # Rule maintenance: add inserts before the catch-all, update keeps
 # priority, move keeps mappings, and refusals leave the config unchanged.
 [!exec:git] skip 'git is required'
+[!symlink] skip 'symlinks are required'
 
 exec git init -q -b main
 exec envbuckets init
