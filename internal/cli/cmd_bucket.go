@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -14,14 +15,41 @@ func runBucket(args []string, env Env) error {
 	}
 	flags := newFlags("bucket " + sub)
 	scopeName := flags.String("scope", "", "target scope by name")
-	purge := flags.Bool("purge", false, "rm: delete a non-empty bucket after typed confirmation")
+	var purge, all *bool
+	switch sub {
+	case "rm":
+		purge = flags.Bool("purge", false, "delete a non-empty bucket after typed confirmation")
+	case "add", "list":
+		all = flags.Bool("all", false, "every configured scope")
+	}
 	rest, err = parseFlags(flags, rest)
 	if err != nil {
 		return err
 	}
+	switch sub {
+	case "add", "rm":
+		if len(rest) != 1 {
+			return usage("bucket %s: expected exactly one name", sub).then("envbuckets bucket %s <name>", sub)
+		}
+	case "list":
+		if len(rest) != 0 {
+			return usage("bucket list: takes no arguments").then("envbuckets bucket list [--all]")
+		}
+	default:
+		return usage("bucket: unknown subcommand %q", sub).then("envbuckets bucket add|rm|list")
+	}
+	if all != nil && *all && *scopeName != "" {
+		return usage("bucket %s: --all and --scope cannot be used together", sub).then("envbuckets bucket %s --all", sub)
+	}
 	p, err := openProject(env)
 	if err != nil {
 		return err
+	}
+	if all != nil && *all {
+		if sub == "add" {
+			return bucketAddAll(env, p, rest[0])
+		}
+		return bucketListAll(env, p)
 	}
 	s, err := p.resolveScope(env, *scopeName)
 	if err != nil {
@@ -29,19 +57,11 @@ func runBucket(args []string, env Env) error {
 	}
 	switch sub {
 	case "add":
-		if len(rest) != 1 {
-			return usage("bucket add: expected exactly one name").then("envbuckets bucket add <name>")
-		}
 		return bucketAdd(env, s, rest[0])
 	case "rm":
-		if len(rest) != 1 {
-			return usage("bucket rm: expected exactly one name").then("envbuckets bucket rm <name> [--purge]")
-		}
 		return bucketRm(env, p, s, rest[0], *purge)
-	case "list":
-		return bucketList(env, p, s)
 	default:
-		return usage("bucket: unknown subcommand %q", sub).then("envbuckets bucket add|rm|list")
+		return bucketList(env, p, s)
 	}
 }
 
@@ -49,23 +69,39 @@ func bucketAdd(env Env, s scope, name string) error {
 	if err := config.ValidateName(name); err != nil {
 		return blocked("%v", err)
 	}
-	if s.bucketFileExists(name) {
-		fmt.Fprintf(env.Stdout, "%s: bucket %s already exists (%s)\n  next: envbuckets use %s\n", s.Name, name, s.display(linkTarget(name)), name)
-		return nil
-	}
-	if err := os.MkdirAll(s.bucketDir(name), 0o755); err != nil {
-		return err
-	}
-	f, err := os.OpenFile(s.bucketFile(name), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	created, err := createBucket(s, name)
 	if err != nil {
 		return err
 	}
-	if err := f.Close(); err != nil {
-		return err
+	if !created {
+		fmt.Fprintf(env.Stdout, "%s: bucket %s already exists (%s)\n  next: envbuckets use %s\n", s.Name, name, s.display(linkTarget(name)), name)
+		return nil
 	}
 	fmt.Fprintf(env.Stdout, "%s: created bucket %s (empty %s)\n  next: fill %s in your editor, then: envbuckets use %s\n",
 		s.Name, name, s.display(linkTarget(name)), s.display(linkTarget(name)), name)
 	return nil
+}
+
+func createBucket(s scope, name string) (bool, error) {
+	if s.bucketFileExists(name) {
+		return false, nil
+	}
+	if !s.exists() {
+		return false, blocked("%s: scope directory %s is missing, not created", s.Name, s.Path).
+			then("restore %s, or envbuckets scope rm %s", s.Path, s.Name)
+	}
+	if err := os.MkdirAll(s.bucketDir(name), 0o755); err != nil {
+		return false, err
+	}
+	f, err := os.OpenFile(s.bucketFile(name), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if errors.Is(err, os.ErrExist) {
+		return false, blocked("%s exists but is not a regular file, left untouched", s.display(linkTarget(name))).
+			then("inspect %s by hand", s.display(linkTarget(name)))
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, f.Close()
 }
 
 func bucketRm(env Env, p *project, s scope, name string, purge bool) error {
