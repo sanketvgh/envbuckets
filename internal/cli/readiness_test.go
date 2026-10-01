@@ -57,3 +57,23 @@ func TestStatusDescribesMismatchWithoutCause(t *testing.T) {
 		t.Fatalf("mismatch: %d %s", res.code, res.all())
 	}
 }
+
+func TestCheckReportsMissingScopeDirectory(t *testing.T) {
+	r := newRepo(t)
+	requireSymlinks(t, r.root)
+	r.ok("init")
+	r.write("apps/api/README", "api\n")
+	r.ok("scope", "add", "apps/api", "--name", "api")
+	r.ok("bucket", "add", "dev", "--scope", "api")
+	r.ok("map", "add", "main", "dev")
+	if err := os.Rename(r.path("apps/api"), r.path("apps/moved")); err != nil {
+		t.Fatal(err)
+	}
+	res := r.run("check")
+	if res.code != ExitBlocked || !strings.Contains(res.stdout, "MISSING directory apps/api") {
+		t.Fatalf("missing scope: %d %s", res.code, res.all())
+	}
+	if st := r.ok("status"); !strings.Contains(st.stdout, "MISSING directory apps/api") {
+		t.Fatalf("status: %s", st.all())
+	}
+}
