@@ -1,0 +1,45 @@
+# A branch link pins a branch to a bucket over the rules, survives
+# checkouts through the installed hook, moves with git branch -m, and
+# unlink hands the branch back to the rules.
+[!exec:git] skip 'git is required'
+[!symlink] skip 'symlinks are required'
+
+exec git init -q -b main
+exec git add README
+exec git commit -q -m init
+
+exec envbuckets init --into dev
+exec envbuckets bucket add prod
+exec envbuckets map add '*' dev
+
+exec git checkout -q -b feature/x
+exec envbuckets link prod
+stdout 'linked feature/x -> prod \(local, overrides rules, not committed\)'
+stdout 'dev -> prod - 1 scope switched'
+readlink .env .env.d/prod/.env
+exec git config --local --get branch.feature/x.envbuckets
+stdout '^prod$'
+
+exec git checkout -q main
+stderr 'envbuckets: prod -> dev \(\*\) - 1 scope switched'
+readlink .env .env.d/dev/.env
+
+exec git checkout -q feature/x
+stderr 'envbuckets: dev -> prod \(link\) - 1 scope switched'
+readlink .env .env.d/prod/.env
+
+exec git branch -m feature/x feature/y
+exec envbuckets status
+stdout 'branch: feature/y'
+stdout 'link:   prod'
+
+exec envbuckets unlink
+stdout 'unlinked feature/y, rules apply again'
+stdout 'prod -> dev - 1 scope switched'
+readlink .env .env.d/dev/.env
+! exec git config --local --get branch.feature/y.envbuckets
+
+-- README --
+x
+-- .env --
+A=1

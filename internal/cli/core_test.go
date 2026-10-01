@@ -284,6 +284,8 @@ func TestValueBlindnessSweep(t *testing.T) {
 		{"init"},
 		{"use", "prod"},
 		{"use", "dev"},
+		{"link", "prod"},
+		{"unlink"},
 		{"bucket", "list"},
 		{"bucket", "add", "x"},
 		{"bucket", "rm", "x"},
@@ -340,7 +342,7 @@ func TestStatusUninitialized(t *testing.T) {
 func TestUsageErrors(t *testing.T) {
 	r := newRepo(t)
 	r.ok("init")
-	for _, args := range [][]string{{"use"}, {"map", "add", "x"}, {"bucket"}, {"scope", "add"}, {"init", "--bogus"}} {
+	for _, args := range [][]string{{"use"}, {"map", "add", "x"}, {"bucket"}, {"scope", "add"}, {"init", "--bogus"}, {"link"}, {"unlink", "x"}} {
 		if res := r.run(args...); res.code != ExitUsage {
 			t.Errorf("%v: want exit 3, got %d", args, res.code)
 		}

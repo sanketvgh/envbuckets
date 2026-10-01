@@ -79,6 +79,8 @@ Usage:
   envbuckets init [--into <bucket>]     scaffold + hook + gitignore + per-scope bootstrap
   envbuckets status                      branch -> rule -> per-scope bucket + symlink health
   envbuckets use <bucket> [--scope s]    repoint the resolved scope (manual override)
+  envbuckets link <bucket> [--branch b]  pin a branch to a bucket, overrides rules (local)
+  envbuckets unlink [--branch b]         remove the pin, rules apply again
   envbuckets uninstall [--purge]         deactivate in this project; data kept by default
 
   envbuckets bucket add <name>           create <scope>/.env.d/<name>/ + empty .env
@@ -123,6 +125,10 @@ func Run(args []string, env Env) int {
 		err = runStatus(rest, env)
 	case "use":
 		err = runUse(rest, env)
+	case "link":
+		err = runLink(rest, env)
+	case "unlink":
+		err = runUnlink(rest, env)
 	case "uninstall":
 		err = runUninstall(rest, env)
 	case "bucket":

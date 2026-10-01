@@ -1,5 +1,5 @@
-// Package gitx shells out to git for the repo root, current branch, and
-// hooks directory.
+// Package gitx shells out to git for the repo root, current branch, hooks
+// directory, and per-branch bucket links in the local git config.
 package gitx
 
 import (
@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -27,8 +28,7 @@ func Root(dir string) (string, error) {
 func Branch(root string) (string, error) {
 	out, err := run(root, "symbolic-ref", "--short", "-q", "HEAD")
 	if err != nil {
-		var exit *exec.ExitError
-		if errors.As(err, &exit) && exit.ExitCode() == 1 {
+		if exitCode(err) == 1 {
 			return "", nil
 		}
 		return "", err
@@ -49,8 +49,77 @@ func HooksDir(root string) (string, error) {
 	return filepath.Clean(p), nil
 }
 
+// BranchExists reports whether branch is a local branch.
+func BranchExists(root, branch string) bool {
+	_, err := run(root, "show-ref", "--verify", "--quiet", "refs/heads/"+branch)
+	return err == nil
+}
+
+// BranchLink is a branch pinned to a bucket in the local git config.
+type BranchLink struct {
+	Branch string
+	Bucket string
+}
+
+const linkVar = "envbuckets"
+
+func linkKey(branch string) string {
+	return "branch." + branch + "." + linkVar
+}
+
+// LinkedBucket returns the bucket linked to branch, or "" when none is.
+func LinkedBucket(root, branch string) (string, error) {
+	out, err := run(root, "config", "--local", "--get", linkKey(branch))
+	if exitCode(err) == 1 {
+		return "", nil
+	}
+	return out, err
+}
+
+// SetLink links branch to bucket in the local git config.
+func SetLink(root, branch, bucket string) error {
+	_, err := run(root, "config", "--local", linkKey(branch), bucket)
+	return err
+}
+
+// Unlink removes the link of branch and reports whether one existed.
+func Unlink(root, branch string) (bool, error) {
+	_, err := run(root, "config", "--local", "--unset-all", linkKey(branch))
+	if exitCode(err) == 5 {
+		return false, nil
+	}
+	return err == nil, err
+}
+
+// Links returns every branch link in the local git config, sorted by branch.
+func Links(root string) ([]BranchLink, error) {
+	out, err := run(root, "config", "--local", "--get-regexp", `^branch\..*\.`+linkVar+`$`)
+	if exitCode(err) == 1 {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var links []BranchLink
+	for _, line := range strings.Split(out, "\n") {
+		key, bucket, _ := strings.Cut(line, " ")
+		branch := strings.TrimSuffix(strings.TrimPrefix(key, "branch."), "."+linkVar)
+		links = append(links, BranchLink{Branch: branch, Bucket: bucket})
+	}
+	sort.Slice(links, func(i, j int) bool { return links[i].Branch < links[j].Branch })
+	return links, nil
+}
+
+func exitCode(err error) int {
+	var exit *exec.ExitError
+	if errors.As(err, &exit) {
+		return exit.ExitCode()
+	}
+	return 0
+}
+
 func run(dir string, args ...string) (string, error) {
-	cmd := exec.Command("git", args...) //nolint:gosec // args are fixed by the callers above, never user input
+	cmd := exec.Command("git", args...) //nolint:gosec // argv only, no shell; names are validated by the callers
 	cmd.Dir = dir
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

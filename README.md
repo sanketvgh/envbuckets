@@ -92,6 +92,9 @@ your-repo/
 - **Rule**: a branch pattern that points to a bucket. `*` matches anything,
   including `/`. The first rule that matches wins. Rules are committed, so
   the whole team shares them. The values are never committed.
+- **Link**: a pin from one branch to a bucket, set with `envbuckets link`.
+  It wins over the rules and lives in `.git/config`, so it is never
+  committed. Renaming or deleting the branch carries or drops it.
 - **Scope**: a folder that has its own `.env`. A normal repo has one scope,
   the root. A monorepo adds one scope per app.
 
@@ -102,6 +105,8 @@ your-repo/
 | `init [--into <bucket>]` | Move your `.env` into a bucket, install the hook, update `.gitignore`                                      |
 | `status`                 | Show the branch, the rule that matched, and which bucket each scope is on                                  |
 | `use <bucket>`           | Switch by hand. The next checkout that matches a rule switches it back                                     |
+| `link <bucket>`          | Pin the current branch (or `--branch <name>`) to a bucket. Overrides rules, stays local to your clone      |
+| `unlink`                 | Remove the pin so the rules apply again                                                                    |
 | `bucket add\|rm\|list`   | Add, remove, or list buckets in the current scope                                                          |
 | `map add\|rm\|list`      | Add, remove, or list branch rules                                                                          |
 | `scope add\|rm\|list`    | Add, remove, or list scopes (for monorepos)                                                                |

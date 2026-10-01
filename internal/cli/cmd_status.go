@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/sanketvgh/envbuckets/internal/gitx"
-	"github.com/sanketvgh/envbuckets/internal/pattern"
 )
 
 func runStatus(args []string, env Env) error {
@@ -21,24 +20,33 @@ func runStatus(args []string, env Env) error {
 		return envErr("cannot resolve the current branch: %v", err).then("check git status")
 	}
 
-	want := ""
+	var t target
 	if branch == "" {
 		fmt.Fprintln(env.Stdout, "branch: (detached HEAD), the hook leaves .env untouched\n  next: git checkout <branch>, or envbuckets use <bucket>")
-	} else if rule := p.cfg.Match(branch, pattern.Match); rule == nil {
-		fmt.Fprintf(env.Stdout, "branch: %s\nrule:   none, .env is left as-is on checkout\n  next: envbuckets map add <pattern> <bucket>\n", branch)
 	} else {
-		want = rule.Bucket
-		fmt.Fprintf(env.Stdout, "branch: %s\nrule:   %s -> %s\n", branch, rule.Pattern, rule.Bucket)
+		var found bool
+		t, found, err = p.target(branch)
+		switch {
+		case err != nil:
+			return envErr("cannot read the branch link: %v", err).then("envbuckets unlink, or git config --local --unset branch.%s.envbuckets", branch)
+		case !found:
+			fmt.Fprintf(env.Stdout, "branch: %s\nrule:   none, .env is left as-is on checkout\n  next: envbuckets map add <pattern> <bucket>, or envbuckets link <bucket>\n", branch)
+		case t.linked:
+			fmt.Fprintf(env.Stdout, "branch: %s\nlink:   %s (local, overrides rules; envbuckets unlink to drop)\n", branch, t.bucket)
+		default:
+			fmt.Fprintf(env.Stdout, "branch: %s\nrule:   %s -> %s\n", branch, t.via, t.bucket)
+		}
 	}
 
 	fmt.Fprintln(env.Stdout, "scopes:")
 	for _, s := range p.scopes {
-		fmt.Fprintf(env.Stdout, "  %-12s %s\n", s.Name, scopeStatus(s, want))
+		fmt.Fprintf(env.Stdout, "  %-12s %s\n", s.Name, scopeStatus(s, t))
 	}
 	return nil
 }
 
-func scopeStatus(s scope, want string) string {
+func scopeStatus(s scope, t target) string {
+	want := t.bucket
 	if !s.exists() {
 		return "MISSING directory " + s.Path
 	}
@@ -64,6 +72,10 @@ func scopeStatus(s scope, want string) string {
 	case ls.bucket == want:
 		return ls.bucket + " (ok)"
 	default:
-		return fmt.Sprintf("%s (manual override; rule wants %s)", ls.bucket, want)
+		source := "rule"
+		if t.linked {
+			source = "link"
+		}
+		return fmt.Sprintf("%s (manual override; %s wants %s)", ls.bucket, source, want)
 	}
 }

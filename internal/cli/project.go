@@ -86,6 +86,15 @@ func (p *project) scopeByName(name string) (scope, bool) {
 	return scope{}, false
 }
 
+func (p *project) bucketExists(name string) bool {
+	for _, s := range p.scopes {
+		if s.bucketFileExists(name) {
+			return true
+		}
+	}
+	return false
+}
+
 func (p *project) resolveScope(env Env, name string) (scope, error) {
 	if name != "" {
 		s, ok := p.scopeByName(name)

@@ -147,7 +147,7 @@ func scopeList(env Env, p *project) error {
 		fmt.Fprintln(env.Stdout, "no scopes declared, the repo root is the implicit scope\n  next: for a monorepo: envbuckets scope add <path> --name <name>")
 	}
 	for _, s := range p.scopes {
-		fmt.Fprintf(env.Stdout, "  %-12s %-20s %s\n", s.Name, s.Path, scopeStatus(s, ""))
+		fmt.Fprintf(env.Stdout, "  %-12s %-20s %s\n", s.Name, s.Path, scopeStatus(s, target{}))
 	}
 	return nil
 }

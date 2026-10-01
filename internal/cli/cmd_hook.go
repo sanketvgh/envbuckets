@@ -40,39 +40,79 @@ func runHook(args []string, env Env) int {
 		warn("detached HEAD, .env left as-is")
 		return ExitOK
 	}
-	rule := cfg.Match(branch, pattern.Match)
-	if rule == nil {
+	p := newProject(root, cfg)
+	t, found, err := p.target(branch)
+	if err != nil {
+		warn("cannot read the branch link, .env left as-is: %v, next: envbuckets status", err)
+		return ExitOK
+	}
+	if !found {
 		warn("no rule matches %q, .env left as-is, next: envbuckets map add <pattern> <bucket>", branch)
 		return ExitOK
 	}
 
-	p := newProject(root, cfg)
-	var previous, warnings []string
-	switched := 0
+	sw := p.switchAll(t.bucket)
+	if sw.switched > 0 {
+		fmt.Fprintf(env.Stdout, "envbuckets: %s -> %s (%s) - %s switched, next: restart your dev servers\n",
+			joinOr(sw.previous, "?"), t.bucket, t.via, scopeCount(sw.switched))
+	}
+	for _, w := range sw.warnings {
+		fmt.Fprintf(env.Stderr, "warning: %s\n", w)
+	}
+	return ExitOK
+}
+
+type target struct {
+	bucket string
+	via    string
+	linked bool
+}
+
+func (p *project) target(branch string) (target, bool, error) {
+	bucket, err := gitx.LinkedBucket(p.root, branch)
+	if err != nil {
+		return target{}, false, err
+	}
+	if bucket != "" {
+		if err := config.ValidateName(bucket); err != nil {
+			return target{}, false, fmt.Errorf("branch.%s.envbuckets in .git/config: %w", branch, err)
+		}
+		return target{bucket: bucket, via: "link", linked: true}, true, nil
+	}
+	if rule := p.cfg.Match(branch, pattern.Match); rule != nil {
+		return target{bucket: rule.Bucket, via: rule.Pattern}, true, nil
+	}
+	return target{}, false, nil
+}
+
+type switchResult struct {
+	previous []string
+	warnings []string
+	switched int
+}
+
+func (p *project) switchAll(bucket string) switchResult {
+	var res switchResult
 	for _, s := range p.scopes {
-		from, skip, ok := switchScope(s, rule.Bucket)
+		from, skip, ok := switchScope(s, bucket)
 		if !ok {
-			warnings = append(warnings, skip)
+			res.warnings = append(res.warnings, skip)
 			continue
 		}
 		if from == "" {
 			continue
 		}
-		switched++
-		previous = appendUnique(previous, from)
+		res.switched++
+		res.previous = appendUnique(res.previous, from)
 	}
-	if switched > 0 {
-		unit := "scope"
-		if switched != 1 {
-			unit = "scopes"
-		}
-		fmt.Fprintf(env.Stdout, "envbuckets: %s -> %s (%s) - %d %s switched, next: restart your dev servers\n",
-			joinOr(previous, "?"), rule.Bucket, rule.Pattern, switched, unit)
+	return res
+}
+
+func scopeCount(n int) string {
+	if n == 1 {
+		return "1 scope"
 	}
-	for _, w := range warnings {
-		fmt.Fprintf(env.Stderr, "warning: %s\n", w)
-	}
-	return ExitOK
+	return fmt.Sprintf("%d scopes", n)
 }
 
 func switchScope(s scope, bucket string) (from, skip string, ok bool) {

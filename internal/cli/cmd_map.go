@@ -55,14 +55,7 @@ func mapAdd(env Env, p *project, pat, bucket string) error {
 			return blocked("pattern %q already maps to %s", pat, r.Bucket).then("envbuckets map rm %q first to change it", pat)
 		}
 	}
-	exists := false
-	for _, s := range p.scopes {
-		if s.bucketFileExists(bucket) {
-			exists = true
-			break
-		}
-	}
-	if !exists {
+	if !p.bucketExists(bucket) {
 		return blocked("bucket %s does not exist in any scope", bucket).then("envbuckets bucket add %s, then retry", bucket)
 	}
 	p.cfg.Rules = append(p.cfg.Rules, config.Rule{Pattern: pat, Bucket: bucket})
@@ -96,12 +89,20 @@ func mapRm(env Env, p *project, pat string) error {
 }
 
 func mapList(env Env, p *project) error {
+	links, err := gitx.Links(p.root)
+	if err != nil {
+		return envErr("cannot read branch links: %v", err).then("check git config --local --list")
+	}
+	branch, _ := gitx.Branch(p.root)
+	linked := false
+	for _, l := range links {
+		linked = linked || l.Branch == branch
+	}
 	if len(p.cfg.Rules) == 0 {
 		fmt.Fprintln(env.Stdout, "no rules\n  next: envbuckets map add <pattern> <bucket>")
-		return nil
 	}
 	var active *config.Rule
-	if branch, _ := gitx.Branch(p.root); branch != "" {
+	if branch != "" && !linked {
 		active = p.cfg.Match(branch, pattern.Match)
 	}
 	for i, r := range p.cfg.Rules {
@@ -110,6 +111,16 @@ func mapList(env Env, p *project) error {
 			marker = "*"
 		}
 		fmt.Fprintf(env.Stdout, "%s %d. %-24s -> %s\n", marker, i+1, r.Pattern, r.Bucket)
+	}
+	if len(links) > 0 {
+		fmt.Fprintln(env.Stdout, "links (local, override rules):")
+		for _, l := range links {
+			marker := " "
+			if l.Branch == branch {
+				marker = "*"
+			}
+			fmt.Fprintf(env.Stdout, "%s    %-24s -> %s\n", marker, l.Branch, l.Bucket)
+		}
 	}
 	return nil
 }

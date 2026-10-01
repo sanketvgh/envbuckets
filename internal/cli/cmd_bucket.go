@@ -79,6 +79,12 @@ func bucketRm(env Env, p *project, s scope, name string, purge bool) error {
 		return blocked("bucket %s is still referenced by rules: %s", name, joinOr(refs, "")).
 			then("envbuckets map rm <pattern> for each, then retry")
 	}
+	if branches, err := linkedBranches(p.root, name); err != nil {
+		return err
+	} else if len(branches) > 0 {
+		return blocked("bucket %s is linked by branches: %s", name, joinOr(branches, "")).
+			then("envbuckets unlink --branch <name> for each, then retry")
+	}
 	ls, err := s.linkState()
 	if err != nil {
 		return err

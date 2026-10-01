@@ -78,6 +78,10 @@ func runUninstall(args []string, env Env) error {
 	if err != nil {
 		return err
 	}
+	links, err := gitx.Links(root)
+	if err != nil {
+		return envErr("cannot read branch links: %v", err).then("check git config --local --list")
+	}
 	if !*purge {
 		if block.Body(mustRead(gitignorePath(root))) != nil {
 			step("kept", ".gitignore block (values remain in %s/ dirs)", bucketsDir)
@@ -86,6 +90,9 @@ func runUninstall(args []string, env Env) error {
 		}
 		if _, err := os.Stat(config.Path(root)); err == nil {
 			step("kept", config.FileName)
+		}
+		if len(links) > 0 {
+			step("kept", "branch links (%d in .git/config)", len(links))
 		}
 		if len(dataDirs) > 0 {
 			step("kept", "%s/ dirs (%d scopes, %d buckets)", bucketsDir, len(dataDirs), countBuckets(dataDirs))
@@ -103,6 +110,9 @@ func runUninstall(args []string, env Env) error {
 	if _, err := os.Stat(config.Path(root)); err == nil {
 		fmt.Fprintf(env.Stdout, "  %s\n", config.FileName)
 	}
+	for _, l := range links {
+		fmt.Fprintf(env.Stdout, "  link %s -> %s (.git/config)\n", l.Branch, l.Bucket)
+	}
 	if len(dataDirs) > 0 || fileExists(config.Path(root)) {
 		if err := confirmDelete(env, "all bucket data and the config"); err != nil {
 			return err
@@ -118,6 +128,14 @@ func runUninstall(args []string, env Env) error {
 		step("removed", config.FileName)
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
+	}
+	for _, l := range links {
+		if _, err := gitx.Unlink(root, l.Branch); err != nil {
+			return envErr("cannot remove the link of %s: %v", l.Branch, err).then("git config --local --unset branch.%s.envbuckets", l.Branch)
+		}
+	}
+	if len(links) > 0 {
+		step("removed", "branch links (%d in .git/config)", len(links))
 	}
 	switch changed, err := removeIgnoreBlock(root); {
 	case err != nil:
