@@ -76,7 +76,7 @@ func className(code int) string {
 const helpText = `envbuckets - your .env switches branches with you.
 
 Usage:
-  envbuckets init [--into <bucket>]     scaffold + hook + gitignore + per-scope bootstrap
+  envbuckets init [--into <bucket>] [--scaffold]  hook + gitignore + bootstrap; optional rule buckets
   envbuckets status                      branch -> rule -> per-scope bucket + symlink health
   envbuckets check [--scope s]           verify structural readiness for the current branch
   envbuckets apply [--scope s] [--dry-run] apply the current branch mapping
@@ -85,16 +85,20 @@ Usage:
   envbuckets unlink [--branch b]         remove the pin, rules apply again
   envbuckets uninstall [--purge]         deactivate in this project; data kept by default
 
-  envbuckets bucket add <name>           create <scope>/.env.d/<name>/ + empty .env
+  envbuckets bucket add <name> [--scope s|--all]  create empty bucket file(s)
   envbuckets bucket rm <name> [--purge]  refuse if referenced or non-empty
-  envbuckets bucket list                 buckets in scope with rules and active marker
+  envbuckets bucket list [--scope s|--all]       buckets in scope, or a scope matrix
 
-  envbuckets map add <pattern> <bucket>  repo-wide rule, appended (first match wins)
+  envbuckets map add <pattern> <bucket>  add a rule before a catch-all *
+  envbuckets map update <pattern> <bucket>  change bucket, keep priority
+  envbuckets map move <pattern> --before|--after <pattern>
   envbuckets map rm <pattern>
   envbuckets map list
+  envbuckets map explain <branch>        explain a pin or matching rule
 
   envbuckets scope add <path> [--name n] register a scope directory
-  envbuckets scope rm <name> [--purge]   unregister; values kept unless --purge
+  envbuckets scope rm <name> [--purge]   unregister; data kept unless --purge
+  envbuckets scope purge <path>          erase data left by an unregistered scope
   envbuckets scope list
 
   envbuckets version
@@ -112,6 +116,10 @@ func Run(args []string, env Env) int {
 	env.Stdin = bufio.NewReader(env.Stdin)
 	cmd, rest := args[0], args[1:]
 	if commandHelpRequested(rest) {
+		if help, ok := groupHelp(cmd, rest); ok {
+			fmt.Fprint(env.Stdout, help)
+			return ExitOK
+		}
 		if help, ok := commandHelp(cmd); ok {
 			fmt.Fprint(env.Stdout, help)
 			return ExitOK
@@ -235,17 +243,24 @@ func isBoolFlag(f *flag.Flag) bool {
 	return ok && b.IsBoolFlag()
 }
 
-func flagProvided(fs *flag.FlagSet, name string) bool {
+func scopeFlagProvided(fs *flag.FlagSet) bool {
 	found := false
 	fs.Visit(func(f *flag.Flag) {
-		found = found || f.Name == name
+		found = found || f.Name == "scope"
 	})
 	return found
 }
 
 func subcommand(group string, args []string) (string, []string, error) {
 	if len(args) == 0 {
-		return "", nil, usage("%s: missing subcommand", group).then("envbuckets %s add|rm|list", group)
+		choices := "add|rm|list"
+		switch group {
+		case "map":
+			choices = "add|update|move|rm|list|explain"
+		case "scope":
+			choices = "add|rm|purge|list"
+		}
+		return "", nil, usage("%s: missing subcommand", group).then("envbuckets %s %s", group, choices)
 	}
 	return args[0], args[1:], nil
 }

@@ -1,6 +1,7 @@
 # Scope registration and resolution are executable workflows that do not
 # require symlinks when scopes have no .env yet.
 [!exec:git] skip 'git is required'
+[!symlink] skip 'symlinks are required'
 
 exec git init -q -b main
 exec envbuckets init

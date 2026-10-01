@@ -1,5 +1,6 @@
 # Status and map output remain useful before any .env is initialized.
 [!exec:git] skip 'git is required'
+[!symlink] skip 'symlinks are required'
 
 exec git init -q -b main
 exec envbuckets init

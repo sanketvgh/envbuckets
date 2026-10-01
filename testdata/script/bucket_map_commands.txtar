@@ -1,6 +1,7 @@
 # Bucket and map refusal paths preserve the project while successful edits
 # remain visible through list commands.
 [!exec:git] skip 'git is required'
+[!symlink] skip 'symlinks are required'
 
 exec git init -q -b main
 exec envbuckets init
@@ -14,10 +15,11 @@ exec envbuckets map add '*' dev
 exec envbuckets map list
 stdout 'release/\*'
 stdout '\* .*-> dev'
-! exec envbuckets map add 'hotfix/*' dev
-stderr 'catch-all.*must stay last'
+exec envbuckets map add 'hotfix/*' dev
+stdout 'priority 2, before the catch-all'
 ! exec envbuckets map add 'release/*' dev
-stderr 'catch-all.*must stay last'
+stderr 'already maps to prod'
+exec envbuckets map rm 'hotfix/*'
 ! exec envbuckets bucket rm prod
 stderr 'still referenced by rules'
 ! exec envbuckets bucket rm dev

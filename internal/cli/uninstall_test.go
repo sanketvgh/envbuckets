@@ -35,6 +35,7 @@ func TestDefaultUninstallKeepsData(t *testing.T) {
 
 func TestUninstallPreservesCustomHook(t *testing.T) {
 	r := newRepo(t)
+	requireSymlinks(t, r.root)
 	custom := "#!/bin/sh\necho custom\n"
 	r.write(".git/hooks/post-checkout", custom)
 	r.ok("init")

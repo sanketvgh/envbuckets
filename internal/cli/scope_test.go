@@ -117,6 +117,7 @@ func TestScopeContext(t *testing.T) {
 
 func TestScopeAddValidation(t *testing.T) {
 	r := newRepo(t)
+	requireSymlinks(t, r.root)
 	r.ok("init")
 	if err := os.MkdirAll(r.path("apps/api/sub"), 0o755); err != nil {
 		t.Fatal(err)

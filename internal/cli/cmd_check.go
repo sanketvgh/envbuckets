@@ -12,7 +12,7 @@ func runCheck(args []string, env Env) error {
 	if len(rest) != 0 {
 		return usage("check: takes no arguments").then("envbuckets check [--scope <name>]")
 	}
-	if flagProvided(flags, "scope") && *scopeName == "" {
+	if scopeFlagProvided(flags) && *scopeName == "" {
 		return usage("check: --scope requires a name")
 	}
 	p, err := openProject(env)

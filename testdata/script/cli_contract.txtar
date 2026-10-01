@@ -1,5 +1,6 @@
 # Executable-level usage, aliases, flag parsing, and exit classes.
 [!exec:git] skip 'git is required'
+[!symlink] skip 'symlinks are required'
 
 exec envbuckets
 stdout 'envbuckets - your \.env switches branches with you'

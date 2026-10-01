@@ -17,10 +17,10 @@ func runUse(args []string, env Env) error {
 	if len(rest) != 1 {
 		return usage("use: expected exactly one bucket name").then("envbuckets bucket list")
 	}
-	if *all && flagProvided(flags, "scope") {
+	if *all && scopeFlagProvided(flags) {
 		return usage("use: --all and --scope cannot be used together")
 	}
-	if flagProvided(flags, "scope") && *scopeName == "" {
+	if scopeFlagProvided(flags) && *scopeName == "" {
 		return usage("use: --scope requires a name")
 	}
 	bucket := rest[0]

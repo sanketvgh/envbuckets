@@ -1,5 +1,6 @@
 # Repeated init is idempotent for a project without a real .env.
 [!exec:git] skip 'git is required'
+[!symlink] skip 'symlinks are required'
 
 exec git init -q -b main
 exec envbuckets init
