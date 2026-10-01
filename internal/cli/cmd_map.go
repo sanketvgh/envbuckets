@@ -29,6 +29,10 @@ func runMap(args []string, env Env) error {
 		if len(rest) != 2 {
 			return usage("map %s: expected <pattern> <bucket>", sub).then("envbuckets map %s 'release/*' prod", sub)
 		}
+	case "explain":
+		if len(rest) != 1 {
+			return usage("map explain: expected one <branch>").then("envbuckets map explain feature/login")
+		}
 	case "rm", "move":
 		if len(rest) != 1 {
 			return usage("map %s: expected one <pattern>", sub).then("envbuckets map list")
@@ -38,7 +42,7 @@ func runMap(args []string, env Env) error {
 			return usage("map list: takes no arguments").then("envbuckets map list")
 		}
 	default:
-		return usage("map: unknown subcommand %q", sub).then("envbuckets map add|update|move|rm|list")
+		return usage("map: unknown subcommand %q", sub).then("envbuckets map add|update|move|rm|list|explain")
 	}
 	if sub == "move" && (*before == "") == (*after == "") {
 		return usage("map move: pass exactly one of --before or --after").then("envbuckets map move %q --before <pattern>", rest[0])
@@ -56,6 +60,8 @@ func runMap(args []string, env Env) error {
 		return mapMove(env, p, rest[0], *before, *after)
 	case "rm":
 		return mapRm(env, p, rest[0])
+	case "explain":
+		return mapExplain(env, p, rest[0])
 	default:
 		return mapList(env, p)
 	}
