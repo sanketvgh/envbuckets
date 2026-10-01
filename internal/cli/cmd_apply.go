@@ -47,6 +47,9 @@ func runApply(args []string, env Env) error {
 	if len(rest) != 0 {
 		return usage("apply: takes no arguments").then("envbuckets apply [--scope <name>] [--dry-run]")
 	}
+	if flagProvided(flags, "scope") && *scopeName == "" {
+		return usage("apply: --scope requires a name")
+	}
 	p, err := openProject(env)
 	if err != nil {
 		return err

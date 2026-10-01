@@ -48,6 +48,15 @@ func TestApplyPreservesUnmanagedAndReportsPartial(t *testing.T) {
 	if r.read("apps/api/.env") != "KEEP=1\n" || r.readlink("apps/web/.env") != ".env.d/dev/.env" {
 		t.Fatal("apply did not preserve the real file and switch independent scope")
 	}
+	if res := r.run("apply", "--scope", "web"); res.code != ExitOK || !strings.Contains(res.stdout, "0 changed, 1 unchanged, 0 failed") {
+		t.Fatalf("selected apply: %d %s", res.code, res.all())
+	}
+	if res := r.run("check", "--scope", "web"); res.code != ExitOK || !strings.Contains(res.stdout, "check: 1 ready") {
+		t.Fatalf("selected check: %d %s", res.code, res.all())
+	}
+	if res := r.run("check"); res.code != ExitBlocked {
+		t.Fatalf("all-scope check: %d %s", res.code, res.all())
+	}
 }
 
 func TestUseAllIsTransientAndRejectsConflictingSelectors(t *testing.T) {

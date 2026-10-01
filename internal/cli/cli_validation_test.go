@@ -17,7 +17,7 @@ func TestAffectedCommandHelpNeedsNoProject(t *testing.T) {
 
 func TestAffectedCommandRejectsExtraInput(t *testing.T) {
 	r := newRepo(t)
-	for _, args := range [][]string{{"status", "extra"}, {"check", "extra"}, {"apply", "extra"}, {"check", "--irrelevant"}, {"apply", "--all"}} {
+	for _, args := range [][]string{{"status", "extra"}, {"check", "extra"}, {"apply", "extra"}, {"check", "--irrelevant"}, {"apply", "--all"}, {"check", "--scope="}, {"apply", "--scope="}, {"use", "dev", "--all", "--scope="}} {
 		res := r.run(args...)
 		if res.code != ExitUsage {
 			t.Errorf("%v: want usage, got %d %s", args, res.code, res.all())

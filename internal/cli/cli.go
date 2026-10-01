@@ -235,6 +235,14 @@ func isBoolFlag(f *flag.Flag) bool {
 	return ok && b.IsBoolFlag()
 }
 
+func flagProvided(fs *flag.FlagSet, name string) bool {
+	found := false
+	fs.Visit(func(f *flag.Flag) {
+		found = found || f.Name == name
+	})
+	return found
+}
+
 func subcommand(group string, args []string) (string, []string, error) {
 	if len(args) == 0 {
 		return "", nil, usage("%s: missing subcommand", group).then("envbuckets %s add|rm|list", group)
