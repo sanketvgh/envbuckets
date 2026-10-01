@@ -37,9 +37,11 @@ run them in a symlink-capable environment.
   foreign, and managed links, and exposes a managed bucket and broken-link
   flag. Agent B may use them for explanation and the availability matrix.
   Agent B must not depend on Agent A's mutable switching code.
-- Agent A's read-only readiness result will carry the branch, `target`, whether
-  resolution succeeded, each selected scope's directory/link/expected-file
-  facts, and per-scope readiness problems. A missing managed link is unhealthy
+- Agent A's `(*project).evaluateCurrent(selected []scope) (readiness, error)`
+  in `internal/cli/readiness.go` is read-only. Its result carries the branch,
+  `target`, whether resolution succeeded, each selected scope's
+  directory/link/expected-file facts, and per-scope readiness problems. A
+  missing managed link is unhealthy
   for `check` but repairable by `apply` when its target exists. A real `.env`
   or foreign symlink is an apply blocker. A broken managed link may be
   repointed to an available expected target. `apply` plans from these facts,

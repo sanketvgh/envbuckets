@@ -78,6 +78,7 @@ const helpText = `envbuckets - your .env switches branches with you.
 Usage:
   envbuckets init [--into <bucket>]     scaffold + hook + gitignore + per-scope bootstrap
   envbuckets status                      branch -> rule -> per-scope bucket + symlink health
+  envbuckets check [--scope s]           verify structural readiness for the current branch
   envbuckets use <bucket> [--scope s]    repoint the resolved scope (manual override)
   envbuckets link <bucket> [--branch b]  pin a branch to a bucket, overrides rules (local)
   envbuckets unlink [--branch b]         remove the pin, rules apply again
@@ -109,6 +110,12 @@ func Run(args []string, env Env) int {
 	}
 	env.Stdin = bufio.NewReader(env.Stdin)
 	cmd, rest := args[0], args[1:]
+	if commandHelpRequested(rest) {
+		if help, ok := commandHelp(cmd); ok {
+			fmt.Fprint(env.Stdout, help)
+			return ExitOK
+		}
+	}
 	var err error
 	switch cmd {
 	case "version", "--version", "-v":
@@ -123,6 +130,8 @@ func Run(args []string, env Env) int {
 		err = runInit(rest, env)
 	case "status":
 		err = runStatus(rest, env)
+	case "check":
+		err = runCheck(rest, env)
 	case "use":
 		err = runUse(rest, env)
 	case "link":
@@ -141,6 +150,25 @@ func Run(args []string, env Env) int {
 		err = usage("unknown command %q", cmd).then("envbuckets help")
 	}
 	return report(err, env)
+}
+
+func commandHelpRequested(args []string) bool {
+	for _, arg := range args {
+		if arg == "--help" || arg == "-h" {
+			return true
+		}
+	}
+	return false
+}
+
+func commandHelp(cmd string) (string, bool) {
+	switch cmd {
+	case "status":
+		return "Usage: envbuckets status\n\nShow current branch resolution and each scope's actual .env state.\n", true
+	case "check":
+		return "Usage: envbuckets check [--scope <name>]\n\nCheck structural readiness for the current branch. Defaults to all scopes.\n", true
+	}
+	return "", false
 }
 
 func report(err error, env Env) int {

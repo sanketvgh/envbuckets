@@ -48,7 +48,7 @@ func TestUseOnLinkedBranchIsReportedAsOverride(t *testing.T) {
 	r.ok("link", "prod")
 	r.ok("use", "dev")
 	st := r.ok("status")
-	if !strings.Contains(st.stdout, "manual override; link wants prod") {
+	if !strings.Contains(st.stdout, "active: dev; expected: prod") || !strings.Contains(st.stdout, "link:   prod") {
 		t.Fatalf("status:\n%s", st.stdout)
 	}
 }

@@ -86,7 +86,7 @@ func TestUseIsATransientOverride(t *testing.T) {
 		t.Fatalf("use:\n%s", res.all())
 	}
 	st := r.ok("status")
-	if !strings.Contains(st.stdout, "manual override") {
+	if !strings.Contains(st.stdout, "active: prod; expected: dev") {
 		t.Fatalf("status:\n%s", st.stdout)
 	}
 	r.checkoutMain()
@@ -132,7 +132,7 @@ func TestStatusReportsBroken(t *testing.T) {
 		t.Fatal(err)
 	}
 	res := r.ok("status")
-	if !strings.Contains(res.stdout, "BROKEN") || !strings.Contains(res.stdout, "create it") {
+	if !strings.Contains(res.stdout, "BROKEN") || !strings.Contains(res.stdout, "expected: staging") {
 		t.Fatalf("status:\n%s", res.stdout)
 	}
 	if err := os.Remove(r.path(".env.d/staging/.env")); err != nil {
