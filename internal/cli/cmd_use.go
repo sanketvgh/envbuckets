@@ -9,6 +9,7 @@ import (
 func runUse(args []string, env Env) error {
 	flags := newFlags("use")
 	scopeName := flags.String("scope", "", "target scope by name")
+	all := flags.Bool("all", false, "target all configured scopes")
 	rest, err := parseFlags(flags, args)
 	if err != nil {
 		return err
@@ -23,6 +24,17 @@ func runUse(args []string, env Env) error {
 	p, err := openProject(env)
 	if err != nil {
 		return err
+	}
+	if *all {
+		selected, err := p.selectScopes(env, *scopeName, true, false)
+		if err != nil {
+			return err
+		}
+		states := make([]scopeReadiness, 0, len(selected))
+		for _, s := range selected {
+			states = append(states, evaluateScope(s, bucket, true))
+		}
+		return executePlans(env, states, bucket, false, "use")
 	}
 	s, err := p.resolveScope(env, *scopeName)
 	if err != nil {

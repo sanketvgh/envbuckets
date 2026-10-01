@@ -79,7 +79,8 @@ Usage:
   envbuckets init [--into <bucket>]     scaffold + hook + gitignore + per-scope bootstrap
   envbuckets status                      branch -> rule -> per-scope bucket + symlink health
   envbuckets check [--scope s]           verify structural readiness for the current branch
-  envbuckets use <bucket> [--scope s]    repoint the resolved scope (manual override)
+  envbuckets apply [--scope s] [--dry-run] apply the current branch mapping
+  envbuckets use <bucket> [--scope s|--all] repoint scope(s) (manual override)
   envbuckets link <bucket> [--branch b]  pin a branch to a bucket, overrides rules (local)
   envbuckets unlink [--branch b]         remove the pin, rules apply again
   envbuckets uninstall [--purge]         deactivate in this project; data kept by default
@@ -132,6 +133,8 @@ func Run(args []string, env Env) int {
 		err = runStatus(rest, env)
 	case "check":
 		err = runCheck(rest, env)
+	case "apply":
+		err = runApply(rest, env)
 	case "use":
 		err = runUse(rest, env)
 	case "link":
@@ -167,6 +170,14 @@ func commandHelp(cmd string) (string, bool) {
 		return "Usage: envbuckets status\n\nShow current branch resolution and each scope's actual .env state.\n", true
 	case "check":
 		return "Usage: envbuckets check [--scope <name>]\n\nCheck structural readiness for the current branch. Defaults to all scopes.\n", true
+	case "apply":
+		return "Usage: envbuckets apply [--scope <name>] [--dry-run]\n\nApply the current branch's pin or rule to all scopes by default. --dry-run plans without writing.\n", true
+	case "use":
+		return "Usage: envbuckets use <bucket> [--scope <name> | --all]\n\nTemporarily point one scope, or all scopes with --all, to a bucket.\n", true
+	case "link":
+		return "Usage: envbuckets link <bucket> [--branch <name>]\n\nPin a local branch to a bucket. Defaults to the current branch.\n", true
+	case "unlink":
+		return "Usage: envbuckets unlink [--branch <name>]\n\nRemove a local branch pin. Defaults to the current branch.\n", true
 	}
 	return "", false
 }
