@@ -63,9 +63,10 @@ func runHook(args []string, env Env) int {
 }
 
 type target struct {
-	bucket string
-	via    string
-	linked bool
+	bucket   string
+	via      string
+	linked   bool
+	priority int
 }
 
 func (p *project) target(branch string) (target, bool, error) {
@@ -79,8 +80,10 @@ func (p *project) target(branch string) (target, bool, error) {
 		}
 		return target{bucket: bucket, via: "link", linked: true}, true, nil
 	}
-	if rule := p.cfg.Match(branch, pattern.Match); rule != nil {
-		return target{bucket: rule.Bucket, via: rule.Pattern}, true, nil
+	for i, rule := range p.cfg.Rules {
+		if pattern.Match(rule.Pattern, branch) {
+			return target{bucket: rule.Bucket, via: rule.Pattern, priority: i + 1}, true, nil
+		}
 	}
 	return target{}, false, nil
 }

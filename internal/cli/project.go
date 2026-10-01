@@ -122,6 +122,20 @@ func (p *project) resolveScope(env Env, name string) (scope, error) {
 	return best, nil
 }
 
+func (p *project) selectScopes(env Env, name string, all, defaultAll bool) ([]scope, error) {
+	if all && name != "" {
+		return nil, usage("--all and --scope cannot be used together")
+	}
+	if all || (defaultAll && name == "") {
+		return append([]scope(nil), p.scopes...), nil
+	}
+	s, err := p.resolveScope(env, name)
+	if err != nil {
+		return nil, err
+	}
+	return []scope{s}, nil
+}
+
 func withinScope(scopePath, rel string) bool {
 	if scopePath == "." {
 		return true
