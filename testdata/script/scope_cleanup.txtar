@@ -1,0 +1,44 @@
+# scope rm keeps data and points at scope purge <path>, which works after
+# the scope is unregistered, asks for DELETE, and refuses unsafe paths.
+[!exec:git] skip 'git is required'
+[!symlink] skip 'symlinks are required'
+
+exec git init -q -b main
+mkdir apps/web apps/api
+exec envbuckets init
+exec envbuckets scope add apps/web
+exec envbuckets scope add apps/api
+exec envbuckets bucket add dev --all
+exec envbuckets use dev --scope web
+
+exec envbuckets scope rm web
+stdout 'next: to erase them: envbuckets scope purge apps/web'
+grep 'apps/web/.env.d/' .gitignore
+
+! exec envbuckets scope purge apps/web
+stdout 'apps/web/\.env\.d/ \(buckets: dev\)'
+stdout 'apps/web/\.env \(symlink -> \.env\.d/dev/\.env, would dangle\)'
+stderr 'confirmation not received, nothing deleted'
+exists apps/web/.env.d/dev/.env
+
+stdin delete.txt
+exec envbuckets scope purge apps/web
+stdout 'removed: apps/web/\.env\.d/, apps/web/\.env, its \.gitignore lines'
+! exists apps/web/.env.d
+! exists apps/web/.env
+exists apps/web
+! grep 'apps/web/' .gitignore
+grep 'apps/api/.env.d/' .gitignore
+
+! exec envbuckets scope purge apps/api
+stderr 'apps/api is still registered as scope "api"'
+! exec envbuckets scope purge ../elsewhere
+stderr 'resolves outside the repo'
+! exec envbuckets scope purge apps/api/.env.d
+stderr 'points inside \.env\.d'
+exists apps/api/.env.d/dev/.env
+
+-- README --
+fixture
+-- delete.txt --
+DELETE
