@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/sanketvgh/envbuckets/internal/config"
 )
 
 func TestApplyRepairsMissingLinkAndDryRun(t *testing.T) {
@@ -95,7 +97,9 @@ func TestHookAndApplyPreserveForeignSymlink(t *testing.T) {
 
 func TestApplyNoMatchAndDetachedDoNotMutate(t *testing.T) {
 	r := newRepo(t)
-	r.ok("init")
+	if err := config.New().Save(r.root); err != nil {
+		t.Fatal(err)
+	}
 	if res := r.run("apply", "--dry-run"); res.code != ExitBlocked || !strings.Contains(res.all(), "no mapping") || r.exists(".env") {
 		t.Fatalf("no match: %d %s", res.code, res.all())
 	}
