@@ -27,6 +27,10 @@ func runScope(args []string, env Env) error {
 	if err != nil {
 		return err
 	}
+	p, err := openProject(env)
+	if err != nil {
+		return err
+	}
 	switch sub {
 	case "add":
 		if len(rest) != 1 {
@@ -46,10 +50,6 @@ func runScope(args []string, env Env) error {
 		}
 	default:
 		return usage("scope: unknown subcommand %q", sub).then("envbuckets scope add|rm|purge|list")
-	}
-	p, err := openProject(env)
-	if err != nil {
-		return err
 	}
 	switch sub {
 	case "add":

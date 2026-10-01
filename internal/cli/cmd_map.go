@@ -24,6 +24,10 @@ func runMap(args []string, env Env) error {
 	if err != nil {
 		return err
 	}
+	p, err := openProject(env)
+	if err != nil {
+		return err
+	}
 	switch sub {
 	case "add", "update":
 		if len(rest) != 2 {
@@ -46,10 +50,6 @@ func runMap(args []string, env Env) error {
 	}
 	if sub == "move" && (*before == "") == (*after == "") {
 		return usage("map move: pass exactly one of --before or --after").then("envbuckets map move %q --before <pattern>", rest[0])
-	}
-	p, err := openProject(env)
-	if err != nil {
-		return err
 	}
 	switch sub {
 	case "add":

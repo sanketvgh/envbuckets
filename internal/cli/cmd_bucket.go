@@ -26,6 +26,10 @@ func runBucket(args []string, env Env) error {
 	if err != nil {
 		return err
 	}
+	p, err := openProject(env)
+	if err != nil {
+		return err
+	}
 	switch sub {
 	case "add", "rm":
 		if len(rest) != 1 {
@@ -40,10 +44,6 @@ func runBucket(args []string, env Env) error {
 	}
 	if all != nil && *all && *scopeName != "" {
 		return usage("bucket %s: --all and --scope cannot be used together", sub).then("envbuckets bucket %s --all", sub)
-	}
-	p, err := openProject(env)
-	if err != nil {
-		return err
 	}
 	if all != nil && *all {
 		if sub == "add" {
