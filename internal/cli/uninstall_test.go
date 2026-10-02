@@ -11,6 +11,10 @@ import (
 func TestDefaultUninstallKeepsData(t *testing.T) {
 	r := setup(t)
 	r.write(".env.d/dev/.env", "A=1\n")
+	before, err := os.Stat(r.path(".env.d/dev/.env"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	res := r.ok("uninstall")
 	if !strings.Contains(res.stdout, "materialized: .env (was -> .env.d/dev/.env)") {
 		t.Fatalf("output:\n%s", res.stdout)
@@ -19,13 +23,19 @@ func TestDefaultUninstallKeepsData(t *testing.T) {
 	if err != nil || info.Mode()&os.ModeSymlink != 0 {
 		t.Fatal(".env should be a real file")
 	}
+	if !os.SameFile(before, info) {
+		t.Fatal("uninstall must move the bucket file without copying its bytes")
+	}
+	if strings.Contains(res.all(), "A=1") {
+		t.Fatal("uninstall printed an env value")
+	}
 	if r.read(".env") != "A=1\n" {
 		t.Fatal("materialized content mismatch")
 	}
 	if r.exists(".git/hooks/post-checkout") {
 		t.Fatal("hook file with only our block should be deleted")
 	}
-	if !r.exists(".envbuckets.toml") || !r.exists(".env.d/dev/.env") || !strings.Contains(r.read(".gitignore"), block.Begin) {
+	if !r.exists(".envbuckets.toml") || r.exists(".env.d/dev/.env") || !r.exists(".env.d/staging/.env") || !strings.Contains(r.read(".gitignore"), block.Begin) {
 		t.Fatal("data or gitignore removed by default uninstall")
 	}
 	if !strings.Contains(res.stdout, "Data kept") {
@@ -49,8 +59,12 @@ func TestPurgeRequiresConfirmation(t *testing.T) {
 	r := setup(t)
 	r.write(".env.d/dev/.env", "A=1\n")
 	res := r.runIn(r.root, "", "uninstall", "--purge")
-	if res.code != ExitBlocked || !r.exists(".env.d/dev") {
+	if res.code != ExitBlocked || !r.exists(".env.d/dev/.env") || r.readlink(".env") != linkTarget("dev") || !r.exists(".git/hooks/post-checkout") {
 		t.Fatalf("no confirmation must block: %d %s", res.code, res.all())
+	}
+	res = r.run("uninstall", "--purge", "--json")
+	if res.code != ExitBlocked || !r.exists(".env.d/dev/.env") || r.readlink(".env") != linkTarget("dev") || !r.exists(".git/hooks/post-checkout") {
+		t.Fatalf("JSON purge changed files without confirmation: %d %s", res.code, res.all())
 	}
 	res = r.runIn(r.root, "DELETE\n", "uninstall", "--purge")
 	if res.code != ExitOK {
@@ -65,6 +79,25 @@ func TestPurgeRequiresConfirmation(t *testing.T) {
 	status := r.git("status", "--porcelain")
 	if strings.Contains(status, ".env.d") || strings.Contains(status, ".envbuckets.toml") || strings.Contains(status, ".gitignore") {
 		t.Fatalf("tool traces visible to git:\n%s", status)
+	}
+}
+
+func TestUninstallRefusesARealEnvCreatedAfterInspection(t *testing.T) {
+	r := setup(t)
+	s := (&project{root: r.root}).newScope("root", ".")
+	ls, err := s.linkState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(r.path(".env")); err != nil {
+		t.Fatal(err)
+	}
+	r.write(".env", "OWN=1\n")
+	if err := materializeScope(s, ls); err == nil {
+		t.Fatal("uninstall replaced a real .env after stale inspection")
+	}
+	if r.read(".env") != "OWN=1\n" || !r.exists(".env.d/dev/.env") {
+		t.Fatal("real env or bucket file changed")
 	}
 }
 
@@ -116,12 +149,8 @@ func TestRoundTrip(t *testing.T) {
 	if res := r.hook(); !strings.Contains(res.stderr, "real file") || r.read(".env") != "A=1\n" {
 		t.Fatalf("post-uninstall hook touched .env:\n%s", res.all())
 	}
-	res := r.run("init", "--into", "dev")
-	if res.code != ExitBlocked || !strings.Contains(res.stdout, "refusing to clobber") {
-		t.Fatalf("clobber guard: %d %s", res.code, res.all())
-	}
-	res = r.ok("init", "--into", "restored")
-	if r.readlink(".env") != ".env.d/restored/.env" || r.read(".env.d/restored/.env") != "A=1\n" {
+	res := r.ok("init", "--into", "dev")
+	if r.readlink(".env") != ".env.d/dev/.env" || r.read(".env.d/dev/.env") != "A=1\n" {
 		t.Fatalf("bootstrap: %s", res.all())
 	}
 	prompted := r.ok("uninstall")

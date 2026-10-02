@@ -5,3 +5,4 @@ npm/dist/
 /envbuckets.exe
 .private/
 /playground/
+/node_modules/

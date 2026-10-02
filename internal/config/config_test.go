@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -40,6 +41,21 @@ func TestLoadMissing(t *testing.T) {
 	_, err := Load(t.TempDir())
 	if !errors.Is(err, ErrMissing) {
 		t.Fatalf("want ErrMissing, got %v", err)
+	}
+}
+
+func TestLoadRefusesSymlinkWithoutReadingTarget(t *testing.T) {
+	root := t.TempDir()
+	secret := filepath.Join(root, ".env")
+	if err := os.WriteFile(secret, []byte("SYNTHETIC_SECRET=1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(secret, Path(root)); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	_, err := Load(root)
+	if !errors.Is(err, ErrCorrupt) || strings.Contains(err.Error(), "SYNTHETIC_SECRET") {
+		t.Fatalf("symlinked config was read: %v", err)
 	}
 }
 

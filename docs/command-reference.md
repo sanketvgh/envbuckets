@@ -45,7 +45,7 @@ The text is for people and may change. Use `--json` and exit codes in scripts.
 | `scope rm <name>`               | `--purge`                                   | Unregister; keep data by default.                                                                    |
 | `scope purge <path>`            | —                                           | Delete data from an unregistered scope after confirmation.                                           |
 | `scope list`                    | —                                           | List registered scopes and their `.env` state.                                                       |
-| `uninstall`                     | `--purge`                                   | Deactivate and restore real `.env` files; optionally erase data.                                     |
+| `uninstall`                     | `--purge`                                   | Deactivate and move each active bucket file to a real `.env`; optionally erase remaining buckets.    |
 | `version`                       | —                                           | Print the CLI version.                                                                               |
 | `help`                          | —                                           | Print the top-level help.                                                                            |
 

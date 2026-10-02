@@ -137,6 +137,9 @@ func switchScope(s scope, bucket string) (from, skip string, ok bool) {
 		return "", fmt.Sprintf("%s: no %s symlink, skipped", s.Name, s.display(envFile)), false
 	case linkBucket:
 		if ls.bucket == bucket && !ls.dangling {
+			if !s.bucketFileExists(bucket) {
+				return "", fmt.Sprintf("%s: unsafe or missing %s, kept previous link", s.Name, s.display(linkTarget(bucket))), false
+			}
 			return "", "", true
 		}
 	case linkForeign:

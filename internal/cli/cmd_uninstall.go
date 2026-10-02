@@ -11,7 +11,6 @@ import (
 
 	"github.com/sanketvgh/envbuckets/internal/block"
 	"github.com/sanketvgh/envbuckets/internal/config"
-	"github.com/sanketvgh/envbuckets/internal/fsx"
 	"github.com/sanketvgh/envbuckets/internal/gitx"
 )
 
@@ -25,6 +24,14 @@ func runUninstall(args []string, env Env) error {
 	if err != nil {
 		return err
 	}
+	hooksDir, err := gitx.HooksDir(root)
+	if err != nil {
+		return envErr("cannot use the git hooks directory: %v", err)
+	}
+	ignoreData, err := readGitignore(root)
+	if err != nil {
+		return envErr("cannot use .gitignore: %v", err)
+	}
 	step := func(tag, format string, a ...any) {
 		fmt.Fprintf(env.Stdout, "  %s: %s\n", tag, fmt.Sprintf(format, a...))
 	}
@@ -33,6 +40,11 @@ func runUninstall(args []string, env Env) error {
 	found, err := discoverScopes(root)
 	if err != nil {
 		return err
+	}
+	if *purge {
+		if err := confirmUninstallPurge(env, root, found); err != nil {
+			return err
+		}
 	}
 	retainedLink := false
 	for _, s := range found {
@@ -76,10 +88,6 @@ func runUninstall(args []string, env Env) error {
 			then("fix the warnings above, then re-run envbuckets uninstall --purge")
 	}
 
-	hooksDir, err := gitx.HooksDir(root)
-	if err != nil {
-		return envErr("cannot locate the git hooks directory: %v", err).then("check git rev-parse --git-path hooks")
-	}
 	hookPath := filepath.Join(hooksDir, "post-checkout")
 	switch res, err := block.RemoveHook(hookPath); {
 	case err != nil:
@@ -101,7 +109,7 @@ func runUninstall(args []string, env Env) error {
 		return envErr("cannot read branch links: %v", err).then("check git config --local --list")
 	}
 	if !*purge {
-		if block.Body(mustRead(gitignorePath(root))) != nil {
+		if block.Body(ignoreData) != nil {
 			step("kept", ".gitignore block (values remain in %s/ dirs)", bucketsDir)
 		} else {
 			step("skipped", ".gitignore block (not installed)")
@@ -113,29 +121,12 @@ func runUninstall(args []string, env Env) error {
 			step("kept", "branch links (%d in .git/config)", len(links))
 		}
 		if len(dataDirs) > 0 {
-			step("kept", "%s/ dirs (%d scopes, %d buckets)", bucketsDir, len(dataDirs), countBuckets(dataDirs))
+			step("kept", "%s/ dirs (%d scopes, %d bucket directories)", bucketsDir, len(dataDirs), countBuckets(dataDirs))
 		}
-		fmt.Fprintln(env.Stdout, "Data kept (.env.d/ and the config)")
+		fmt.Fprintln(env.Stdout, "Data kept (active .env, remaining .env.d/ files, and config)")
 		return nil
 	}
 
-	if len(dataDirs) > 0 {
-		fmt.Fprintln(env.Stdout, "Purge will delete:")
-		for _, d := range dataDirs {
-			fmt.Fprintf(env.Stdout, "  %s (buckets: %s)\n", relOrAbs(root, d.path), joinOr(d.buckets, "none"))
-		}
-	}
-	if _, err := os.Stat(config.Path(root)); err == nil {
-		fmt.Fprintf(env.Stdout, "  %s\n", config.FileName)
-	}
-	for _, l := range links {
-		fmt.Fprintf(env.Stdout, "  link %s -> %s (.git/config)\n", l.Branch, l.Bucket)
-	}
-	if len(dataDirs) > 0 || fileExists(config.Path(root)) {
-		if err := confirmDelete(env, "all bucket data and the config"); err != nil {
-			return err
-		}
-	}
 	repo, err := os.OpenRoot(root)
 	if err != nil {
 		return err
@@ -175,6 +166,37 @@ func runUninstall(args []string, env Env) error {
 	return nil
 }
 
+func confirmUninstallPurge(env Env, root string, scopes []scope) error {
+	for _, s := range scopes {
+		ls, err := s.linkState()
+		if err != nil {
+			return blocked("cannot inspect %s before purge: %v", s.display(envFile), err)
+		}
+		if ls.kind == linkForeign || ls.dangling || (ls.kind == linkBucket && !s.bucketFileExists(ls.bucket)) {
+			return blocked("%s cannot be safely restored; purge stopped", s.display(envFile))
+		}
+	}
+	dataDirs, err := discoverBucketDirs(root)
+	if err != nil {
+		return err
+	}
+	links, err := gitx.Links(root)
+	if err != nil {
+		return envErr("cannot read branch links: %v", err)
+	}
+	fmt.Fprintln(env.Stdout, "Purge will delete:")
+	for _, d := range dataDirs {
+		fmt.Fprintf(env.Stdout, "  %s (buckets: %s)\n", relOrAbs(root, d.path), joinOr(d.buckets, "none"))
+	}
+	if fileExists(config.Path(root)) {
+		fmt.Fprintf(env.Stdout, "  %s\n", config.FileName)
+	}
+	for _, l := range links {
+		fmt.Fprintf(env.Stdout, "  link %s -> %s (.git/config)\n", l.Branch, l.Bucket)
+	}
+	return confirmDelete(env, "all bucket data and the config")
+}
+
 func materializeScope(s scope, ls linkState) error {
 	if err := s.checkBucketParents(ls.bucket); err != nil {
 		return err
@@ -184,7 +206,22 @@ func materializeScope(s scope, ls linkState) error {
 		return err
 	}
 	defer root.Close()
-	return fsx.CopyFileAtomicRoot(root, filepath.Join(s.bucketRel(ls.bucket), envFile), filepath.Join(filepath.FromSlash(s.Path), envFile), s.bucketRel(""), 0o600)
+	dst := filepath.Join(filepath.FromSlash(s.Path), envFile)
+	info, err := root.Lstat(dst)
+	if err != nil {
+		return err
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		return blocked("%s changed from a managed symlink, left untouched", s.display(envFile))
+	}
+	target, err := root.Readlink(dst)
+	if err != nil {
+		return err
+	}
+	if filepath.ToSlash(target) != ls.target {
+		return blocked("%s changed from its inspected target, left untouched", s.display(envFile))
+	}
+	return root.Rename(filepath.Join(s.bucketRel(ls.bucket), envFile), dst)
 }
 
 func discoverScopes(root string) ([]scope, error) {
@@ -290,11 +327,6 @@ func countBuckets(dirs []bucketDir) int {
 		n += len(d.buckets)
 	}
 	return n
-}
-
-func mustRead(p string) []byte {
-	data, _ := os.ReadFile(p)
-	return data
 }
 
 func fileExists(p string) bool {

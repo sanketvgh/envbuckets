@@ -20,6 +20,7 @@ env:
   SVU_VERSION: v3.4.1
   GORELEASER_VERSION: v2.18.1
   GOLANGCI_LINT_VERSION: v2.13.2
+  NPM_VERSION: 11.21.0
 
 jobs:
   release:
@@ -35,32 +36,27 @@ jobs:
     outputs:
       tag: ${{ steps.version.outputs.tag }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        # zizmor: ignore[artipacked] needs the token to push the tag
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
-      - uses: actions/setup-node@v7
+          cache: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
-      - run: npm install -g npm@latest
+          package-manager-cache: false
+      - run: npm install -g "npm@${NPM_VERSION}" # zizmor: ignore[adhoc-packages] trusted publishing needs npm >= 11.5.1
 
-      - uses: golangci/golangci-lint-action@v9
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
       - run: go test ./...
 
-      - name: Cache svu
-        id: cache-svu
-        uses: actions/cache@v6
-        with:
-          path: ~/go/bin/svu
-          key: svu-${{ env.SVU_VERSION }}-${{ runner.os }}
-
       - name: Install svu
-        if: steps.cache-svu.outputs.cache-hit != 'true'
         run: go install "github.com/caarlos0/svu/v3@${SVU_VERSION}"
 
       - name: Compute version
@@ -93,7 +89,7 @@ jobs:
           git tag -a "$TAG" -m "$TAG"
           git push origin "$TAG"
 
-      - uses: goreleaser/goreleaser-action@v7
+      - uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
         with:
           distribution: goreleaser
           version: ${{ env.GORELEASER_VERSION }}
@@ -139,7 +135,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        # zizmor: ignore[artipacked] needs the token to push the tag
       - name: Delete dangling tag and release
         env:
           TAG: ${{ needs.release.outputs.tag }}

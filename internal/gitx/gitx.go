@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
@@ -36,7 +37,8 @@ func Branch(root string) (string, error) {
 	return out, nil
 }
 
-// HooksDir returns the absolute hooks directory, honoring core.hooksPath.
+// HooksDir returns the hooks directory only when the hook and all existing
+// parent components are ordinary paths inside the work tree.
 func HooksDir(root string) (string, error) {
 	out, err := run(root, "rev-parse", "--git-path", "hooks")
 	if err != nil {
@@ -46,7 +48,33 @@ func HooksDir(root string) (string, error) {
 	if !filepath.IsAbs(p) {
 		p = filepath.Join(root, p)
 	}
-	return filepath.Clean(p), nil
+	p = filepath.Clean(p)
+	if err := checkLocalHookPath(root, filepath.Join(p, "post-checkout")); err != nil {
+		return "", err
+	}
+	return p, nil
+}
+
+func checkLocalHookPath(root, hook string) error {
+	rel, err := filepath.Rel(root, hook)
+	if err != nil || rel == ".." || filepath.IsAbs(rel) || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("git hooks path %s is outside the repository", hook)
+	}
+	current := root
+	for _, part := range strings.Split(rel, string(filepath.Separator)) {
+		current = filepath.Join(current, part)
+		info, err := os.Lstat(current)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("inspect git hook path %s: %w", current, err)
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("git hook path %s contains a symlink", current)
+		}
+	}
+	return nil
 }
 
 // BranchExists reports whether branch is a local branch.

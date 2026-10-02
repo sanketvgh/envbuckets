@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -260,9 +259,8 @@ func linkTarget(bucket string) string {
 }
 
 func bucketFromTarget(target string) (string, bool) {
-	t := path.Clean(filepath.ToSlash(target))
-	parts := strings.Split(t, "/")
-	if len(parts) != 3 || parts[0] != bucketsDir || parts[2] != envFile {
+	parts := strings.Split(filepath.ToSlash(target), "/")
+	if len(parts) != 3 || parts[0] != bucketsDir || parts[2] != envFile || config.ValidateName(parts[1]) != nil {
 		return "", false
 	}
 	return parts[1], true
