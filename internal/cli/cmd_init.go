@@ -41,12 +41,19 @@ func runInit(args []string, env Env) error {
 	if err := probeSymlinks(root); err != nil {
 		return err
 	}
+	hooksDir, err := gitx.HooksDir(root)
+	if err != nil {
+		return envErr("cannot use the git hooks directory: %v", err)
+	}
+	if _, err := readGitignore(root); err != nil {
+		return envErr("cannot use .gitignore: %v", err)
+	}
 	step := stepPrinter(env)
 	fmt.Fprintln(env.Stdout, "Initializing envbuckets in this project")
 	if missing {
 		cfg = config.New()
 	}
-	if err := initSetup(root, cfg, missing, step); err != nil {
+	if err := initSetup(root, hooksDir, cfg, missing, step); err != nil {
 		return recoverable(err)
 	}
 	p := newProject(root, cfg)
@@ -73,7 +80,7 @@ func runInit(args []string, env Env) error {
 	return blockedErr
 }
 
-func initSetup(root string, cfg *config.Config, missing bool, step func(string, string, ...any)) error {
+func initSetup(root, hooksDir string, cfg *config.Config, missing bool, step func(string, string, ...any)) error {
 	if missing {
 		if err := cfg.Save(root); err != nil {
 			return err
@@ -81,10 +88,6 @@ func initSetup(root string, cfg *config.Config, missing bool, step func(string, 
 		step("created", config.FileName)
 	} else {
 		step("ok", config.FileName)
-	}
-	hooksDir, err := gitx.HooksDir(root)
-	if err != nil {
-		return envErr("cannot locate the git hooks directory: %v", err).then("check git rev-parse --git-path hooks")
 	}
 	if err := os.MkdirAll(hooksDir, 0o755); err != nil {
 		return err

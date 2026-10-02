@@ -130,6 +130,107 @@ func TestSymlinkedBucketFileIsNotAvailable(t *testing.T) {
 	}
 }
 
+func TestHookWarnsWhenCurrentBucketFileBecomesSymlink(t *testing.T) {
+	r := setup(t)
+	r.ok("use", "staging")
+	outside := filepath.Join(t.TempDir(), "outside.env")
+	if err := os.WriteFile(outside, []byte("synthetic data\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(r.path(".env.d/staging/.env")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, r.path(".env.d/staging/.env")); err != nil {
+		t.Fatal(err)
+	}
+	res := r.hook()
+	if !strings.Contains(res.stderr, "unsafe or missing .env.d/staging/.env") || res.stdout != "" {
+		t.Fatalf("hook silently accepted unsafe current bucket: %s", res.all())
+	}
+	if r.readlink(".env") != linkTarget("staging") {
+		t.Fatal("hook changed the existing link")
+	}
+}
+
+func TestNoncanonicalBucketLinkIsForeign(t *testing.T) {
+	r := setup(t)
+	if err := os.Remove(r.path(".env")); err != nil {
+		t.Fatal(err)
+	}
+	target := ".env.d/escape/../staging/.env"
+	if err := os.Symlink(target, r.path(".env")); err != nil {
+		t.Fatal(err)
+	}
+	if res := r.run("check"); res.code != ExitBlocked || !strings.Contains(res.stdout, "foreign") {
+		t.Fatalf("noncanonical link accepted: %d %s", res.code, res.all())
+	}
+	if res := r.hook(); !strings.Contains(res.stderr, "foreign symlink") || r.readlink(".env") != target {
+		t.Fatalf("hook changed a noncanonical link: %s", res.all())
+	}
+}
+
+func TestExternalOrSymlinkedHookPathIsRefused(t *testing.T) {
+	t.Run("external hooks path", func(t *testing.T) {
+		r := newRepo(t)
+		requireSymlinks(t, r.root)
+		outside := filepath.Join(t.TempDir(), "hooks")
+		r.git("config", "core.hooksPath", outside)
+		res := r.run("init")
+		if res.code != ExitEnv || !strings.Contains(res.stderr, "outside the repository") {
+			t.Fatalf("init accepted external hooks path: %d %s", res.code, res.all())
+		}
+		if r.exists(".envbuckets.toml") {
+			t.Fatal("init wrote config before rejecting hook path")
+		}
+		if _, err := os.Lstat(outside); !os.IsNotExist(err) {
+			t.Fatalf("external hooks path changed: %v", err)
+		}
+	})
+	t.Run("symlinked hook file", func(t *testing.T) {
+		r := newRepo(t)
+		requireSymlinks(t, r.root)
+		outside := filepath.Join(t.TempDir(), "hook")
+		if err := os.WriteFile(outside, []byte("#!/bin/sh\necho synthetic\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(outside, r.path(".git/hooks/post-checkout")); err != nil {
+			t.Fatal(err)
+		}
+		res := r.run("init")
+		if res.code != ExitEnv || !strings.Contains(res.stderr, "contains a symlink") || r.exists(".envbuckets.toml") {
+			t.Fatalf("init accepted symlinked hook: %d %s", res.code, res.all())
+		}
+		if got, err := os.ReadFile(outside); err != nil || string(got) != "#!/bin/sh\necho synthetic\n" {
+			t.Fatalf("external hook changed: %v", err)
+		}
+	})
+	t.Run("uninstall preflight", func(t *testing.T) {
+		r := setup(t)
+		outside := filepath.Join(t.TempDir(), "hooks")
+		r.git("config", "core.hooksPath", outside)
+		res := r.run("uninstall")
+		if res.code != ExitEnv || !strings.Contains(res.stderr, "outside the repository") || r.readlink(".env") != linkTarget("dev") {
+			t.Fatalf("uninstall changed state before rejecting hook path: %d %s", res.code, res.all())
+		}
+	})
+}
+
+func TestSymlinkedGitignoreCannotReadEnv(t *testing.T) {
+	r := newRepo(t)
+	requireSymlinks(t, r.root)
+	r.write(".env", "SYNTHETIC_SECRET=1\n")
+	if err := os.Symlink(".env", r.path(".gitignore")); err != nil {
+		t.Fatal(err)
+	}
+	res := r.run("init", "--into", "dev")
+	if res.code != ExitEnv || !strings.Contains(res.stderr, ".gitignore must be a regular file") || strings.Contains(res.all(), "SYNTHETIC_SECRET") {
+		t.Fatalf("init accepted symlinked gitignore: %d %s", res.code, res.all())
+	}
+	if !r.exists(".env") || r.exists(".envbuckets.toml") {
+		t.Fatal("init changed the repo before rejecting .gitignore")
+	}
+}
+
 func TestUninstallDoesNotMaterializeOutsideBucketFiles(t *testing.T) {
 	r := newRepo(t)
 	requireSymlinks(t, r.root)

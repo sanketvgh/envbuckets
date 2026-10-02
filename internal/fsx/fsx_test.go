@@ -1,6 +1,7 @@
 package fsx
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -84,18 +85,22 @@ func TestInspectRealAndMissing(t *testing.T) {
 	}
 }
 
-func TestCopyFileAtomic(t *testing.T) {
+func TestReadRegularFileRefusesSymlink(t *testing.T) {
 	dir := t.TempDir()
-	src := filepath.Join(dir, "src")
-	dst := filepath.Join(dir, "dst")
-	if err := os.WriteFile(src, []byte("payload"), 0o644); err != nil {
+	requireSymlinks(t, dir)
+	secret := filepath.Join(dir, ".env")
+	if err := os.WriteFile(secret, []byte("SYNTHETIC_SECRET=1\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := CopyFileAtomic(src, dst, dir, 0o600); err != nil {
+	link := filepath.Join(dir, ".gitignore")
+	if err := os.Symlink(".env", link); err != nil {
 		t.Fatal(err)
 	}
-	data, _ := os.ReadFile(dst)
-	if string(data) != "payload" {
-		t.Fatalf("got %q", data)
+	if _, err := ReadRegularFile(link); !errors.Is(err, ErrNotRegular) {
+		t.Fatalf("symlinked file was accepted: %v", err)
+	}
+	data, err := ReadRegularFile(secret)
+	if err != nil || string(data) != "SYNTHETIC_SECRET=1\n" {
+		t.Fatalf("ordinary file could not be read: %v", err)
 	}
 }

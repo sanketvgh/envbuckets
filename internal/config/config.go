@@ -65,7 +65,7 @@ func Path(root string) string {
 // Load reads and validates the config, returning ErrMissing when absent
 // and ErrCorrupt on any parse, schema, or validation failure.
 func Load(root string) (*Config, error) {
-	data, err := os.ReadFile(Path(root))
+	data, err := fsx.ReadRegularFile(Path(root))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, ErrMissing
 	}

@@ -31,9 +31,12 @@ func gitignorePath(root string) string {
 }
 
 func readGitignore(root string) ([]byte, error) {
-	data, err := os.ReadFile(gitignorePath(root))
+	data, err := fsx.ReadRegularFile(gitignorePath(root))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
+	}
+	if errors.Is(err, fsx.ErrNotRegular) {
+		return nil, errors.New(".gitignore must be a regular file, not a symlink or directory")
 	}
 	return data, err
 }

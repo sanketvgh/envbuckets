@@ -12,6 +12,44 @@ import (
 	"path/filepath"
 )
 
+// ErrNotRegular means a metadata file is not an ordinary file.
+var ErrNotRegular = errors.New("not a regular file")
+
+// ReadRegularFile checks the opened file against its directory entry before
+// reading, so a symlink introduced between inspection and open is refused.
+func ReadRegularFile(path string) ([]byte, error) {
+	root, err := os.OpenRoot(filepath.Dir(path))
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	name := filepath.Base(path)
+	before, err := root.Lstat(name)
+	if err != nil {
+		return nil, err
+	}
+	if !before.Mode().IsRegular() {
+		return nil, fmt.Errorf("%s: %w", path, ErrNotRegular)
+	}
+	f, err := root.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	opened, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	after, err := root.Lstat(name)
+	if err != nil {
+		return nil, err
+	}
+	if !after.Mode().IsRegular() || !os.SameFile(before, opened) || !os.SameFile(after, opened) {
+		return nil, fmt.Errorf("%s changed while opening: %w", path, ErrNotRegular)
+	}
+	return io.ReadAll(f)
+}
+
 // Status describes a path without following it.
 type Status struct {
 	Exists    bool
@@ -123,73 +161,6 @@ func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 		_, err := w.Write(data)
 		return err
 	})
-}
-
-// CopyFileAtomic streams src into a temp file in stageDir and renames it
-// over dst.
-func CopyFileAtomic(src, dst, stageDir string, perm os.FileMode) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	return writeAtomic(dst, stageDir, perm, func(w io.Writer) error {
-		_, err := io.Copy(w, in)
-		return err
-	})
-}
-
-// CopyFileAtomicRoot streams a file through a temporary file without allowing
-// any source, staging, or destination path to escape root through symlinks.
-func CopyFileAtomicRoot(root *os.Root, src, dst, stageDir string, perm os.FileMode) error {
-	in, err := root.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-	var out *os.File
-	var tmp string
-	for range 10 {
-		var random [16]byte
-		if _, err := rand.Read(random[:]); err != nil {
-			return err
-		}
-		tmp = filepath.Join(stageDir, ".envbuckets-write-"+hex.EncodeToString(random[:]))
-		out, err = root.OpenFile(tmp, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
-		if errors.Is(err, os.ErrExist) {
-			continue
-		}
-		if err != nil {
-			return err
-		}
-		break
-	}
-	if out == nil {
-		return fmt.Errorf("cannot reserve a unique file name in %s", stageDir)
-	}
-	cleanup := func(err error) error {
-		_ = out.Close()
-		_ = root.Remove(tmp)
-		return err
-	}
-	if _, err := io.Copy(out, in); err != nil {
-		return cleanup(err)
-	}
-	if err := out.Sync(); err != nil {
-		return cleanup(err)
-	}
-	if err := out.Chmod(perm); err != nil {
-		return cleanup(err)
-	}
-	if err := out.Close(); err != nil {
-		_ = root.Remove(tmp)
-		return err
-	}
-	if err := root.Rename(tmp, dst); err != nil {
-		_ = root.Remove(tmp)
-		return err
-	}
-	return nil
 }
 
 func writeAtomic(path, stageDir string, perm os.FileMode, fill func(io.Writer) error) error {

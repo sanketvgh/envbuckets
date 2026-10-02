@@ -103,7 +103,7 @@ const (
 // InstallHook appends the envbuckets block to the hook at path, creating
 // the file with a shebang when absent and keeping it executable.
 func InstallHook(path string) (HookResult, error) {
-	existing, err := os.ReadFile(path)
+	existing, err := fsx.ReadRegularFile(path)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return HookUnchanged, err
 	}
@@ -126,7 +126,7 @@ func InstallHook(path string) (HookResult, error) {
 // RemoveHook strips the block, deleting the file when only a shebang and
 // blank lines remain and otherwise writing the rest back unchanged.
 func RemoveHook(path string) (HookResult, error) {
-	existing, err := os.ReadFile(path)
+	existing, err := fsx.ReadRegularFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return HookUnchanged, nil
 	}
