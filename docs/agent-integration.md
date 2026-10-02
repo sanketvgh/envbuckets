@@ -10,11 +10,10 @@ envbuckets check --json
 envbuckets apply --dry-run --json
 ```
 
-For people, failures use `envbuckets: <category>: <reason>` on stderr,
-followed by an indented `next:` hint when there is a useful action.
+For people, failures use `envbuckets: <category>: <reason>` on stderr.
 Nonfatal warnings use `envbuckets: warning:`. Successful commands describe
-what changed and show a next step where one is useful. Display wording is
-free to improve; scripts and agents should use the JSON contract below.
+what changed. Display wording is free to improve; scripts and agents
+should use the JSON contract below.
 
 JSON mode prints one object to stdout and returns the command's process
 exit code. It never waits for interactive input. The envelope has schema
@@ -50,8 +49,7 @@ version 1:
   },
   "error": {
     "category": "blocked",
-    "message": "selected scopes are not structurally ready",
-    "next": "repair the reported paths, then envbuckets apply"
+    "message": "selected scopes are not structurally ready"
   },
   "output": "branch: feature/login\n..."
 }
@@ -59,8 +57,8 @@ version 1:
 
 `schema_version`, `command`, `ok`, and `exit_code` are always present.
 `error` appears on failure and has a `blocked`, `config`, `usage`, or
-`environment` category. `next` is a human-facing suggestion. `warnings`
-holds nonfatal stderr text when present. `output` is display text and may
+`environment` category. `warnings` holds nonfatal stderr text when present.
+`output` is display text and may
 change; do not parse it. `status`, `check`, `apply`, and `use --all`
 return structured `data`. Other commands have the common envelope and error.
 

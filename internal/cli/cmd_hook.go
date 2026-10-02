@@ -25,16 +25,16 @@ func runHook(args []string, env Env) int {
 	}
 	cfg, err := config.Load(root)
 	if errors.Is(err, config.ErrMissing) {
-		warn("not initialized here, .env left as-is, next: envbuckets init")
+		warn("not initialized here, .env left as-is")
 		return ExitOK
 	}
 	if err != nil {
-		warn("acting dormant, .env left as-is: %v, next: restore %s from git or run envbuckets uninstall", err, config.FileName)
+		warn("acting dormant, .env left as-is: %v", err)
 		return ExitOK
 	}
 	branch, err := gitx.Branch(root)
 	if err != nil {
-		warn("cannot resolve the branch, .env left as-is: %v, next: envbuckets status", err)
+		warn("cannot resolve the branch, .env left as-is: %v", err)
 		return ExitOK
 	}
 	if branch == "" {
@@ -44,17 +44,17 @@ func runHook(args []string, env Env) int {
 	p := newProject(root, cfg)
 	t, found, err := p.target(branch)
 	if err != nil {
-		warn("cannot read the branch link, .env left as-is: %v, next: envbuckets status", err)
+		warn("cannot read the branch link, .env left as-is: %v", err)
 		return ExitOK
 	}
 	if !found {
-		warn("no rule matches %q, .env left as-is, next: envbuckets map add <pattern> <bucket>", branch)
+		warn("no rule matches %q, .env left as-is", branch)
 		return ExitOK
 	}
 
 	sw := p.switchAll(t.bucket)
 	if sw.switched > 0 {
-		fmt.Fprintf(env.Stdout, "envbuckets: %s -> %s (%s) - %s switched, next: restart your dev servers\n",
+		fmt.Fprintf(env.Stdout, "envbuckets: %s -> %s (%s) - %s switched\n",
 			joinOr(sw.previous, "?"), t.bucket, t.via, scopeCount(sw.switched))
 	}
 	for _, w := range sw.warnings {
@@ -122,7 +122,7 @@ func scopeCount(n int) string {
 func switchScope(s scope, bucket string) (from, skip string, ok bool) {
 	if err := s.checkScopeDir(); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return "", s.Name + ": scope directory missing, skipped, next: envbuckets scope rm " + s.Name, false
+			return "", s.Name + ": scope directory missing, skipped", false
 		}
 		return "", fmt.Sprintf("%s: unsafe scope path, skipped: %v", s.Name, err), false
 	}
@@ -132,18 +132,18 @@ func switchScope(s scope, bucket string) (from, skip string, ok bool) {
 	}
 	switch ls.kind {
 	case linkReal:
-		return "", fmt.Sprintf("%s: %s is a real file, left untouched, next: envbuckets init", s.Name, s.display(envFile)), false
+		return "", fmt.Sprintf("%s: %s is a real file, left untouched", s.Name, s.display(envFile)), false
 	case linkMissing:
-		return "", fmt.Sprintf("%s: no %s symlink, skipped, next: envbuckets apply", s.Name, s.display(envFile)), false
+		return "", fmt.Sprintf("%s: no %s symlink, skipped", s.Name, s.display(envFile)), false
 	case linkBucket:
 		if ls.bucket == bucket && !ls.dangling {
 			return "", "", true
 		}
 	case linkForeign:
-		return "", fmt.Sprintf("%s: %s is a foreign symlink to %s, left untouched, next: remove it by hand", s.Name, s.display(envFile), ls.target), false
+		return "", fmt.Sprintf("%s: %s is a foreign symlink to %s, left untouched", s.Name, s.display(envFile), ls.target), false
 	}
 	if !s.bucketFileExists(bucket) {
-		return "", fmt.Sprintf("%s: missing %s, kept previous bucket, next: create that file, then envbuckets status", s.Name, s.display(linkTarget(bucket))), false
+		return "", fmt.Sprintf("%s: missing %s, kept previous bucket", s.Name, s.display(linkTarget(bucket))), false
 	}
 	changed, err := s.pointTo(bucket)
 	if err != nil {

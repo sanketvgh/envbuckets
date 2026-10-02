@@ -7,12 +7,12 @@ import (
 	"testing"
 )
 
-func TestScopeRmSuggestsWorkingPurge(t *testing.T) {
+func TestScopeRmKeepsDataForLaterPurge(t *testing.T) {
 	r := monorepo(t)
 	r.write("apps/web/.env.d/dev/.env", "W=1\n")
 	res := r.ok("scope", "rm", "web")
-	if !strings.Contains(res.stdout, "next: to erase them: envbuckets scope purge apps/web") {
-		t.Fatalf("rm hint:\n%s", res.stdout)
+	if !strings.Contains(res.stdout, "kept: apps/web/.env.d/") || strings.Contains(res.stdout, "next:") {
+		t.Fatalf("rm output:\n%s", res.stdout)
 	}
 	if res := r.run("scope", "rm", "web", "--purge"); res.code != ExitBlocked {
 		t.Fatalf("old suggestion should not resolve: %d", res.code)

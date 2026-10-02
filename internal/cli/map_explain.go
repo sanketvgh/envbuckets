@@ -26,7 +26,6 @@ func mapExplain(env Env, p *project, branch string) error {
 	if !found {
 		fmt.Fprintln(env.Stdout, "rule:   none matches, checkout leaves .env as-is")
 		fmt.Fprintln(env.Stdout, "bucket: none")
-		fmt.Fprintf(env.Stdout, "  next: envbuckets map add <pattern> <bucket>, or envbuckets link <bucket> --branch %s\n", branch)
 		return nil
 	}
 	if t.linked {
@@ -38,28 +37,23 @@ func mapExplain(env Env, p *project, branch string) error {
 		fmt.Fprintf(env.Stdout, "rule:   %d. %s -> %s (first match wins)\n", t.priority, t.via, t.bucket)
 	}
 	fmt.Fprintf(env.Stdout, "bucket: %s\nscopes:\n", t.bucket)
-	missing := false
 	for _, s := range p.scopes {
-		line, ok := explainScope(s, t.bucket)
-		missing = missing || !ok
+		line := explainScope(s, t.bucket)
 		fmt.Fprintf(env.Stdout, "  %-12s %s\n", s.Name, line)
-	}
-	if missing {
-		fmt.Fprintf(env.Stdout, "  next: envbuckets bucket add %s --all, then fill the new files\n", t.bucket)
 	}
 	return nil
 }
 
-func explainScope(s scope, bucket string) (string, bool) {
+func explainScope(s scope, bucket string) string {
 	if !s.exists() {
-		return "MISSING directory " + s.Path, false
+		return "MISSING directory " + s.Path
 	}
 	avail := "available " + s.display(linkTarget(bucket))
 	ok := s.bucketFileExists(bucket)
 	if !ok {
 		avail = "missing " + s.display(linkTarget(bucket))
 	}
-	return avail + " | " + activeDescription(s), ok
+	return avail + " | " + activeDescription(s)
 }
 
 func activeDescription(s scope) string {

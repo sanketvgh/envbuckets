@@ -44,7 +44,7 @@ envbuckets map add "*" dev          # catch-all, always kept last
 envbuckets map add "release/*" prod # goes in before the catch-all
 
 git checkout -b release/1.2
-# envbuckets: dev -> prod (release/*) - 1 scope switched, next: restart your dev servers
+# envbuckets: dev -> prod (release/*) - 1 scope switched
 
 envbuckets check                    # exit 0 only if every .env points where it should
 ```

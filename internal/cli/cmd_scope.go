@@ -109,9 +109,9 @@ func scopeAdd(env Env, p *project, arg, name, into string) error {
 	if _, err := ensureIgnored(p.root, ignoreLines(p.scopes)); err != nil {
 		return err
 	}
-	fmt.Fprintf(env.Stdout, "registered scope %s (%s)\n  next: envbuckets status\n", name, rel)
+	fmt.Fprintf(env.Stdout, "registered scope %s (%s)\n", name, rel)
 	if wasImplicit && rel != "." {
-		fmt.Fprintln(env.Stdout, "note: the repo root is no longer an implicit scope\n  next: if the root has its own .env, run: envbuckets scope add . --name root")
+		fmt.Fprintln(env.Stdout, "note: the repo root is no longer an implicit scope")
 	}
 	s, _ := p.scopeByName(name)
 	step := func(tag, format string, a ...any) {
@@ -152,14 +152,14 @@ func scopeRm(env Env, p *project, name string, purge bool) error {
 	}
 	fmt.Fprintf(env.Stdout, "unregistered scope %s (%s)\n", name, s.Path)
 	if !purge {
-		fmt.Fprintf(env.Stdout, "kept: %s/ and its .gitignore lines, so values never become git-visible\n  next: to erase them: envbuckets scope purge %s\n", s.display(bucketsDir), s.Path)
+		fmt.Fprintf(env.Stdout, "kept: %s/ and its .gitignore lines, so values never become git-visible\n", s.display(bucketsDir))
 	}
 	return nil
 }
 
 func scopeList(env Env, p *project) error {
 	if len(p.cfg.Scopes) == 0 {
-		fmt.Fprintln(env.Stdout, "no scopes declared, the repo root is the implicit scope\n  next: for a monorepo: envbuckets scope add <path> --name <name>")
+		fmt.Fprintln(env.Stdout, "no scopes declared, the repo root is the implicit scope")
 	}
 	for _, s := range p.scopes {
 		fmt.Fprintf(env.Stdout, "  %-12s %-20s %s\n", s.Name, s.Path, scopeStatus(s, target{}))

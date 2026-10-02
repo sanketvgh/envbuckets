@@ -23,7 +23,6 @@ type jsonResponse struct {
 type jsonError struct {
 	Category string `json:"category"`
 	Message  string `json:"message"`
-	Next     string `json:"next,omitempty"`
 }
 
 func extractJSONFlag(args []string) ([]string, bool) {
@@ -70,11 +69,8 @@ func runJSON(args []string, env Env) int {
 		Output:        out.String(),
 	}
 	if failure != nil {
-		response.Error = &jsonError{Category: className(failure.code), Message: failure.msg, Next: failure.next}
+		response.Error = &jsonError{Category: className(failure.code), Message: failure.msg}
 		reportText := fmt.Sprintf("envbuckets: %s: %s\n", className(failure.code), failure.msg)
-		if failure.next != "" {
-			reportText += fmt.Sprintf("  next: %s\n", failure.next)
-		}
 		response.Warnings = strings.TrimSuffix(warnings.String(), reportText)
 	} else {
 		response.Warnings = warnings.String()

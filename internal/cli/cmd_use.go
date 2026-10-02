@@ -69,6 +69,6 @@ func runUse(args []string, env Env) error {
 		return nil
 	}
 	fmt.Fprintf(env.Stdout, "%s: %s -> %s\n", s.Name, s.display(envFile), linkTarget(bucket))
-	fmt.Fprintln(env.Stdout, "note: manual override, the next checkout matching a rule repoints it\n  next: restart your dev servers")
+	fmt.Fprintln(env.Stdout, "note: manual override, the next checkout matching a rule repoints it")
 	return nil
 }

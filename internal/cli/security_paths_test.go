@@ -84,7 +84,7 @@ func TestBucketRmNeedsPurgeForUnexpectedFiles(t *testing.T) {
 	}
 	r.write(".env.d/qa/.env", "")
 	r.write(".env.d/qa/notes.txt", "synthetic data\n")
-	if res := r.run("bucket", "rm", "qa"); res.code != ExitBlocked || !strings.Contains(res.all(), "--purge") {
+	if res := r.run("bucket", "rm", "qa"); res.code != ExitBlocked || !strings.Contains(res.all(), "contains data or non-bucket files") {
 		t.Fatalf("bucket rm deleted extra file: %d %s", res.code, res.all())
 	}
 	if r.read(".env.d/qa/notes.txt") != "synthetic data\n" {

@@ -16,7 +16,6 @@ func TestBucketAddAllIsIdempotentAndPreserves(t *testing.T) {
 		"[ok] api: apps/api/.env.d/prod/.env already exists",
 		"[created] web: apps/web/.env.d/prod/.env (empty)",
 		"created 1, already present 2, failed 0",
-		"next: fill the new files",
 	} {
 		if !strings.Contains(res.stdout, want) {
 			t.Fatalf("missing %q:\n%s", want, res.stdout)

@@ -57,9 +57,6 @@ func bucketAddAll(env Env, p *project, name string) error {
 		return blocked("bucket %s was not created in %d of %d scopes", name, len(res.failed), len(p.scopes)).
 			then("fix the failed scopes above, then re-run envbuckets bucket add %s --all", name)
 	}
-	if len(res.created) > 0 {
-		fmt.Fprintln(env.Stdout, "  next: fill the new files in your editor, then: envbuckets check")
-	}
 	return nil
 }
 
@@ -114,7 +111,7 @@ func bucketListAll(env Env, p *project) error {
 		}
 	}
 	if len(names) == 0 {
-		fmt.Fprintln(env.Stdout, "no buckets on disk or referenced by rules or pins\n  next: envbuckets bucket add <name> --all")
+		fmt.Fprintln(env.Stdout, "no buckets on disk or referenced by rules or pins")
 		return nil
 	}
 	sorted := make([]string, 0, len(names))

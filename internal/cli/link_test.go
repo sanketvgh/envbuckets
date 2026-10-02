@@ -8,18 +8,18 @@ import (
 	"github.com/sanketvgh/envbuckets/internal/gitx"
 )
 
-func TestMissingLinkHintsApplyAndApplyRepairsIt(t *testing.T) {
+func TestMissingLinkWarnsAndApplyRepairsIt(t *testing.T) {
 	r := setup(t)
 	if err := os.Remove(r.path(".env")); err != nil {
 		t.Fatal(err)
 	}
-	if res := r.hook(); !strings.Contains(res.stderr, "no .env symlink, skipped, next: envbuckets apply") {
+	if res := r.hook(); !strings.Contains(res.stderr, "no .env symlink, skipped") {
 		t.Fatalf("hook: %s", res.all())
 	}
-	if res := r.ok("link", "prod"); !strings.Contains(res.stderr, "no .env symlink, skipped, next: envbuckets apply") {
+	if res := r.ok("link", "prod"); !strings.Contains(res.stderr, "no .env symlink, skipped") {
 		t.Fatalf("link: %s", res.all())
 	}
-	if res := r.ok("unlink"); !strings.Contains(res.stderr, "no .env symlink, skipped, next: envbuckets apply") {
+	if res := r.ok("unlink"); !strings.Contains(res.stderr, "no .env symlink, skipped") {
 		t.Fatalf("unlink: %s", res.all())
 	}
 	if r.exists(".env") {
@@ -106,7 +106,7 @@ func TestLinkOtherBranchDoesNotSwitch(t *testing.T) {
 	r.git("branch", "feature/y")
 	r.hook()
 	res := r.ok("link", "prod", "--branch", "feature/y")
-	if !strings.Contains(res.stdout, "next: git checkout feature/y") || r.readlink(".env") != ".env.d/staging/.env" {
+	if !strings.Contains(res.stdout, "linked feature/y -> prod") || r.readlink(".env") != ".env.d/staging/.env" {
 		t.Fatalf("link --branch:\n%s", res.all())
 	}
 	r.git("checkout", "-q", "feature/y")

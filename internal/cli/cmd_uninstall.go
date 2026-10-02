@@ -53,7 +53,6 @@ func runUninstall(args []string, env Env) error {
 			retainedLink = true
 		case ls.dangling:
 			warnf(env, "%s -> %s is BROKEN, left as-is", s.display(envFile), ls.target)
-			fmt.Fprintln(env.Stderr, "  next: fix the target or remove the symlink by hand, then re-run")
 			step("skipped", "%s (broken symlink)", s.display(envFile))
 			retainedLink = true
 		default:
@@ -116,7 +115,7 @@ func runUninstall(args []string, env Env) error {
 		if len(dataDirs) > 0 {
 			step("kept", "%s/ dirs (%d scopes, %d buckets)", bucketsDir, len(dataDirs), countBuckets(dataDirs))
 		}
-		fmt.Fprintln(env.Stdout, "Data kept (.env.d/ and the config)\n  next: reactivate with envbuckets init, or erase everything with envbuckets uninstall --purge")
+		fmt.Fprintln(env.Stdout, "Data kept (.env.d/ and the config)")
 		return nil
 	}
 

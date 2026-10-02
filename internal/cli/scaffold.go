@@ -22,7 +22,6 @@ func scaffoldScopes(env Env, p *project, bootstrapped map[string]bool, step func
 	buckets := ruleBuckets(p.cfg.Rules)
 	if len(buckets) == 0 {
 		step("skipped", "scaffold: no shared rules reference a bucket yet")
-		fmt.Fprintln(env.Stdout, "  next: envbuckets map add <pattern> <bucket>, then envbuckets init --scaffold")
 		return nil
 	}
 	var total bulkResult
@@ -55,9 +54,6 @@ func scaffoldScopes(env Env, p *project, bootstrapped map[string]bool, step func
 		}
 	}
 	fmt.Fprintf(env.Stdout, "scaffold: %s (buckets from shared rules: %s)\n", total.summary(), joinOr(buckets, ""))
-	if len(total.created) > 0 {
-		fmt.Fprintln(env.Stdout, "  next: fill the new empty files in your editor, then: envbuckets apply")
-	}
 	if len(waiting) > 0 {
 		fmt.Fprintf(env.Stdout, "  not scaffolded: %s, see the [skipped] lines above\n", joinOr(waiting, ""))
 	}

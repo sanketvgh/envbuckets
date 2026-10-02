@@ -56,7 +56,7 @@ func TestUnmappedBranchLeavesEnvUntouched(t *testing.T) {
 	r.newBranch("feature/x")
 	res := r.hook()
 	if !strings.Contains(res.stderr, "no rule matches") || strings.Count(strings.TrimSpace(res.all()), "\n") != 0 {
-		t.Fatalf("want one hint line:\n%s", res.all())
+		t.Fatalf("want one warning line:\n%s", res.all())
 	}
 	if got := r.readlink(".env"); got != ".env.d/dev/.env" {
 		t.Fatalf("env changed: %s", got)
@@ -339,7 +339,7 @@ func TestCommandsFromSubdirectory(t *testing.T) {
 func TestStatusUninitialized(t *testing.T) {
 	r := newRepo(t)
 	res := r.run("status")
-	if res.code != ExitConfig || !strings.Contains(res.stderr, "envbuckets init") {
+	if res.code != ExitConfig || !strings.Contains(res.stderr, "not initialized") {
 		t.Fatalf("%d %s", res.code, res.all())
 	}
 	if res := r.runIn(t.TempDir(), "", "status"); res.code != ExitEnv {

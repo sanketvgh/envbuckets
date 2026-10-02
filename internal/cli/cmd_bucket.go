@@ -75,11 +75,10 @@ func bucketAdd(env Env, s scope, name string) error {
 		return err
 	}
 	if !created {
-		fmt.Fprintf(env.Stdout, "%s: bucket %s already exists (%s)\n  next: envbuckets use %s\n", s.Name, name, s.display(linkTarget(name)), name)
+		fmt.Fprintf(env.Stdout, "%s: bucket %s already exists (%s)\n", s.Name, name, s.display(linkTarget(name)))
 		return nil
 	}
-	fmt.Fprintf(env.Stdout, "%s: created bucket %s (empty %s)\n  next: fill %s in your editor, then: envbuckets use %s\n",
-		s.Name, name, s.display(linkTarget(name)), s.display(linkTarget(name)), name)
+	fmt.Fprintf(env.Stdout, "%s: created bucket %s (empty %s)\n", s.Name, name, s.display(linkTarget(name)))
 	return nil
 }
 
@@ -213,7 +212,7 @@ func bucketList(env Env, p *project, s scope) error {
 	}
 	fmt.Fprintf(env.Stdout, "scope %s (%s):\n", s.Name, s.Path)
 	if len(names) == 0 {
-		fmt.Fprintln(env.Stdout, "  (none)\n  next: envbuckets bucket add <name>")
+		fmt.Fprintln(env.Stdout, "  (none)")
 		return nil
 	}
 	for _, n := range names {

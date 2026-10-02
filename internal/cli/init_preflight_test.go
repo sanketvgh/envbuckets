@@ -20,7 +20,7 @@ func TestInitPreflightLeavesNothingBehind(t *testing.T) {
 	r := newRepo(t)
 	if !symlinksWork(r.root) {
 		res := r.run("init")
-		if res.code != ExitEnv || !strings.Contains(res.stderr, "does not allow symlinks") || !strings.Contains(res.stderr, "nothing was changed") {
+		if res.code != ExitEnv || !strings.Contains(res.stderr, "does not allow symlinks") {
 			t.Fatalf("no symlinks: exit %d\n%s", res.code, res.all())
 		}
 		if r.exists(".envbuckets.toml") || r.exists(".gitignore") || r.exists(".git/hooks/post-checkout") {

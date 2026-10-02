@@ -48,7 +48,6 @@ func TestInitScaffoldFreshClone(t *testing.T) {
 		"[created] api: apps/api/.env.d/dev/.env (empty)",
 		"[skipped] web: scope directory apps/web missing, not created",
 		"scaffold: created 3, already present 0, failed 0 (buckets from shared rules: staging, prod, dev)",
-		"next: fill the new empty files in your editor, then: envbuckets apply",
 		"not scaffolded: web",
 	} {
 		if !strings.Contains(res.stdout, want) {

@@ -113,8 +113,7 @@ func mapAdd(env Env, p *project, pat, bucket string) error {
 	if pat != config.CatchAll && p.cfg.HasCatchAll() {
 		where = ", before the catch-all `*`"
 	}
-	fmt.Fprintf(env.Stdout, "added rule %s -> %s (priority %d%s)\n  next: commit %s, then git checkout a matching branch\n",
-		pat, bucket, at+1, where, config.FileName)
+	fmt.Fprintf(env.Stdout, "added rule %s -> %s (priority %d%s)\n", pat, bucket, at+1, where)
 	return nil
 }
 
@@ -136,8 +135,7 @@ func mapUpdate(env Env, p *project, pat, bucket string) error {
 	if err := p.cfg.Save(p.root); err != nil {
 		return err
 	}
-	fmt.Fprintf(env.Stdout, "updated rule %s: %s -> %s (priority %d)\n  next: commit %s, then envbuckets apply to switch now\n",
-		pat, prev, bucket, at+1, config.FileName)
+	fmt.Fprintf(env.Stdout, "updated rule %s: %s -> %s (priority %d)\n", pat, prev, bucket, at+1)
 	return nil
 }
 
@@ -160,7 +158,6 @@ func mapMove(env Env, p *project, pat, before, after string) error {
 	}
 	fmt.Fprintf(env.Stdout, "moved rule %s, new order (first match wins):\n", pat)
 	printRules(env, p.cfg.Rules, pat)
-	fmt.Fprintf(env.Stdout, "  next: commit %s, then envbuckets apply to switch now\n", config.FileName)
 	return nil
 }
 
@@ -206,7 +203,7 @@ func mapList(env Env, p *project) error {
 		linked = linked || l.Branch == branch
 	}
 	if len(p.cfg.Rules) == 0 {
-		fmt.Fprintln(env.Stdout, "no rules\n  next: envbuckets map add <pattern> <bucket>")
+		fmt.Fprintln(env.Stdout, "no rules")
 	}
 	var active *config.Rule
 	if branch != "" && !linked {

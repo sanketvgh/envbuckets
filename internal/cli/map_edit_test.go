@@ -61,8 +61,8 @@ func TestMapAddRefusalsLeaveConfigUnchanged(t *testing.T) {
 		}
 	}
 	res := r.run("map", "add", "release/*", "dev")
-	if !strings.Contains(res.stderr, "already maps to prod") || !strings.Contains(res.stderr, "next: envbuckets map update") {
-		t.Fatalf("duplicate hint:\n%s", res.stderr)
+	if !strings.Contains(res.stderr, "already maps to prod") || strings.Contains(res.stderr, "next:") {
+		t.Fatalf("duplicate error:\n%s", res.stderr)
 	}
 	if r.read(".envbuckets.toml") != before {
 		t.Fatal("refused add changed the config")

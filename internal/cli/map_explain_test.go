@@ -17,7 +17,6 @@ func TestMapExplainHypotheticalBranch(t *testing.T) {
 		"root         available .env.d/prod/.env | active: dev",
 		"api          available apps/api/.env.d/prod/.env | active: dev",
 		"web          missing apps/web/.env.d/prod/.env | active: dev",
-		"next: envbuckets bucket add prod --all",
 	} {
 		if !strings.Contains(res.stdout, want) {
 			t.Fatalf("missing %q:\n%s", want, res.stdout)
@@ -67,7 +66,7 @@ func TestMapExplainNoMatch(t *testing.T) {
 	r.ok("bucket", "add", "prod")
 	r.ok("map", "add", "release/*", "prod")
 	res := r.ok("map", "explain", "feature/x")
-	for _, want := range []string{"rule:   none matches", "bucket: none", "next: envbuckets map add"} {
+	for _, want := range []string{"rule:   none matches", "bucket: none"} {
 		if !strings.Contains(res.stdout, want) {
 			t.Fatalf("missing %q:\n%s", want, res.stdout)
 		}

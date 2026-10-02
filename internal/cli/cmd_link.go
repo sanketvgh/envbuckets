@@ -38,7 +38,6 @@ func runLink(args []string, env Env) error {
 	}
 	fmt.Fprintf(env.Stdout, "linked %s -> %s (local, overrides rules, not committed)\n", branch, bucket)
 	if !current {
-		fmt.Fprintf(env.Stdout, "  next: git checkout %s\n", branch)
 		return nil
 	}
 	p.applyNow(env, bucket)
@@ -77,7 +76,7 @@ func runUnlink(args []string, env Env) error {
 	}
 	rule := p.cfg.Match(branch, pattern.Match)
 	if rule == nil {
-		fmt.Fprintf(env.Stdout, "no rule matches %q, .env left as-is\n  next: envbuckets map add <pattern> <bucket>\n", branch)
+		fmt.Fprintf(env.Stdout, "no rule matches %q, .env left as-is\n", branch)
 		return nil
 	}
 	p.applyNow(env, rule.Bucket)
@@ -118,7 +117,7 @@ func linkedBranches(root, bucket string) ([]string, error) {
 func (p *project) applyNow(env Env, bucket string) {
 	sw := p.switchAll(bucket)
 	if sw.switched > 0 {
-		fmt.Fprintf(env.Stdout, "%s -> %s - %s switched\n  next: restart your dev servers\n",
+		fmt.Fprintf(env.Stdout, "%s -> %s - %s switched\n",
 			joinOr(sw.previous, "?"), bucket, scopeCount(sw.switched))
 	}
 	for _, w := range sw.warnings {

@@ -68,7 +68,7 @@ func TestJSONReadinessAndFailure(t *testing.T) {
 func TestJSONUsageAndHelp(t *testing.T) {
 	r := newRepo(t)
 	bad := decodeJSON(t, r.run("--json", "not-a-command"))
-	if bad.ExitCode != ExitUsage || bad.Error == nil || bad.Error.Category != "usage" || bad.Error.Next == "" {
+	if bad.ExitCode != ExitUsage || bad.Error == nil || bad.Error.Category != "usage" {
 		t.Fatalf("unexpected usage envelope: %+v", bad)
 	}
 	help := decodeJSON(t, r.run("help", "--json"))

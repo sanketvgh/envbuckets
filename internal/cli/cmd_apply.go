@@ -126,8 +126,5 @@ func executePlans(env Env, states []scopeReadiness, bucket string, dryRun bool, 
 	if result.failed > 0 {
 		return blocked("%d scope(s) could not be applied", result.failed).then("repair the reported paths, then retry")
 	}
-	if result.changed > 0 && !dryRun {
-		fmt.Fprintln(env.Stdout, "  next: restart your dev servers")
-	}
 	return nil
 }

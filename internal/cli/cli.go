@@ -216,9 +216,6 @@ func report(err error, env Env) int {
 		*env.jsonError = ee
 	}
 	fmt.Fprintf(env.Stderr, "envbuckets: %s: %s\n", className(ee.code), ee.msg)
-	if ee.next != "" {
-		fmt.Fprintf(env.Stderr, "  next: %s\n", ee.next)
-	}
 	return ee.code
 }
 

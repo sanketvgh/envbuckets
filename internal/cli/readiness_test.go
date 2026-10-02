@@ -62,16 +62,16 @@ func TestStatusDescribesMismatchWithoutCause(t *testing.T) {
 	}
 }
 
-func TestStatusSuggestsNextStepWhenBranchIsUnresolved(t *testing.T) {
+func TestStatusReportsUnresolvedBranch(t *testing.T) {
 	r := newRepo(t)
 	if err := config.New().Save(r.root); err != nil {
 		t.Fatal(err)
 	}
-	if res := r.ok("status"); !strings.Contains(res.stdout, "next: envbuckets map add <pattern> <bucket>, or envbuckets link <bucket>") {
+	if res := r.ok("status"); !strings.Contains(res.stdout, "rule:   none; checkout leaves .env as-is") || strings.Contains(res.stdout, "next:") {
 		t.Fatalf("unmatched branch: %s", res.all())
 	}
 	r.git("checkout", "-q", "--detach")
-	if res := r.ok("status"); !strings.Contains(res.stdout, "next: git checkout <branch>, or envbuckets use <bucket>") {
+	if res := r.ok("status"); !strings.Contains(res.stdout, "branch: (detached HEAD)") || strings.Contains(res.stdout, "next:") {
 		t.Fatalf("detached HEAD: %s", res.all())
 	}
 }
