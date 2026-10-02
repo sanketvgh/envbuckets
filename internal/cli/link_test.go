@@ -85,7 +85,7 @@ func TestUnlinkFallsBackToRule(t *testing.T) {
 	if !strings.Contains(res.stdout, "Removed local pin for branch feature/x") || r.readlink(".env") != ".env.d/dev/.env" {
 		t.Fatalf("unlink:\n%s", res.all())
 	}
-	if res := r.ok("unlink"); !strings.Contains(res.stdout, "nothing to do") {
+	if res := r.ok("unlink"); !strings.Contains(res.stdout, "Branch feature/x has no local pin.") {
 		t.Fatalf("second unlink:\n%s", res.all())
 	}
 }
