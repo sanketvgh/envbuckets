@@ -232,8 +232,8 @@ them is not.
 ## Development
 
 ```sh
-task check              # lint and unit tests
-task test:integration   # real git runs the real binary (needs symlinks; use WSL on Windows)
+task check              # lint, unit tests, and real-Git integration tests
+task test:integration   # scripts need symlinks; use Linux or WSL if unavailable on Windows
 task bench              # time the hook with hyperfine (Linux or WSL)
 task bench:compare BASE=main
 ```

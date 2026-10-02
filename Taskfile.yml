@@ -10,6 +10,7 @@ vars:
 
 tasks:
   build:
+    desc: Build the envbuckets binary for this platform.
     cmds:
       - go build -trimpath -o {{.EXE}} .
 
@@ -25,19 +26,21 @@ tasks:
       - golangci-lint run ./...
 
   test:
+    desc: Run Go unit tests.
     cmds:
       - go test ./...
 
   test:integration:
     desc: Run the txtar scripts against real git (needs symlink support; use WSL on Windows).
     cmds:
-      - go test -tags integration -run TestScript .
+      - go test -tags integration -run TestScript -count=1 .
 
   check:
-    desc: Everything CI runs before building.
+    desc: Run lint, unit tests, and real-git integration tests.
     cmds:
       - task: lint
       - task: test
+      - task: test:integration
 
   snapshot:
     desc: Validate config, cross-compile all targets, lay out npm packages. No tag, no publish.
@@ -98,5 +101,6 @@ tasks:
       - cd {{.BENCH_DIR}} && hyperfine -N -w {{.WARMUP}} -r {{.RUNS}} -n base -n head '{{.ROOT_DIR}}/tmp/envbuckets-base hook x y 1' '{{.ROOT_DIR}}/{{.EXE}} hook x y 1'
 
   clean:
+    desc: Remove local build, release, and benchmark outputs.
     cmds:
       - rm -rf dist npm/dist tmp envbuckets envbuckets.exe
