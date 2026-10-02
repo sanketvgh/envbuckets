@@ -31,9 +31,15 @@ npm install -g envbuckets
 
 Windows, macOS, Linux. Node 18+. No Go required.
 
-On Windows, you need Developer Mode (Settings > System > For developers)
-or an admin shell so the tool can create symlinks. `init` checks this before
+On Windows, you need Developer Mode (search for it in Windows Settings) or an
+administrator shell so the tool can create symlinks. `init` checks this before
 installing the hook or writing project configuration.
+
+If `init` reports `this filesystem does not allow symlinks here` or
+`A required privilege is not held by the client`, enable Developer Mode,
+reopen your terminal, and retry. If Developer Mode is unavailable, run
+PowerShell as Administrator and retry. This preflight failure leaves the
+project unchanged.
 
 ## Quick start
 
@@ -234,6 +240,7 @@ them is not.
 ```sh
 task check              # lint, unit tests, and real-Git integration tests
 task test:integration   # scripts need symlinks; use Linux or WSL if unavailable on Windows
+task playground         # build and install a local npm snapshot in ./playground
 task bench              # time the hook with hyperfine (Linux or WSL)
 task bench:compare BASE=main
 ```

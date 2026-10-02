@@ -49,6 +49,18 @@ tasks:
       - goreleaser release --snapshot --clean
       - go run ./tools/npmpkg
 
+  playground:
+    desc: Build a snapshot and install its npm packages in ./playground (gitignored).
+    deps: [snapshot]
+    cmds:
+      - rm -rf playground/.packs playground/node_modules playground/package-lock.json
+      - mkdir -p playground/.packs
+      - cd npm/dist/envbuckets && npm pack --silent --pack-destination ../../../playground/.packs
+      - cd npm/dist/@envbuckets/$(node -p "process.platform+'-'+process.arch") && npm pack --silent --pack-destination ../../../../playground/.packs
+      - cd playground && (test -f package.json || npm init -y >/dev/null)
+      - cd playground && npm install --no-audit --no-fund ./.packs/*.tgz
+      - cd playground && npx envbuckets --version
+
   next-version:
     desc: Show what the next release would be tagged. PRE=alpha|beta|rc for a prerelease.
     cmds:
