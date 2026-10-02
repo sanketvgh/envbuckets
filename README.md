@@ -32,8 +32,8 @@ npm install -g envbuckets
 Windows, macOS, Linux. Node 18+. No Go required.
 
 On Windows, you need Developer Mode (Settings > System > For developers)
-or an admin shell so the tool can create symlinks. `init` checks this first
-and changes nothing if symlinks are not available.
+or an admin shell so the tool can create symlinks. `init` checks this before
+installing the hook or writing project configuration.
 
 ## Quick start
 
@@ -106,7 +106,7 @@ nothing.
 **Work across a monorepo.**
 
 ```sh
-envbuckets bucket add qa --all      # empty qa/.env in every app that exists
+envbuckets bucket add qa --all      # empty .env.d/qa/.env in every existing app scope
 envbuckets bucket list --all        # which bucket exists in which app
 envbuckets use qa --all             # switch every app by hand until the next checkout
 ```
@@ -190,14 +190,15 @@ your-repo/
 | `scope add\|rm\|purge\|list`              | Add, remove, or list scopes (for monorepos). `purge` deletes data a removed scope left behind             |
 | `uninstall [--purge]`                     | Turn `.env` back into a real file and remove the hook. `--purge` also deletes `.env.d/` after you confirm |
 
-Every command except `uninstall` and `version` explains itself with
-`--help`, for example `envbuckets map move --help`.
+The documented commands explain themselves with `--help`, for example
+`envbuckets map move --help`.
 
 **Exit codes.** `0` ok, `1` blocked or incomplete, `2` config missing or
 unreadable, `3` usage error, `4` environment problem (not a git repo, no
-symlink support). Commands that work on several scopes (`check`, `apply`,
-`use --all`, `bucket add --all`, `init --scaffold`) keep going past a scope
-that fails, report every scope, and exit `1` if any one failed. The scopes
+symlink support). `apply`, `use --all`, and `bucket add --all` keep going
+past a scope that fails and return `1` when any scope fails. `check` returns
+`1` when any selected scope is unready. `init --scaffold` skips missing scope
+directories and returns `1` if a bucket file could not be created. The scopes
 that succeeded keep their changes: each link swap is atomic, the set of
 them is not.
 

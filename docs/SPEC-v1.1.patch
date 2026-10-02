@@ -1,0 +1,187 @@
+diff --git a/docs/SPEC.md b/docs/SPEC.md
+--- a/docs/SPEC.md
++++ b/docs/SPEC.md
+@@ -3,7 +3,7 @@
+ > **Tagline: "Your `.env` switches branches with you."**
+ > _Offline · project-local · loss-proof · zero lock-in_
+ 
+-**Version:** 1.0 (frozen for implementation)
++**Version:** 1.1 (1.0 plus readiness, apply, rule maintenance, bulk, scaffold, and cleanup commands)
+ **Scope:** A branch-aware environment **switcher** — single repos **and** monorepos
+ **Runtime:** 100% offline · project-local · single static binary
+ 
+@@ -154,7 +154,7 @@
+ | Schema              | `1` from day one — no legacy formats exist. `schema > 1` or missing/malformed ⇒ refuse (exit 2), dormant.                                                                                                                                          |
+ | Rule order          | Array order = match priority. First match wins.                                                                                                                                                                                                    |
+ | Patterns            | Glob semantics (`*` matches any chars **including `/`**, so `release/*` matches `release/1.2/x`). Non-empty, no whitespace, unique, max 128 chars.                                                                                                 |
+-| Catch-all `*`       | Allowed once, must be last. Adding a rule while `*` exists → blocked ("remove catch-all first").                                                                                                                                                   |
++| Catch-all `*`       | Allowed once, must be last. An ordinary rule added while `*` exists is inserted directly before it.                                                                                                                                                 |
+ | Scopes              | `name`: same charset as bucket names (`^[a-zA-Z0-9][a-zA-Z0-9_-]*$`), unique. `path`: relative to repo root (or `.`), must resolve — via realpath — **inside** the repo, must be an existing directory, must not nest inside another scope's path. |
+ | Implicit root scope | No `[[scopes]]` ⇒ exactly one scope: root (`.`), implicit. Zero config for single-repo users.                                                                                                                                                      |
+ | Buckets             | **Not listed in the file.** `.env.d/<name>/` existing _within a scope_ = bucket exists for that scope. Availability is checked per scope at swap time.                                                                                             |
+@@ -167,26 +167,34 @@
+ ## 7. Command Reference
+ 
+ ```
+-envbuckets init                      scaffold + hook + gitignore + per-scope bootstrap (idempotent)
+-envbuckets status                    live report: branch → rule → per-scope bucket + symlink health
+-envbuckets use <bucket>              manual symlink repoint for the resolved scope (transient override)
++envbuckets init [--into b] [--scaffold]  hook + gitignore + per-scope bootstrap (idempotent); --scaffold creates rule buckets
++envbuckets status                    live report: branch → pin or rule → per-scope active vs expected + symlink health
++envbuckets check [--scope s]         structural readiness for the current branch; nonzero unless every selected scope is ready
++envbuckets apply [--scope s] [--dry-run]  point scopes at the current branch's bucket without a checkout
++envbuckets use <bucket> [--scope s | --all]  manual symlink repoint (transient override); --all for every scope
+ envbuckets link <bucket> [--branch b]    pin a branch (default: current) to a bucket; overrides rules, local only
+ envbuckets unlink [--branch b]           remove the pin; rules apply again
+ envbuckets uninstall [--purge]       deactivate in this project; default keeps all data
+ envbuckets hook $@                   INTERNAL — called by the git hook. Not documented to users.
+ 
+-envbuckets bucket add <name>         create <scope>/.env.d/<name>/ + empty .env
++envbuckets bucket add <name> [--scope s | --all]   create <scope>/.env.d/<name>/ + empty .env
+ envbuckets bucket rm <name>          refuse if referenced by rules or non-empty (--purge + confirm)
+-envbuckets bucket list               buckets in scope, referencing rules, active marker
+-
+-envbuckets map add <pattern> <bucket>    # repo-wide
++envbuckets bucket list [--scope s | --all]         buckets in scope; --all: bucket × scope matrix
++
++envbuckets map add <pattern> <bucket>    # repo-wide; inserted before a catch-all `*`
++envbuckets map update <pattern> <bucket> # repo-wide; bucket changes, priority kept
++envbuckets map move <pattern> --before|--after <pattern>   # repo-wide; priority changes, mapping kept
+ envbuckets map rm <pattern>              # repo-wide
+ envbuckets map list                      # priority order, active rule marked
++envbuckets map explain <branch>          # read-only: pin or winning rule, bucket, per-scope availability
+ 
+ envbuckets scope add <path>          register a scope (name defaults to dir name; --name to override)
+ envbuckets scope rm <name>           unregister; values kept (--purge + confirm to delete data)
++envbuckets scope purge <path>        delete data left by an unregistered scope (typed confirm)
+ envbuckets scope list                scopes, paths, active bucket each
+ ```
++
++`init`, `status`, `check`, `apply`, `use`, `link`, `unlink`, `bucket`, `map`, and `scope` (and each of their subcommands) accept `--help` (`-h`), which prints command-specific usage and exits 0 without needing an initialized project. Unexpected positional arguments, flags that do not belong to the subcommand, and conflicting selectors (`--all` with `--scope`, both `--before` and `--after`) are usage errors (exit 3).
+ 
+ **Deliberately absent:** any command that reads, writes, displays, edits, or imports env _values_. `bucket add` scaffolds an **empty** `.env` so the bucket is immediately switchable — filling it is your job, with your editor. (This absence is the product boundary, not a missing feature.)
+ 
+@@ -204,10 +212,20 @@
+   2. Install marker-guarded hook block — append-only, never clobbers an existing hook.
+   3. Add `.gitignore` block (root lines + one pair per registered scope).
+   4. **Bootstrap, per scope:** if that scope has a real `.env`, prompt for target bucket (or `--into <name>`), move it to `<scope>/.env.d/<name>/.env` (refuse if exists), symlink. Content is moved verbatim — never read or transformed. Valid existing symlink → verify and report.
+-- **`use`** allows buckets not referenced by rules (manual override, per scope). Prints a note that the next matching checkout will repoint.
++  5. **`--scaffold` only:** for every existing scope directory, create an empty `.env` for each unique bucket named by the committed rules. Runs after bootstrap, so `--scaffold --into dev` moves the real `.env` into `dev` and creates the other rule buckets empty. Never overwrites, never creates missing scope directories, never scaffolds local pin targets, never activates a scaffolded file. A scope whose `.env` is still a real file (bootstrap skipped) or whose bootstrap was blocked is not scaffolded, so an empty file can never block a later `--into`. Repeat runs report `already present`. Any file that cannot be created → exit 1 after the others.
++- **`init` preflight:** before writing anything, `init` creates and removes a probe symlink in the repo root. Symlinks unavailable, or the probe cannot be removed → exit 4 with a remedy and nothing else changed. A failure after earlier steps names the re-run (`init` skips finished steps) and states that nothing was rolled back.
++- **Resolution** for `status`, `check`, `apply`, `map explain`, and the hook is one function: the branch's local pin, else the first matching rule. Detached HEAD or no match = **unresolved**; no command guesses a default bucket.
++- **`check`** is read-only. A selected scope is ready when its directory exists, `.env` is a managed symlink that is not broken, the expected bucket file exists, and the active bucket equals the expected one. A real `.env` or a symlink outside `.env.d/` is reported as unmanaged. Exit 0 only if the branch resolves and every selected scope is ready; otherwise exit 1. Readiness is structural: an existing file says nothing about whether its values are valid. Defaults to every scope.
++- **`status`** prints the same facts as `check` (`active: dev; expected: staging`, broken links, missing expected files, unmanaged `.env`, missing directories) and whether the expectation came from a pin or a rule, without inferring why they differ. An opened project returns exit 0 even when unhealthy; project/configuration errors keep their existing nonzero exits.
++- **`apply`** plans every selected scope (default: all) from the same evaluation, then repoints those it can: a missing managed link is created and a broken one repointed when the expected file exists. Real `.env` files, foreign symlinks, missing directories, and missing expected files are reported as blocked and left untouched. Independent scopes continue past failures; the summary counts changed, unchanged, and failed, and any failure → exit 1. `--dry-run` prints the same plan and exit code without writing anything. Detached HEAD or no match → exit 1, no changes. Each swap is atomic; the set of scopes is not a transaction.
++- **`use`** allows buckets not referenced by rules (manual override, per scope). Prints a note that the next matching checkout will repoint. **`use <bucket> --all`** applies the same per-scope planning as `apply` to every scope, with the same blocked cases, summary, and exit 1 on any failure. `use` never creates a pin or edits rules.
++- **`map add`** places an ordinary rule directly before an existing catch-all `*` (otherwise last); `*` is always added last. **`map update`** changes a rule's bucket in place. **`map move`** takes exactly one of `--before`/`--after`, keeps the pattern and bucket, and refuses moving a rule relative to itself, unknown patterns, and any order that leaves `*` anywhere but last. Every edit validates the resulting rule list before one atomic write; a refused edit leaves the file byte-identical. The bucket of `add`/`update` must exist in at least one scope.
++- **`map explain <branch>`** works for any branch name, checked out or not, existing or not. It prints the pin (and the rule it overrides) or the winning rule with its priority, the selected bucket, and per scope whether that bucket's file is available plus the active link state. No match → says so and names no bucket. Read-only, exit 0.
++- **`bucket add --all`** creates the empty file in every existing scope directory, skips (and counts) existing files, never creates a missing scope directory, continues past failures, exit 1 if any scope failed. **`bucket list --all`** prints a bucket × scope matrix over every bucket found on disk, named by a rule or pin, or active: `present` (file exists, contents not checked), `missing`, `active`, `BROKEN` (active link, file missing), `no dir`, plus notes for unmanaged or missing `.env`.
+ - **`link`** is the sticky, repo-wide counterpart of `use`: the bucket must exist in at least one scope; `--branch` must name an existing local branch; detached HEAD without `--branch` → exit 4. Linking the current branch switches every scope immediately (per-scope fail-safe as in the hook). **`unlink`** on the current branch re-applies the matching rule, or leaves `.env` as-is when none matches. `map list` shows links below the rules; `bucket rm` refuses a bucket that any branch links to.
+ - **`scope add`** validates path (inside repo, real dir, non-nested), appends TOML entry + gitignore lines atomically. A real `.env` at that path → prompt to bootstrap it into a bucket.
+-- **`scope rm`** removes registration; **values kept on disk by default** ⇒ its gitignore lines are kept too, with a printed reason (values must never become git-visible). `--purge`: typed `DELETE`, then dir + lines removed.
++- **`scope rm`** removes registration; **values kept on disk by default** ⇒ its gitignore lines are kept too, with a printed reason (values must never become git-visible), and the next step `envbuckets scope purge <path>`. `--purge`: typed `DELETE`, then data + lines removed, as in `scope purge`.
++- **`scope purge <path>`** erases data a scope left behind after `scope rm`. `<path>` is relative to the repo root and must not be a registered scope (the implicit root included). Refused: absolute paths, paths outside the repo, paths through a symlinked directory, paths inside `.env.d/` or `.git`, and a `.env.d` that is itself a symlink. It lists what it will delete, requires typed `DELETE`, then deletes only `<path>/.env.d/` and a managed `<path>/.env` link that would otherwise dangle. A real `.env` or a symlink outside `.env.d/` is kept and its gitignore line stays. Nothing to delete → stale lines for that path are dropped. Refused confirmation → nothing changes.
+ - **`bucket rm`** refuses if referenced by rules or if its `.env` is non-empty. Values are never destroyed silently; `--purge` requires typed confirmation.
+ 
+ **Exit codes**
+@@ -222,6 +240,8 @@
+ 
+ _Note: `uninstall` never exits 2 — it never reads the config (§9)._
+ 
++Partial results use exit 1: `check` with any unready or unresolved scope, `apply` / `apply --dry-run` / `use --all` / `bucket add --all` / `init --scaffold` with any failed scope. Successful scopes are still reported, and their changes stay.
++
+ ---
+ 
+ ## 8. Hook Specification (`.git/hooks/post-checkout`)
+@@ -246,7 +266,7 @@
+ 6. Print one summary line on any change: `envbuckets: dev → prod (release/1.2) — 3 scopes switched — restart your dev servers`, followed by one `⚠` line per skipped scope with scoped remediation (e.g., `⚠ web: missing .env.d/prod/.env — create it, then envbuckets status`). All-switched-and-unchanged → silence.
+ 7. **Exit 0. Always.**
+ 
+-**Hard rules:** the hook **always exits 0** (a checkout must never fail because of us). The hook **never creates, moves, or deletes files** — a real `.env` at a scope (bootstrap not run) → warn for that scope, do nothing. **Per-scope fail-safe:** one broken scope never blocks the others, never breaks the checkout.
++**Hard rules:** the hook **always exits 0** (a checkout must never fail because of us). The hook **never creates, moves, or deletes files** — a real `.env` at a scope (bootstrap not run), a symlink pointing outside `.env.d/`, or a missing `.env` link → warn for that scope, do nothing. Repairing a missing link is `envbuckets apply`'s job, with its own exit code; the hook's exit code never reflects switching results. **Per-scope fail-safe:** one broken scope never blocks the others, never breaks the checkout.
+ 
+ ---
+ 
+@@ -316,7 +336,12 @@
+ | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+ | `map add` to a bucket missing in **all** scopes                                           | Blocked: _"create it first: envbuckets bucket add X"_                                                          |
+ | Duplicate pattern                                                                         | Blocked                                                                                                        |
+-| Adding rule while `*` exists                                                              | Blocked                                                                                                        |
++| Adding rule while `*` exists                                                              | Inserted directly before `*`; a second `*` is a duplicate (blocked)                                            |
++| `map move` that leaves `*` not last, targets an unknown pattern, or targets itself        | Blocked (itself: usage error); config byte-identical                                                           |
++| `map update` / `map move` on an unknown pattern                                           | Blocked                                                                                                        |
++| Bucket creation (`bucket add`, `--all`, `init --scaffold`)                                | Never overwrites a file; never creates a missing scope directory                                               |
++| `apply`, `use`, `use --all` on a real `.env` or a symlink outside `.env.d/`               | Blocked for that scope, file untouched                                                                         |
++| `scope purge` outside the repo, through a symlink, inside `.env.d/` or `.git`, or on a registered scope | Blocked                                                                                          |
+ | `bucket rm` referenced by rules                                                           | Blocked, rules listed                                                                                          |
+ | `bucket rm` with non-empty `.env`                                                         | Blocked; `--purge` requires typed confirmation                                                                 |
+ | Invalid bucket or scope name                                                              | Blocked at creation                                                                                            |
+@@ -327,8 +352,8 @@
+ | Corrupt TOML / `schema > 1`                                                               | All commands refuse (exit 2); symlinks untouched — **except `uninstall`, which never reads it**                |
+ | Any TOML write                                                                            | Atomic, in-project temp                                                                                        |
+ | Non-git directory                                                                         | Error, exit 4                                                                                                  |
+-| Purge operations (`bucket rm --purge`, `scope rm --purge`, `uninstall --purge`)           | Require typed `DELETE`                                                                                         |
+-| Values on disk ⇒ gitignore lines stay                                                     | Enforced in `scope rm` and `uninstall` defaults                                                                |
++| Purge operations (`bucket rm --purge`, `scope rm --purge`, `scope purge`, `uninstall --purge`) | Require typed `DELETE`                                                                                    |
++| Values on disk ⇒ gitignore lines stay                                                     | Enforced in `scope rm` and `uninstall` defaults; `scope purge` keeps the `.env` line while a real `.env` stays |
+ 
+ ---
+ 
+@@ -360,6 +385,10 @@
+ | Existing custom hook                                     | Preserved; both run (envbuckets block appended after)                             |
+ | `envbuckets` uninstalled                                 | Hook block no-ops; checkout unaffected                                            |
+ | `.env` is a real file at switch time (any scope)         | Warn for that scope, do nothing                                                   |
++| `.env` is a symlink outside `.env.d/` (any scope)        | Hook warns, `apply`/`use` block that scope; never replaced                        |
++| `.env` link missing in a scope                           | Hook skips + warns; `check` fails; `apply` creates it if the expected file exists |
++| Active and expected buckets differ                       | `status`/`check` report `active: X; expected: Y`, no guessed cause; `apply` fixes |
++| Symlinks unavailable (e.g. Windows without Developer Mode) | `init` exits 4 before writing anything                                          |
+ | Invoked from subdirectory                                | Resolves root + nearest enclosing scope                                           |
+ | cwd outside all scopes (scopes defined)                  | Error + hint, exit 4                                                              |
+ | Empty bucket `.env`                                      | Valid (empty env)                                                                 |
+@@ -414,7 +443,7 @@
+ | T16 | Truncated TOML → any command                                                                                                       | Refuses, exit 2, symlinks byte-identical            |
+ | T17 | `map add "x" nope`                                                                                                                 | Blocked; TOML byte-identical                        |
+ | T18 | `bucket rm` referenced / non-empty                                                                                                 | Blocked with details; `--purge` requires confirm    |
+-| T19 | Duplicate pattern; add rule while `*` exists                                                                                       | Both blocked                                        |
++| T19 | Duplicate pattern; add rule while `*` exists                                                                                       | Duplicate blocked; new rule inserted before `*`     |
+ | T20 | `kill -9` mid TOML write                                                                                                           | Old TOML intact (atomic write)                      |
+ | T21 | **Value-blindness sweep:** run _every_ command against a project whose bucket files contain a known marker string; grep all output | **Zero occurrences** — no command can print a value |
+ 
+@@ -432,7 +461,7 @@
+ 
+ | ID  | Scenario                                                                                 | Expected                    |
+ | --- | ---------------------------------------------------------------------------------------- | --------------------------- |
+-| T27 | `status` in every state: healthy / manual override / dangling / detached / uninitialized | Correct live report in each |
++| T27 | `status` in every state: healthy / active differs from expected / dangling / detached / uninitialized | Correct live report in each, facts only |
+ 
+ ### G — Removal
+ 
+@@ -463,6 +492,22 @@
+ | T45 | `scope add` with absolute path or path escaping repo | Blocked                                                                                                                        |
+ | T46 | `scope rm web` (data exists)                         | Registration removed, values + gitignore lines kept, reason printed; `--purge` requires typed `DELETE` and removes dir + lines |
+ | T47 | Hook fires with a scope dir absent (sparse-checkout) | That scope `[skipped]` + warn; others proceed                                                                                  |
++
++### I — Readiness, apply, and maintenance
++
++| ID  | Scenario                                                                    | Expected                                                                                              |
++| --- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
++| T48 | `check` on healthy scopes; then each of: missing link, broken link, missing expected file, mismatch, real `.env`, foreign symlink, missing dir, detached HEAD, no match | Exit 0 only when healthy; every other case exit 1 with the fact reported; nothing changes |
++| T49 | Branch pinned with `link` and also matched by a rule                        | `check`, `status`, `apply`, `map explain` all use the pin                                             |
++| T50 | `apply --dry-run`, then `apply`, with one repairable and one real-`.env` scope | Dry-run writes nothing; apply repairs one, blocks one, exit 1, real `.env` byte-identical           |
++| T51 | `use <bucket> --all` with one scope blocked                                 | Other scopes switch; summary counts; exit 1; no pin created                                           |
++| T52 | `map add` with `*` present; `map update`; `map move --before/--after`       | Inserted before `*`; priority kept; mapping kept; invalid moves blocked with config byte-identical    |
++| T53 | `map explain` for a branch that does not exist locally                      | Resolution shown without checkout; links and config unchanged                                         |
++| T54 | `bucket add x --all` twice, one scope dir missing                           | Existing files untouched; missing dir not created; exit 1; second run idempotent                      |
++| T55 | `bucket list --all` with a pin-only bucket and a broken link                | Pin-only row shown; `BROKEN` cell; no contents printed                                                |
++| T56 | Fresh clone: `init --scaffold`, repeated; with a real `.env` and `--into`   | Rule buckets created empty, never pins; nothing activated; `--into` bucket holds the moved file       |
++| T57 | `scope rm web`, then `scope purge apps/web`                                 | Hint works; `DELETE` required; data and managed link removed; real `.env` and its ignore line kept    |
++| T58 | `scope purge` with `../x`, a symlinked dir, `.env.d` path, registered scope | All refused; nothing outside the intended `.env.d/` deleted                                           |
+ 
+ ---
+ 
+@@ -528,4 +573,4 @@
+ 
+ ---
+ 
+-_Spec frozen as v1.0. Boundary in one line: the tool decides **which** `.env` is live — you decide what's **in** it. Build starts with the watcher-reaction test (§14), then the interface above, verified against T1–T47._
++_Spec frozen as v1.0. Boundary in one line: the tool decides **which** `.env` is live — you decide what's **in** it. Build starts with the watcher-reaction test (§14), then the interface above, verified against T1–T47; v1.1 adds T48–T58._
