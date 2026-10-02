@@ -214,6 +214,10 @@ them is not.
 - **It never replaces your own files.** A real `.env`, or a `.env` symlink
   pointing outside `.env.d/`, is reported and left alone by the hook,
   `apply`, and `use`. No command writes over an existing bucket file.
+- **Bucket paths stay in the repo.** Symlinked scope and bucket directories are
+  refused, and a symlinked bucket `.env` is not counted as a bucket file.
+  `bucket rm` needs `--purge` and typed confirmation if the directory holds
+  anything beyond an empty `.env`.
 - **It never blocks a checkout.** The hook always exits 0 and never creates,
   moves, or deletes files.
 - **It stays inside the repo and offline.** No `$HOME`, no temp folders, no

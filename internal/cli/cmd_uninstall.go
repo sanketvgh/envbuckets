@@ -34,10 +34,12 @@ func runUninstall(args []string, env Env) error {
 	if err != nil {
 		return err
 	}
+	retainedLink := false
 	for _, s := range found {
 		ls, err := s.linkState()
 		if err != nil {
 			fmt.Fprintf(env.Stderr, "warning: %s: %v\n", s.display(envFile), err)
+			retainedLink = true
 			continue
 		}
 		switch {
@@ -45,17 +47,33 @@ func runUninstall(args []string, env Env) error {
 			step("skipped", "%s (absent)", s.display(envFile))
 		case ls.kind == linkReal:
 			step("skipped", "%s (already a real file)", s.display(envFile))
+		case ls.kind == linkForeign:
+			fmt.Fprintf(env.Stderr, "warning: %s -> %s is a foreign symlink, left as-is\n", s.display(envFile), ls.target)
+			step("skipped", "%s (foreign symlink)", s.display(envFile))
+			retainedLink = true
 		case ls.dangling:
 			fmt.Fprintf(env.Stderr, "warning: %s -> %s is BROKEN, left as-is\n  next: fix the target or remove the symlink by hand, then re-run\n", s.display(envFile), ls.target)
 			step("skipped", "%s (broken symlink)", s.display(envFile))
+			retainedLink = true
 		default:
+			if !s.bucketFileExists(ls.bucket) {
+				fmt.Fprintf(env.Stderr, "warning: %s does not point to a regular in-repo bucket file, left as-is\n", s.display(envFile))
+				step("skipped", "%s (unsafe bucket file)", s.display(envFile))
+				retainedLink = true
+				continue
+			}
 			if err := materializeScope(s, ls); err != nil {
 				fmt.Fprintf(env.Stderr, "warning: %s: %v\n", s.display(envFile), err)
 				step("skipped", "%s (materialize failed)", s.display(envFile))
+				retainedLink = true
 				continue
 			}
 			step("materialized", "%s (was -> %s)", s.display(envFile), ls.target)
 		}
+	}
+	if *purge && retainedLink {
+		return blocked("some .env symlinks could not be materialized; purge stopped so their ignore protection stays in place").
+			then("fix the warnings above, then re-run envbuckets uninstall --purge")
 	}
 
 	hooksDir, err := gitx.HooksDir(root)
@@ -118,8 +136,17 @@ func runUninstall(args []string, env Env) error {
 			return err
 		}
 	}
+	repo, err := os.OpenRoot(root)
+	if err != nil {
+		return err
+	}
+	defer repo.Close()
 	for _, d := range dataDirs {
-		if err := os.RemoveAll(d.path); err != nil {
+		rel, err := filepath.Rel(root, d.path)
+		if err != nil {
+			return err
+		}
+		if err := repo.RemoveAll(rel); err != nil {
 			return err
 		}
 		step("removed", "%s/", relOrAbs(root, d.path))
@@ -149,11 +176,15 @@ func runUninstall(args []string, env Env) error {
 }
 
 func materializeScope(s scope, ls linkState) error {
-	target := filepath.Join(s.Dir, filepath.FromSlash(ls.target))
-	if filepath.IsAbs(ls.target) {
-		target = filepath.FromSlash(ls.target)
+	if err := s.checkBucketParents(ls.bucket); err != nil {
+		return err
 	}
-	return fsx.CopyFileAtomic(target, s.envPath(), s.bucketsPath(), 0o600)
+	root, err := os.OpenRoot(s.Root)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	return fsx.CopyFileAtomicRoot(root, filepath.Join(s.bucketRel(ls.bucket), envFile), filepath.Join(filepath.FromSlash(s.Path), envFile), s.bucketRel(""), 0o600)
 }
 
 func discoverScopes(root string) ([]scope, error) {
@@ -166,7 +197,7 @@ func discoverScopes(root string) ([]scope, error) {
 		seen[dir] = true
 		rel, _ := filepath.Rel(root, dir)
 		rel = filepath.ToSlash(rel)
-		out = append(out, scope{Name: scopeNameFor(rel), Path: rel, Dir: dir})
+		out = append(out, scope{Name: scopeNameFor(rel), Path: rel, Dir: dir, Root: root})
 	}
 	err := walkProject(root, func(p string, d fs.DirEntry) error {
 		switch {
@@ -196,7 +227,7 @@ func discoverBucketDirs(root string) ([]bucketDir, error) {
 			return nil
 		}
 		rel, _ := filepath.Rel(root, filepath.Dir(p))
-		s := scope{Path: filepath.ToSlash(rel), Dir: filepath.Dir(p)}
+		s := scope{Path: filepath.ToSlash(rel), Dir: filepath.Dir(p), Root: root}
 		names, err := s.buckets()
 		if err != nil {
 			return err

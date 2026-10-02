@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/sanketvgh/envbuckets/internal/config"
 )
@@ -83,17 +84,31 @@ func bucketAdd(env Env, s scope, name string) error {
 }
 
 func createBucket(s scope, name string) (bool, error) {
+	if err := s.checkScopeDir(); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, blocked("%s: scope directory %s is missing, not created", s.Name, s.Path).
+				then("restore %s, or envbuckets scope rm %s", s.Path, s.Name)
+		}
+		return false, err
+	}
+	if err := s.checkBucketParents(name); err != nil {
+		return false, err
+	}
 	if s.bucketFileExists(name) {
 		return false, nil
 	}
-	if !s.exists() {
-		return false, blocked("%s: scope directory %s is missing, not created", s.Name, s.Path).
-			then("restore %s, or envbuckets scope rm %s", s.Path, s.Name)
-	}
-	if err := os.MkdirAll(s.bucketDir(name), 0o755); err != nil {
+	root, err := os.OpenRoot(s.Root)
+	if err != nil {
 		return false, err
 	}
-	f, err := os.OpenFile(s.bucketFile(name), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	defer root.Close()
+	if err := root.MkdirAll(s.bucketRel(name), 0o755); err != nil {
+		return false, err
+	}
+	if err := s.checkBucketParents(name); err != nil {
+		return false, err
+	}
+	f, err := root.OpenFile(filepath.Join(s.bucketRel(name), envFile), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	if errors.Is(err, os.ErrExist) {
 		return false, blocked("%s exists but is not a regular file, left untouched", s.display(linkTarget(name))).
 			then("inspect %s by hand", s.display(linkTarget(name)))
@@ -108,8 +123,19 @@ func bucketRm(env Env, p *project, s scope, name string, purge bool) error {
 	if err := config.ValidateName(name); err != nil {
 		return blocked("%v", err)
 	}
-	if _, err := os.Stat(s.bucketDir(name)); os.IsNotExist(err) {
+	if err := s.checkBucketParents(name); err != nil {
+		return err
+	}
+	root, err := os.OpenRoot(s.Root)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	dir := s.bucketRel(name)
+	if _, err := root.Lstat(dir); errors.Is(err, os.ErrNotExist) {
 		return blocked("%s: no bucket named %s", s.Name, name).then("envbuckets bucket list")
+	} else if err != nil {
+		return err
 	}
 	if refs := p.cfg.RulesFor(name); len(refs) > 0 {
 		return blocked("bucket %s is still referenced by rules: %s", name, joinOr(refs, "")).
@@ -128,26 +154,52 @@ func bucketRm(env Env, p *project, s scope, name string, purge bool) error {
 	if ls.kind == linkBucket && ls.bucket == name {
 		return blocked("bucket %s is the active bucket in scope %s", name, s.Name).then("envbuckets use <other-bucket>, then retry")
 	}
-	if s.bucketFileExists(name) {
-		empty, err := s.bucketFileEmpty(name)
-		if err != nil {
+	needsConfirmation, err := bucketHasData(root, dir)
+	if err != nil {
+		return err
+	}
+	if needsConfirmation {
+		if !purge {
+			return blocked("%s contains data or non-bucket files, refusing to delete it", s.display(bucketsDir+"/"+name)).
+				then("envbuckets bucket rm %s --purge (asks for confirmation)", name)
+		}
+		if err := confirmDelete(env, s.display(bucketsDir+"/"+name)+"/"); err != nil {
 			return err
 		}
-		if !empty {
-			if !purge {
-				return blocked("%s is not empty, refusing to delete values", s.display(linkTarget(name))).
-					then("envbuckets bucket rm %s --purge (asks for confirmation)", name)
-			}
-			if err := confirmDelete(env, s.display(bucketsDir+"/"+name)+"/"); err != nil {
-				return err
-			}
-		}
 	}
-	if err := os.RemoveAll(s.bucketDir(name)); err != nil {
+	if err := root.RemoveAll(dir); err != nil {
 		return err
 	}
 	fmt.Fprintf(env.Stdout, "%s: removed bucket %s\n", s.Name, name)
 	return nil
+}
+
+func bucketHasData(root *os.Root, dir string) (bool, error) {
+	f, err := root.Open(dir)
+	if err != nil {
+		return false, err
+	}
+	entries, readErr := f.ReadDir(-1)
+	closeErr := f.Close()
+	if readErr != nil {
+		return false, readErr
+	}
+	if closeErr != nil {
+		return false, closeErr
+	}
+	for _, entry := range entries {
+		if entry.Name() != envFile {
+			return true, nil
+		}
+		info, err := root.Lstat(filepath.Join(dir, envFile))
+		if err != nil {
+			return false, err
+		}
+		if !info.Mode().IsRegular() || info.Size() != 0 {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func bucketList(env Env, p *project, s scope) error {

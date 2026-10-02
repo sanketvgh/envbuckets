@@ -19,7 +19,7 @@ func planScope(r scopeReadiness, bucket string) scopePlan {
 	p := scopePlan{scope: r.scope, bucket: bucket}
 	switch {
 	case !r.directoryExists:
-		p.reason = "scope directory missing"
+		p.reason = r.problems[0]
 	case r.linkErr != nil:
 		p.reason = fmt.Sprintf("cannot inspect .env: %v", r.linkErr)
 	case r.link.kind == linkReal:

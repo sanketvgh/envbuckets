@@ -19,7 +19,7 @@ Examples:
 	"bucket": `Usage: envbuckets bucket add|rm|list ...
 
   bucket add <name> [--scope <s> | --all]   create an empty <scope>/.env.d/<name>/.env
-  bucket rm <name> [--scope <s>] [--purge]  remove; refuses if referenced or non-empty
+  bucket rm <name> [--scope <s>] [--purge]  remove; refuses if referenced or containing data
   bucket list [--scope <s> | --all]         buckets in a scope, or a bucket x scope matrix
 
 Without --scope or --all, the scope containing the current directory is used.
@@ -36,8 +36,8 @@ Example:
 	"bucket rm": `Usage: envbuckets bucket rm <name> [--scope <name>] [--purge]
 
 Remove a bucket from one scope. Refuses while a rule or pin references it,
-while it is active, or while its file is non-empty unless --purge is given
-(asks you to type DELETE).
+while it is active, or while its .env is non-empty or it contains other files
+unless --purge is given (asks you to type DELETE).
 `,
 	"bucket list": `Usage: envbuckets bucket list [--scope <name> | --all]
 

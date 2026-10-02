@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -52,6 +54,9 @@ func printReadiness(env Env, r readiness) {
 func scopeReadinessText(r scopeReadiness, expected string, resolved bool) string {
 	s := r.scope
 	if !r.directoryExists {
+		if !errors.Is(r.directoryErr, os.ErrNotExist) {
+			return "ERROR scope path: " + r.directoryErr.Error()
+		}
 		return "MISSING directory " + s.Path
 	}
 	if r.linkErr != nil {

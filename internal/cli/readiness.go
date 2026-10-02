@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
+	"os"
 
 	"github.com/sanketvgh/envbuckets/internal/gitx"
 )
@@ -9,6 +11,7 @@ import (
 type scopeReadiness struct {
 	scope           scope
 	directoryExists bool
+	directoryErr    error
 	link            linkState
 	linkErr         error
 	expectedExists  bool
@@ -55,9 +58,14 @@ func (p *project) evaluateCurrent(selected []scope) (readiness, error) {
 }
 
 func evaluateScope(s scope, expected string, resolved bool) scopeReadiness {
-	r := scopeReadiness{scope: s, directoryExists: s.exists()}
+	dirErr := s.checkScopeDir()
+	r := scopeReadiness{scope: s, directoryExists: dirErr == nil, directoryErr: dirErr}
 	if !r.directoryExists {
-		r.problems = append(r.problems, "scope directory missing")
+		if errors.Is(dirErr, os.ErrNotExist) {
+			r.problems = append(r.problems, "scope directory missing")
+		} else {
+			r.problems = append(r.problems, fmt.Sprintf("unsafe scope path: %v", dirErr))
+		}
 		return r
 	}
 	r.link, r.linkErr = s.linkState()

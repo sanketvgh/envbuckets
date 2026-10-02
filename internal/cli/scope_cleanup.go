@@ -112,15 +112,23 @@ func purgeScopeData(env Env, root string, s scope) error {
 	if err := confirmDelete(env, "the files listed above"); err != nil {
 		return err
 	}
+	if err := checkPurgeTarget(root, s); err != nil {
+		return err
+	}
+	repo, err := os.OpenRoot(root)
+	if err != nil {
+		return err
+	}
+	defer repo.Close()
 	if managed {
 		if now, err := s.linkState(); err == nil && now.kind == linkBucket {
-			if err := os.Remove(s.envPath()); err != nil {
+			if err := repo.Remove(filepath.Join(filepath.FromSlash(s.Path), envFile)); err != nil {
 				return err
 			}
 		}
 	}
 	if hasData {
-		if err := os.RemoveAll(s.bucketsPath()); err != nil {
+		if err := repo.RemoveAll(filepath.Join(filepath.FromSlash(s.Path), bucketsDir)); err != nil {
 			return fmt.Errorf("delete %s/: %w (rerun envbuckets scope purge %s)", s.display(bucketsDir), err, s.Path)
 		}
 	}

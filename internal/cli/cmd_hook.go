@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/sanketvgh/envbuckets/internal/config"
@@ -119,8 +120,11 @@ func scopeCount(n int) string {
 }
 
 func switchScope(s scope, bucket string) (from, skip string, ok bool) {
-	if !s.exists() {
-		return "", s.Name + ": scope directory missing, skipped, next: envbuckets scope rm " + s.Name, false
+	if err := s.checkScopeDir(); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", s.Name + ": scope directory missing, skipped, next: envbuckets scope rm " + s.Name, false
+		}
+		return "", fmt.Sprintf("%s: unsafe scope path, skipped: %v", s.Name, err), false
 	}
 	ls, err := s.linkState()
 	if err != nil {

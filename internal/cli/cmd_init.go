@@ -8,6 +8,7 @@ import (
 
 	"github.com/sanketvgh/envbuckets/internal/block"
 	"github.com/sanketvgh/envbuckets/internal/config"
+	"github.com/sanketvgh/envbuckets/internal/fsx"
 	"github.com/sanketvgh/envbuckets/internal/gitx"
 )
 
@@ -202,29 +203,36 @@ func bootstrapScope(env Env, s scope, into string, step func(string, string, ...
 	if s.bucketFileExists(bucket) {
 		return blocked("%s already exists, refusing to clobber it", s.display(linkTarget(bucket))).then("envbuckets init --into <another-bucket>")
 	}
-	if err := os.MkdirAll(s.bucketDir(bucket), 0o755); err != nil {
+	if err := s.checkBucketParents(bucket); err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(s.bucketsPath(), ".envbuckets-link-*")
+	root, err := os.OpenRoot(s.Root)
 	if err != nil {
 		return err
 	}
-	tmpName := tmp.Name()
-	if err := tmp.Close(); err != nil {
+	defer root.Close()
+	if err := root.MkdirAll(s.bucketRel(bucket), 0o755); err != nil {
 		return err
 	}
-	if err := os.Remove(tmpName); err != nil {
+	if err := s.checkBucketParents(bucket); err != nil {
 		return err
 	}
-	if err := os.Symlink(filepath.FromSlash(linkTarget(bucket)), tmpName); err != nil {
-		return fmt.Errorf("symlink: %w", err)
+	bucketFile := filepath.Join(s.bucketRel(bucket), envFile)
+	if _, err := root.Lstat(bucketFile); err == nil {
+		return blocked("%s already exists, refusing to clobber it", s.display(linkTarget(bucket))).then("envbuckets init --into <another-bucket>")
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
 	}
-	if err := os.Rename(s.envPath(), s.bucketFile(bucket)); err != nil {
-		_ = os.Remove(tmpName)
+	tmpName, err := fsx.StageSymlinkRoot(root, linkTarget(bucket), s.bucketRel(""))
+	if err != nil {
+		return err
+	}
+	if err := root.Rename(filepath.Join(filepath.FromSlash(s.Path), envFile), bucketFile); err != nil {
+		_ = root.Remove(tmpName)
 		return fmt.Errorf("move %s: %w", envDisplay, err)
 	}
-	if err := os.Rename(tmpName, s.envPath()); err != nil {
-		_ = os.Remove(tmpName)
+	if err := root.Rename(tmpName, filepath.Join(filepath.FromSlash(s.Path), envFile)); err != nil {
+		_ = root.Remove(tmpName)
 		return envErr("link %s: %v (values are safe in %s)", envDisplay, err, s.display(linkTarget(bucket))).
 			then("envbuckets use %s --scope %s creates the link", bucket, s.Name)
 	}
