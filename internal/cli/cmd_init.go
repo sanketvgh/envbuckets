@@ -116,10 +116,12 @@ func recoverable(err error) error {
 		ee = envErr("%v", err)
 	}
 	if ee.next == "" {
-		ee.next = "steps marked [created] above are kept; fix the cause and re-run envbuckets init, it skips finished steps (envbuckets uninstall backs everything out)"
+		ee.next = "steps marked [created] above are kept and nothing was rolled back; fix the cause and re-run envbuckets init, it skips finished steps (to deactivate instead: envbuckets uninstall, which keeps the config and .env.d/)"
 	}
 	return ee
 }
+
+var removeProbe = os.Remove
 
 func probeSymlinks(root string) error {
 	f, err := os.CreateTemp(root, ".envbuckets-probe-*")
@@ -127,17 +129,27 @@ func probeSymlinks(root string) error {
 		return envErr("cannot write in %s: %v", root, err).then("check the directory permissions, nothing was changed")
 	}
 	name := f.Name()
-	_ = f.Close()
-	if err := os.Remove(name); err != nil {
-		return envErr("cannot clean up %s: %v", filepath.Base(name), err).then("delete %s by hand", filepath.Base(name))
+	closeErr := f.Close()
+	if err := removeProbe(name); err != nil {
+		return probeLeft(name, err)
+	}
+	if closeErr != nil {
+		return envErr("cannot write in %s: %v", root, closeErr).then("check the disk and directory permissions, nothing was changed")
 	}
 	err = os.Symlink(bucketsDir+"/probe", name)
-	_ = os.Remove(name)
+	if rmErr := removeProbe(name); rmErr != nil && !errors.Is(rmErr, os.ErrNotExist) {
+		return probeLeft(name, rmErr)
+	}
 	if err != nil {
 		return envErr("this filesystem does not allow symlinks here: %v", err).
 			then("on Windows enable Developer Mode or use WSL, then re-run envbuckets init; nothing was changed")
 	}
 	return nil
+}
+
+func probeLeft(name string, err error) error {
+	return envErr("cannot remove the symlink probe %s: %v", filepath.Base(name), err).
+		then("delete %s from the repo root by hand, then re-run envbuckets init; nothing else was changed", filepath.Base(name))
 }
 
 func relOrAbs(root, p string) string {
