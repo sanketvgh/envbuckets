@@ -4,6 +4,8 @@ Run `envbuckets help` for the top-level summary, or append `--help` to a
 documented command or subcommand for built-in usage. Commands run from
 inside a Git repository unless noted otherwise. A bucket or scope name
 uses letters, digits, `_`, and `-`, starting with a letter or digit.
+Pass `--json` to any command for a versioned response; see
+[CLI output and AI agents](agent-integration.md).
 
 | Command                         | Flags                                       | Action                                                                                               |
 | ------------------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------- |

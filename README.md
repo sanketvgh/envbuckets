@@ -54,6 +54,7 @@ its own `.env.d/`. The branch rules are shared by all of them.
 
 For setup, every command and flag, monorepos, and recovery, see the
 [documentation guide](docs/README.md).
+For automation and coding agents, see [CLI JSON output](docs/agent-integration.md).
 
 ## Everyday workflows
 

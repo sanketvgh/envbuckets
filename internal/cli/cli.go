@@ -22,11 +22,13 @@ const (
 
 // Env is the process environment a command runs in.
 type Env struct {
-	Cwd     string
-	Stdin   io.Reader
-	Stdout  io.Writer
-	Stderr  io.Writer
-	Version string
+	Cwd       string
+	Stdin     io.Reader
+	Stdout    io.Writer
+	Stderr    io.Writer
+	Version   string
+	jsonData  *any
+	jsonError **exitError
 }
 
 // exitError is a failure with a stable class (exit code), a one-line
@@ -102,10 +104,20 @@ Usage:
   envbuckets scope list
 
   envbuckets version
+
+Global option: --json returns one versioned JSON object and never prompts.
 `
 
 // Run executes args and returns the process exit code.
 func Run(args []string, env Env) int {
+	args, jsonMode := extractJSONFlag(args)
+	if jsonMode {
+		return runJSON(args, env)
+	}
+	return runText(args, env)
+}
+
+func runText(args []string, env Env) int {
 	if len(args) == 0 {
 		fmt.Fprint(env.Stdout, helpText)
 		return ExitOK
@@ -200,11 +212,18 @@ func report(err error, env Env) int {
 	if !errors.As(err, &ee) {
 		ee = envErr("%v", err)
 	}
+	if env.jsonError != nil {
+		*env.jsonError = ee
+	}
 	fmt.Fprintf(env.Stderr, "envbuckets: %s: %s\n", className(ee.code), ee.msg)
 	if ee.next != "" {
 		fmt.Fprintf(env.Stderr, "  next: %s\n", ee.next)
 	}
 	return ee.code
+}
+
+func warnf(env Env, format string, args ...any) {
+	fmt.Fprintln(env.Stderr, "envbuckets: warning: "+fmt.Sprintf(format, args...))
 }
 
 func newFlags(name string) *flag.FlagSet {

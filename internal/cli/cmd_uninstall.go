@@ -38,7 +38,7 @@ func runUninstall(args []string, env Env) error {
 	for _, s := range found {
 		ls, err := s.linkState()
 		if err != nil {
-			fmt.Fprintf(env.Stderr, "warning: %s: %v\n", s.display(envFile), err)
+			warnf(env, "%s: %v", s.display(envFile), err)
 			retainedLink = true
 			continue
 		}
@@ -48,22 +48,23 @@ func runUninstall(args []string, env Env) error {
 		case ls.kind == linkReal:
 			step("skipped", "%s (already a real file)", s.display(envFile))
 		case ls.kind == linkForeign:
-			fmt.Fprintf(env.Stderr, "warning: %s -> %s is a foreign symlink, left as-is\n", s.display(envFile), ls.target)
+			warnf(env, "%s -> %s is a foreign symlink, left as-is", s.display(envFile), ls.target)
 			step("skipped", "%s (foreign symlink)", s.display(envFile))
 			retainedLink = true
 		case ls.dangling:
-			fmt.Fprintf(env.Stderr, "warning: %s -> %s is BROKEN, left as-is\n  next: fix the target or remove the symlink by hand, then re-run\n", s.display(envFile), ls.target)
+			warnf(env, "%s -> %s is BROKEN, left as-is", s.display(envFile), ls.target)
+			fmt.Fprintln(env.Stderr, "  next: fix the target or remove the symlink by hand, then re-run")
 			step("skipped", "%s (broken symlink)", s.display(envFile))
 			retainedLink = true
 		default:
 			if !s.bucketFileExists(ls.bucket) {
-				fmt.Fprintf(env.Stderr, "warning: %s does not point to a regular in-repo bucket file, left as-is\n", s.display(envFile))
+				warnf(env, "%s does not point to a regular in-repo bucket file, left as-is", s.display(envFile))
 				step("skipped", "%s (unsafe bucket file)", s.display(envFile))
 				retainedLink = true
 				continue
 			}
 			if err := materializeScope(s, ls); err != nil {
-				fmt.Fprintf(env.Stderr, "warning: %s: %v\n", s.display(envFile), err)
+				warnf(env, "%s: %v", s.display(envFile), err)
 				step("skipped", "%s (materialize failed)", s.display(envFile))
 				retainedLink = true
 				continue

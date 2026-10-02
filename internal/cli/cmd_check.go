@@ -27,6 +27,9 @@ func runCheck(args []string, env Env) error {
 	if err != nil {
 		return err
 	}
+	if env.jsonData != nil {
+		*env.jsonData = readinessJSON(r)
+	}
 	printReadiness(env, r)
 	if r.healthy() {
 		fmt.Fprintf(env.Stdout, "check: %d ready\n", len(r.scopes))

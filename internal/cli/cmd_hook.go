@@ -16,7 +16,7 @@ func runHook(args []string, env Env) int {
 		return ExitOK
 	}
 	warn := func(format string, a ...any) {
-		fmt.Fprintf(env.Stderr, "envbuckets: "+format+"\n", a...)
+		warnf(env, format, a...)
 	}
 
 	root, err := gitx.Root(env.Cwd)
@@ -58,7 +58,7 @@ func runHook(args []string, env Env) int {
 			joinOr(sw.previous, "?"), t.bucket, t.via, scopeCount(sw.switched))
 	}
 	for _, w := range sw.warnings {
-		fmt.Fprintf(env.Stderr, "warning: %s\n", w)
+		warnf(env, "%s", w)
 	}
 	return ExitOK
 }

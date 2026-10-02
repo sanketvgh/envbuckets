@@ -24,6 +24,9 @@ func runStatus(args []string, env Env) error {
 	if err != nil {
 		return err
 	}
+	if env.jsonData != nil {
+		*env.jsonData = readinessJSON(r)
+	}
 	printReadiness(env, r)
 	switch {
 	case r.branch == "":

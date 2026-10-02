@@ -73,35 +73,50 @@ func runApply(args []string, env Env) error {
 
 func executePlans(env Env, states []scopeReadiness, bucket string, dryRun bool, command string) error {
 	var result applyResult
+	view := jsonPlanResult{Bucket: bucket, DryRun: dryRun, Scopes: make([]jsonPlanScope, 0, len(states))}
 	for _, state := range states {
 		plan := planScope(state, bucket)
+		row := jsonPlanScope{Name: plan.scope.Name}
 		switch plan.action {
 		case "unchanged":
 			result.unchanged++
+			row.Action = "unchanged"
 			fmt.Fprintf(env.Stdout, "%s: unchanged (%s)\n", plan.scope.Name, bucket)
 		case "change":
 			if dryRun {
 				result.changed++
+				row.Action = "would_change"
 				fmt.Fprintf(env.Stdout, "%s: would point %s -> %s\n", plan.scope.Name, plan.scope.display(envFile), plan.scope.display(linkTarget(bucket)))
+				view.Scopes = append(view.Scopes, row)
 				continue
 			}
 			changed, err := plan.scope.pointTo(bucket)
 			if err != nil {
 				result.failed++
+				row.Action, row.Reason = "failed", err.Error()
 				fmt.Fprintf(env.Stdout, "%s: failed: %v\n", plan.scope.Name, err)
+				view.Scopes = append(view.Scopes, row)
 				continue
 			}
 			if changed {
 				result.changed++
+				row.Action = "changed"
 				fmt.Fprintf(env.Stdout, "%s: %s -> %s\n", plan.scope.Name, plan.scope.display(envFile), plan.scope.display(linkTarget(bucket)))
 			} else {
 				result.unchanged++
+				row.Action = "unchanged"
 				fmt.Fprintf(env.Stdout, "%s: unchanged (%s)\n", plan.scope.Name, bucket)
 			}
 		default:
 			result.failed++
+			row.Action, row.Reason = "blocked", plan.reason
 			fmt.Fprintf(env.Stdout, "%s: blocked: %s\n", plan.scope.Name, plan.reason)
 		}
+		view.Scopes = append(view.Scopes, row)
+	}
+	if env.jsonData != nil {
+		view.Changed, view.Unchanged, view.Failed = result.changed, result.unchanged, result.failed
+		*env.jsonData = view
 	}
 	label := command
 	if dryRun {

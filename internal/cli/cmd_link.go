@@ -122,6 +122,6 @@ func (p *project) applyNow(env Env, bucket string) {
 			joinOr(sw.previous, "?"), bucket, scopeCount(sw.switched))
 	}
 	for _, w := range sw.warnings {
-		fmt.Fprintf(env.Stderr, "warning: %s\n", w)
+		warnf(env, "%s", w)
 	}
 }
