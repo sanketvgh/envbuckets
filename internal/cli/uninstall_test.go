@@ -12,7 +12,7 @@ func TestDefaultUninstallKeepsData(t *testing.T) {
 	r := setup(t)
 	r.write(".env.d/dev/.env", "A=1\n")
 	res := r.ok("uninstall")
-	if !strings.Contains(res.stdout, "[materialized] .env (was -> .env.d/dev/.env)") {
+	if !strings.Contains(res.stdout, "materialized: .env (was -> .env.d/dev/.env)") {
 		t.Fatalf("output:\n%s", res.stdout)
 	}
 	info, err := os.Lstat(r.path(".env"))
@@ -35,6 +35,7 @@ func TestDefaultUninstallKeepsData(t *testing.T) {
 
 func TestUninstallPreservesCustomHook(t *testing.T) {
 	r := newRepo(t)
+	requireSymlinks(t, r.root)
 	custom := "#!/bin/sh\necho custom\n"
 	r.write(".git/hooks/post-checkout", custom)
 	r.ok("init")
@@ -79,7 +80,7 @@ func TestUninstallIgnoresCorruptToml(t *testing.T) {
 func TestUninstallIdempotentAndOnFreshRepo(t *testing.T) {
 	r := newRepo(t)
 	res := r.ok("uninstall")
-	if strings.Contains(res.stdout, "[removed]") || strings.Contains(res.stdout, "[materialized]") {
+	if strings.Contains(res.stdout, "removed:") || strings.Contains(res.stdout, "materialized:") {
 		t.Fatalf("fresh repo:\n%s", res.stdout)
 	}
 	requireSymlinks(t, r.root)
@@ -88,7 +89,7 @@ func TestUninstallIdempotentAndOnFreshRepo(t *testing.T) {
 	r.ok("use", "dev")
 	r.ok("uninstall")
 	second := r.ok("uninstall")
-	if strings.Contains(second.stdout, "[removed]") || strings.Contains(second.stdout, "[materialized]") {
+	if strings.Contains(second.stdout, "removed:") || strings.Contains(second.stdout, "materialized:") {
 		t.Fatalf("second uninstall:\n%s", second.stdout)
 	}
 }
@@ -99,7 +100,7 @@ func TestUninstallWithBrokenSymlink(t *testing.T) {
 		t.Fatal(err)
 	}
 	res := r.ok("uninstall")
-	if !strings.Contains(res.stderr, "BROKEN") || !strings.Contains(res.stdout, "[skipped] .env") {
+	if !strings.Contains(res.stderr, "BROKEN") || !strings.Contains(res.stdout, "skipped: .env") {
 		t.Fatalf("output:\n%s", res.all())
 	}
 	if r.exists(".git/hooks/post-checkout") {
@@ -124,7 +125,7 @@ func TestRoundTrip(t *testing.T) {
 		t.Fatalf("bootstrap: %s", res.all())
 	}
 	prompted := r.ok("uninstall")
-	if !strings.Contains(prompted.stdout, "[materialized]") {
+	if !strings.Contains(prompted.stdout, "materialized:") {
 		t.Fatal("second uninstall should materialize again")
 	}
 	res = r.runIn(r.root, "fromprompt\n", "init")
@@ -148,7 +149,7 @@ func TestCrashBetweenMaterializeAndHookRemoval(t *testing.T) {
 		t.Fatalf("hook should be inert:\n%s", res.all())
 	}
 	res := r.ok("uninstall")
-	if !strings.Contains(res.stdout, "[skipped] .env (already a real file)") || r.exists(".git/hooks/post-checkout") {
+	if !strings.Contains(res.stdout, "skipped: .env (already a real file)") || r.exists(".git/hooks/post-checkout") {
 		t.Fatalf("re-run:\n%s", res.stdout)
 	}
 }

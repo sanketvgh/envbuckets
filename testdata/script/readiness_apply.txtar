@@ -1,0 +1,22 @@
+# The real binary checks the current branch, plans without mutation, and repairs a missing link.
+[!exec:git] skip 'git is required'
+[!symlink] skip 'symlinks are required'
+
+exec git init -q -b main
+exec envbuckets init
+exec envbuckets bucket add dev
+exec envbuckets map add main dev
+! exec envbuckets check
+stdout '\.env missing'
+exec envbuckets apply --dry-run
+stdout 'would link .env -> .env.d/dev/.env'
+! exists .env
+exec envbuckets apply
+readlink .env .env.d/dev/.env
+exec envbuckets check
+stdout '1 scope ready\.'
+exec envbuckets status
+stdout '\.env -> \.env\.d/dev/\.env'
+
+-- README --
+fixture

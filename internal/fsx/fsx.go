@@ -3,6 +3,8 @@
 package fsx
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -72,6 +74,48 @@ func SetSymlink(link, target, stageDir string) (bool, error) {
 	return true, nil
 }
 
+// StageSymlinkRoot creates a uniquely named link beneath root for a later
+// atomic rename. Root keeps path traversal inside the repository even if a
+// directory component changes to a symlink between validation and the write.
+func StageSymlinkRoot(root *os.Root, target, stageDir string) (string, error) {
+	for range 10 {
+		var random [16]byte
+		if _, err := rand.Read(random[:]); err != nil {
+			return "", err
+		}
+		name := filepath.Join(stageDir, ".envbuckets-link-"+hex.EncodeToString(random[:]))
+		if err := root.Symlink(filepath.FromSlash(target), name); errors.Is(err, os.ErrExist) {
+			continue
+		} else if err != nil {
+			return "", fmt.Errorf("stage symlink %s: %w", name, err)
+		}
+		return name, nil
+	}
+	return "", fmt.Errorf("cannot reserve a unique symlink name in %s", stageDir)
+}
+
+// SetSymlinkRoot performs the same swap as SetSymlink with repo-root-contained
+// operations, including its temporary link and final rename.
+func SetSymlinkRoot(root *os.Root, link, target, stageDir string) (bool, error) {
+	if err := root.Symlink(filepath.FromSlash(target), link); err == nil {
+		return true, nil
+	} else if !errors.Is(err, os.ErrExist) {
+		return false, fmt.Errorf("symlink %s: %w", link, err)
+	}
+	if current, err := root.Readlink(link); err == nil && filepath.ToSlash(current) == target {
+		return false, nil
+	}
+	tmp, err := StageSymlinkRoot(root, target, stageDir)
+	if err != nil {
+		return false, err
+	}
+	if err := root.Rename(tmp, link); err != nil {
+		_ = root.Remove(tmp)
+		return false, fmt.Errorf("swap %s: %w", link, err)
+	}
+	return true, nil
+}
+
 // WriteFileAtomic writes data to path via a temp file in the same
 // directory, fsynced and renamed into place.
 func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
@@ -93,6 +137,59 @@ func CopyFileAtomic(src, dst, stageDir string, perm os.FileMode) error {
 		_, err := io.Copy(w, in)
 		return err
 	})
+}
+
+// CopyFileAtomicRoot streams a file through a temporary file without allowing
+// any source, staging, or destination path to escape root through symlinks.
+func CopyFileAtomicRoot(root *os.Root, src, dst, stageDir string, perm os.FileMode) error {
+	in, err := root.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	var out *os.File
+	var tmp string
+	for range 10 {
+		var random [16]byte
+		if _, err := rand.Read(random[:]); err != nil {
+			return err
+		}
+		tmp = filepath.Join(stageDir, ".envbuckets-write-"+hex.EncodeToString(random[:]))
+		out, err = root.OpenFile(tmp, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
+		if errors.Is(err, os.ErrExist) {
+			continue
+		}
+		if err != nil {
+			return err
+		}
+		break
+	}
+	if out == nil {
+		return fmt.Errorf("cannot reserve a unique file name in %s", stageDir)
+	}
+	cleanup := func(err error) error {
+		_ = out.Close()
+		_ = root.Remove(tmp)
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		return cleanup(err)
+	}
+	if err := out.Sync(); err != nil {
+		return cleanup(err)
+	}
+	if err := out.Chmod(perm); err != nil {
+		return cleanup(err)
+	}
+	if err := out.Close(); err != nil {
+		_ = root.Remove(tmp)
+		return err
+	}
+	if err := root.Rename(tmp, dst); err != nil {
+		_ = root.Remove(tmp)
+		return err
+	}
+	return nil
 }
 
 func writeAtomic(path, stageDir string, perm os.FileMode, fill func(io.Writer) error) error {

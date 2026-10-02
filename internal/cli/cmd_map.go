@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/sanketvgh/envbuckets/internal/config"
@@ -14,6 +15,11 @@ func runMap(args []string, env Env) error {
 		return err
 	}
 	flags := newFlags("map " + sub)
+	var before, after *string
+	if sub == "move" {
+		before = flags.String("before", "", "place the rule directly before this pattern")
+		after = flags.String("after", "", "place the rule directly after this pattern")
+	}
 	rest, err = parseFlags(flags, rest)
 	if err != nil {
 		return err
@@ -23,48 +29,146 @@ func runMap(args []string, env Env) error {
 		return err
 	}
 	switch sub {
-	case "add":
+	case "add", "update":
 		if len(rest) != 2 {
-			return usage("map add: expected <pattern> <bucket>").then("envbuckets map add 'release/*' prod")
+			return usage("map %s: expected <pattern> <bucket>", sub).then("envbuckets map %s 'release/*' prod", sub)
 		}
-		return mapAdd(env, p, rest[0], rest[1])
-	case "rm":
+	case "explain":
 		if len(rest) != 1 {
-			return usage("map rm: expected <pattern>").then("envbuckets map list")
+			return usage("map explain: expected one <branch>").then("envbuckets map explain feature/login")
 		}
-		return mapRm(env, p, rest[0])
+	case "rm", "move":
+		if len(rest) != 1 {
+			return usage("map %s: expected one <pattern>", sub).then("envbuckets map list")
+		}
 	case "list":
-		return mapList(env, p)
+		if len(rest) != 0 {
+			return usage("map list: takes no arguments").then("envbuckets map list")
+		}
 	default:
-		return usage("map: unknown subcommand %q", sub).then("envbuckets map add|rm|list")
+		return usage("map: unknown subcommand %q", sub).then("envbuckets map add|update|move|rm|list|explain")
 	}
+	if sub == "move" && (*before == "") == (*after == "") {
+		return usage("map move: pass exactly one of --before or --after").then("envbuckets map move %q --before <pattern>", rest[0])
+	}
+	switch sub {
+	case "add":
+		return mapAdd(env, p, rest[0], rest[1])
+	case "update":
+		return mapUpdate(env, p, rest[0], rest[1])
+	case "move":
+		return mapMove(env, p, rest[0], *before, *after)
+	case "rm":
+		return mapRm(env, p, rest[0])
+	case "explain":
+		return mapExplain(env, p, rest[0])
+	default:
+		return mapList(env, p)
+	}
+}
+
+func ruleErr(err error) error {
+	switch {
+	case errors.Is(err, config.ErrDuplicateRule):
+		return blocked("%v", err).then("envbuckets map update <pattern> <bucket> to change its bucket")
+	case errors.Is(err, config.ErrNoRule):
+		return blocked("%v", err).then("envbuckets map list")
+	case errors.Is(err, config.ErrCatchAllOrder):
+		return blocked("the catch-all `*` rule must stay last").then("envbuckets map list")
+	case errors.Is(err, config.ErrSelfReference):
+		return usage("map move: %v", err).then("envbuckets map move <pattern> --before <other-pattern>")
+	default:
+		return blocked("%v", err)
+	}
+}
+
+func requireBucket(p *project, bucket string) error {
+	if err := config.ValidateName(bucket); err != nil {
+		return blocked("bucket: %v", err)
+	}
+	if !p.bucketExists(bucket) {
+		return blocked("bucket %s does not exist in any scope", bucket).then("envbuckets bucket add %s, then retry", bucket)
+	}
+	return nil
 }
 
 func mapAdd(env Env, p *project, pat, bucket string) error {
 	if err := config.ValidatePattern(pat); err != nil {
 		return blocked("%v", err)
 	}
-	if err := config.ValidateName(bucket); err != nil {
-		return blocked("bucket: %v", err)
+	if i := p.cfg.RuleIndex(pat); i >= 0 {
+		return ruleErr(fmt.Errorf("%w: %q already maps to %s", config.ErrDuplicateRule, pat, p.cfg.Rules[i].Bucket))
 	}
-	if p.cfg.HasCatchAll() {
-		return blocked("a catch-all `*` rule exists and must stay last").then("envbuckets map rm '*', add the new rule, then re-add '*'")
+	if err := requireBucket(p, bucket); err != nil {
+		return err
 	}
-	for _, r := range p.cfg.Rules {
-		if r.Pattern == pat {
-			return blocked("pattern %q already maps to %s", pat, r.Bucket).then("envbuckets map rm %q first to change it", pat)
-		}
+	at, err := p.cfg.AddRule(config.Rule{Pattern: pat, Bucket: bucket})
+	if err != nil {
+		return ruleErr(err)
 	}
-	if !p.bucketExists(bucket) {
-		return blocked("bucket %s does not exist in any scope", bucket).then("envbuckets bucket add %s, then retry", bucket)
-	}
-	p.cfg.Rules = append(p.cfg.Rules, config.Rule{Pattern: pat, Bucket: bucket})
 	if err := p.cfg.Save(p.root); err != nil {
 		return err
 	}
-	fmt.Fprintf(env.Stdout, "added rule %s -> %s (priority %d)\n  next: commit %s, then git checkout a matching branch\n",
-		pat, bucket, len(p.cfg.Rules), config.FileName)
+	where := ""
+	if pat != config.CatchAll && p.cfg.HasCatchAll() {
+		where = ", before the catch-all `*`"
+	}
+	fmt.Fprintf(env.Stdout, "added rule %s -> %s (priority %d%s)\n", pat, bucket, at+1, where)
 	return nil
+}
+
+func mapUpdate(env Env, p *project, pat, bucket string) error {
+	if p.cfg.RuleIndex(pat) < 0 {
+		return ruleErr(fmt.Errorf("%w: %q", config.ErrNoRule, pat))
+	}
+	if err := requireBucket(p, bucket); err != nil {
+		return err
+	}
+	prev, at, err := p.cfg.UpdateRule(pat, bucket)
+	if err != nil {
+		return ruleErr(err)
+	}
+	if prev == bucket {
+		fmt.Fprintf(env.Stdout, "rule %s already -> %s (priority %d), nothing to do\n", pat, bucket, at+1)
+		return nil
+	}
+	if err := p.cfg.Save(p.root); err != nil {
+		return err
+	}
+	fmt.Fprintf(env.Stdout, "updated rule %s: %s -> %s (priority %d)\n", pat, prev, bucket, at+1)
+	return nil
+}
+
+func mapMove(env Env, p *project, pat, before, after string) error {
+	anchor := before
+	if after != "" {
+		anchor = after
+	}
+	changed, err := p.cfg.MoveRule(pat, anchor, after != "")
+	if err != nil {
+		return ruleErr(err)
+	}
+	if !changed {
+		fmt.Fprintf(env.Stdout, "rule %s is already there, order unchanged\n", pat)
+		printRules(env, p.cfg.Rules, pat)
+		return nil
+	}
+	if err := p.cfg.Save(p.root); err != nil {
+		return err
+	}
+	fmt.Fprintf(env.Stdout, "moved rule %s, new order (first match wins):\n", pat)
+	printRules(env, p.cfg.Rules, pat)
+	return nil
+}
+
+func printRules(env Env, rules []config.Rule, mark string) {
+	for i, r := range rules {
+		marker := " "
+		if r.Pattern == mark {
+			marker = ">"
+		}
+		fmt.Fprintf(env.Stdout, "%s %d. %-24s -> %s\n", marker, i+1, r.Pattern, r.Bucket)
+	}
 }
 
 func mapRm(env Env, p *project, pat string) error {
@@ -99,7 +203,7 @@ func mapList(env Env, p *project) error {
 		linked = linked || l.Branch == branch
 	}
 	if len(p.cfg.Rules) == 0 {
-		fmt.Fprintln(env.Stdout, "no rules\n  next: envbuckets map add <pattern> <bucket>")
+		fmt.Fprintln(env.Stdout, "no rules")
 	}
 	var active *config.Rule
 	if branch != "" && !linked {

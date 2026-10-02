@@ -1,81 +1,93 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
-
-	"github.com/sanketvgh/envbuckets/internal/gitx"
+	"os"
+	"strings"
 )
 
 func runStatus(args []string, env Env) error {
 	flags := newFlags("status")
-	if _, err := parseFlags(flags, args); err != nil {
+	rest, err := parseFlags(flags, args)
+	if err != nil {
 		return err
+	}
+	if len(rest) != 0 {
+		return usage("status: takes no arguments").then("envbuckets status")
 	}
 	p, err := openProject(env)
 	if err != nil {
 		return err
 	}
-	branch, err := gitx.Branch(p.root)
+	r, err := p.evaluateCurrent(p.scopes)
 	if err != nil {
-		return envErr("cannot resolve the current branch: %v", err).then("check git status")
+		return err
 	}
-
-	var t target
-	if branch == "" {
-		fmt.Fprintln(env.Stdout, "branch: (detached HEAD), the hook leaves .env untouched\n  next: git checkout <branch>, or envbuckets use <bucket>")
-	} else {
-		var found bool
-		t, found, err = p.target(branch)
-		switch {
-		case err != nil:
-			return envErr("cannot read the branch link: %v", err).then("envbuckets unlink, or git config --local --unset branch.%s.envbuckets", branch)
-		case !found:
-			fmt.Fprintf(env.Stdout, "branch: %s\nrule:   none, .env is left as-is on checkout\n  next: envbuckets map add <pattern> <bucket>, or envbuckets link <bucket>\n", branch)
-		case t.linked:
-			fmt.Fprintf(env.Stdout, "branch: %s\nlink:   %s (local, overrides rules; envbuckets unlink to drop)\n", branch, t.bucket)
-		default:
-			fmt.Fprintf(env.Stdout, "branch: %s\nrule:   %s -> %s\n", branch, t.via, t.bucket)
-		}
+	if env.jsonData != nil {
+		*env.jsonData = readinessJSON(r)
 	}
-
-	fmt.Fprintln(env.Stdout, "scopes:")
-	for _, s := range p.scopes {
-		fmt.Fprintf(env.Stdout, "  %-12s %s\n", s.Name, scopeStatus(s, t))
-	}
+	printReadiness(env, r)
 	return nil
 }
 
-func scopeStatus(s scope, t target) string {
-	want := t.bucket
-	if !s.exists() {
-		return "MISSING directory " + s.Path
-	}
-	ls, err := s.linkState()
-	if err != nil {
-		return "ERROR " + err.Error()
-	}
-	envDisplay := s.display(envFile)
-	switch ls.kind {
-	case linkMissing:
-		return fmt.Sprintf("no %s (envbuckets use <bucket>)", envDisplay)
-	case linkReal:
-		return envDisplay + " is a real file, not managed (envbuckets init to bootstrap)"
-	case linkForeign:
-		return fmt.Sprintf("%s -> %s (outside %s/, not managed)", envDisplay, ls.target, bucketsDir)
-	}
-	if ls.dangling {
-		return fmt.Sprintf("%s BROKEN - %s is missing (create it, or envbuckets use <bucket>)", ls.bucket, s.display(linkTarget(ls.bucket)))
-	}
+func printReadiness(env Env, r readiness) {
 	switch {
-	case want == "":
-		return ls.bucket
-	case ls.bucket == want:
-		return ls.bucket + " (ok)"
+	case r.branch == "":
+		fmt.Fprintln(env.Stdout, "HEAD detached")
+		fmt.Fprintln(env.Stdout, "No bucket selected; checkout leaves .env unchanged.")
+	case !r.resolved:
+		fmt.Fprintf(env.Stdout, "On branch %s\n", r.branch)
+		fmt.Fprintln(env.Stdout, "No matching rule or local pin; checkout leaves .env unchanged.")
+	case r.target.linked:
+		fmt.Fprintf(env.Stdout, "On branch %s\n", r.branch)
+		fmt.Fprintf(env.Stdout, "Using bucket %s (local pin; overrides rules)\n", r.target.bucket)
 	default:
-		source := "rule"
-		if t.linked {
-			source = "link"
-		}
-		return fmt.Sprintf("%s (manual override; %s wants %s)", ls.bucket, source, want)
+		fmt.Fprintf(env.Stdout, "On branch %s\n", r.branch)
+		fmt.Fprintf(env.Stdout, "Using bucket %s (rule %s, priority %d)\n", r.target.bucket, r.target.via, r.target.priority)
 	}
+	fmt.Fprintln(env.Stdout)
+	for _, s := range r.scopes {
+		fmt.Fprintf(env.Stdout, "%-12s %s\n", s.scope.Name, scopeReadinessText(s, r.target.bucket, r.resolved))
+	}
+}
+
+func scopeReadinessText(r scopeReadiness, expected string, resolved bool) string {
+	s := r.scope
+	if !r.directoryExists {
+		if !errors.Is(r.directoryErr, os.ErrNotExist) {
+			return "cannot access " + s.Path + ": " + r.directoryErr.Error()
+		}
+		return s.Path + " missing (scope directory)"
+	}
+	if r.linkErr != nil {
+		return "cannot inspect " + s.display(envFile) + ": " + r.linkErr.Error()
+	}
+	var facts []string
+	switch r.link.kind {
+	case linkMissing:
+		facts = append(facts, s.display(envFile)+" missing")
+	case linkReal:
+		facts = append(facts, s.display(envFile)+" is a real file, unmanaged")
+	case linkForeign:
+		facts = append(facts, fmt.Sprintf("%s -> %s (foreign, unmanaged)", s.display(envFile), r.link.target))
+	case linkBucket:
+		facts = append(facts, s.display(envFile)+" -> "+s.display(linkTarget(r.link.bucket)))
+		if r.link.dangling {
+			facts = append(facts, "target missing")
+		}
+	}
+	if resolved {
+		if !r.healthy() && r.expectedExists {
+			facts = append(facts, "expected "+s.display(linkTarget(expected)))
+		}
+		if !r.expectedExists {
+			facts = append(facts, s.display(linkTarget(expected))+" missing")
+		}
+	}
+	return strings.Join(facts, "; ")
+}
+
+func scopeStatus(s scope, t target) string {
+	return scopeReadinessText(evaluateScope(s, t.bucket, t.bucket != ""), t.bucket, t.bucket != "")
 }

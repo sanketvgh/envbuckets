@@ -58,7 +58,7 @@ func TestMonorepoSwitchAndStatus(t *testing.T) {
 		}
 	}
 	st := r.ok("status")
-	if strings.Count(st.stdout, "staging (ok)") != 3 || strings.Count(st.stdout, "rule:") != 1 {
+	if strings.Count(st.stdout, "-> .env.d/staging/.env") != 1 || strings.Count(st.stdout, "-> apps/api/.env.d/staging/.env") != 1 || strings.Count(st.stdout, "-> apps/web/.env.d/staging/.env") != 1 || strings.Count(st.stdout, "Using bucket staging") != 1 {
 		t.Fatalf("status:\n%s", st.stdout)
 	}
 	ignore := r.read(".gitignore")
@@ -93,7 +93,7 @@ func TestPerScopeFailSafe(t *testing.T) {
 	}
 	r.checkoutMain()
 	res = r.hook()
-	if !strings.Contains(res.stderr, "web: scope directory missing") || r.readlink("apps/api/.env") != ".env.d/staging/.env" {
+	if !strings.Contains(res.stderr, "web: scope directory apps/web missing") || r.readlink("apps/api/.env") != ".env.d/staging/.env" {
 		t.Fatalf("sparse checkout:\n%s", res.all())
 	}
 }
@@ -101,22 +101,23 @@ func TestPerScopeFailSafe(t *testing.T) {
 func TestScopeContext(t *testing.T) {
 	r := monorepo(t)
 	res := r.runIn(r.path("apps/api"), "", "bucket", "list")
-	if res.code != ExitOK || !strings.Contains(res.stdout, "scope api") {
+	if res.code != ExitOK || !strings.Contains(res.stdout, "Scope api") {
 		t.Fatalf("nearest scope: %d %s", res.code, res.all())
 	}
 	res = r.ok("bucket", "list", "--scope", "web")
-	if !strings.Contains(res.stdout, "scope web") {
+	if !strings.Contains(res.stdout, "Scope web") {
 		t.Fatalf("--scope: %s", res.stdout)
 	}
 	r.ok("scope", "rm", "root")
 	res = r.run("bucket", "list")
-	if res.code != ExitEnv || !strings.Contains(res.stderr, "--scope") {
+	if res.code != ExitEnv || !strings.Contains(res.stderr, "not inside any scope") {
 		t.Fatalf("cwd outside scopes: %d %s", res.code, res.all())
 	}
 }
 
 func TestScopeAddValidation(t *testing.T) {
 	r := newRepo(t)
+	requireSymlinks(t, r.root)
 	r.ok("init")
 	if err := os.MkdirAll(r.path("apps/api/sub"), 0o755); err != nil {
 		t.Fatal(err)
@@ -161,7 +162,7 @@ func TestScopeAddBootstrapsRealEnv(t *testing.T) {
 	r.ok("init")
 	r.write("svc/.env", "S=1\n")
 	res := r.ok("scope", "add", "svc", "--into", "dev")
-	if !strings.Contains(res.stdout, "[created]") || r.readlink("svc/.env") != ".env.d/dev/.env" || r.read("svc/.env.d/dev/.env") != "S=1\n" {
+	if !strings.Contains(res.stdout, "created:") || r.readlink("svc/.env") != ".env.d/dev/.env" || r.read("svc/.env.d/dev/.env") != "S=1\n" {
 		t.Fatalf("bootstrap:\n%s", res.stdout)
 	}
 }

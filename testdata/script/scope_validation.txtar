@@ -1,5 +1,6 @@
 # Invalid scope paths must be refused without creating registrations.
 [!exec:git] skip 'git is required'
+[!symlink] skip 'symlinks are required'
 
 exec git init -q -b main
 exec envbuckets init

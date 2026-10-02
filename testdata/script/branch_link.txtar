@@ -14,7 +14,7 @@ exec envbuckets map add '*' dev
 
 exec git checkout -q -b feature/x
 exec envbuckets link prod
-stdout 'linked feature/x -> prod \(local, overrides rules, not committed\)'
+stdout 'Pinned branch feature/x to bucket prod in \.git/config \(overrides rules\)'
 stdout 'dev -> prod - 1 scope switched'
 readlink .env .env.d/prod/.env
 exec git config --local --get branch.feature/x.envbuckets
@@ -30,11 +30,11 @@ readlink .env .env.d/prod/.env
 
 exec git branch -m feature/x feature/y
 exec envbuckets status
-stdout 'branch: feature/y'
-stdout 'link:   prod'
+stdout 'On branch feature/y'
+stdout 'Using bucket prod \(local pin; overrides rules\)'
 
 exec envbuckets unlink
-stdout 'unlinked feature/y, rules apply again'
+stdout 'Removed local pin for branch feature/y; rules apply again'
 stdout 'prod -> dev - 1 scope switched'
 readlink .env .env.d/dev/.env
 ! exec git config --local --get branch.feature/y.envbuckets

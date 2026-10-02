@@ -10,15 +10,16 @@ import (
 
 func TestInitIsIdempotent(t *testing.T) {
 	r := newRepo(t)
+	requireSymlinks(t, r.root)
 	first := r.ok("init")
-	if !strings.Contains(first.stdout, "[created] .envbuckets.toml") || !strings.Contains(first.stdout, "[created] hook block") {
+	if !strings.Contains(first.stdout, "created: .envbuckets.toml") || !strings.Contains(first.stdout, "created: hook block") {
 		t.Fatalf("first init:\n%s", first.stdout)
 	}
 	if !r.exists(".envbuckets.toml") || !strings.Contains(r.read(".gitignore"), block.Begin) {
 		t.Fatal("structure not created")
 	}
 	second := r.ok("init")
-	if strings.Contains(second.stdout, "[created]") {
+	if strings.Contains(second.stdout, "created:") {
 		t.Fatalf("second init not idempotent:\n%s", second.stdout)
 	}
 }
@@ -55,7 +56,7 @@ func TestUnmappedBranchLeavesEnvUntouched(t *testing.T) {
 	r.newBranch("feature/x")
 	res := r.hook()
 	if !strings.Contains(res.stderr, "no rule matches") || strings.Count(strings.TrimSpace(res.all()), "\n") != 0 {
-		t.Fatalf("want one hint line:\n%s", res.all())
+		t.Fatalf("want one warning line:\n%s", res.all())
 	}
 	if got := r.readlink(".env"); got != ".env.d/dev/.env" {
 		t.Fatalf("env changed: %s", got)
@@ -82,11 +83,11 @@ func TestUseIsATransientOverride(t *testing.T) {
 	r.newBranch("feature/a")
 	r.hook()
 	res := r.ok("use", "prod")
-	if !strings.Contains(res.stdout, "manual override") || r.readlink(".env") != ".env.d/prod/.env" {
+	if !strings.Contains(res.stdout, "Manual selection") || r.readlink(".env") != ".env.d/prod/.env" {
 		t.Fatalf("use:\n%s", res.all())
 	}
 	st := r.ok("status")
-	if !strings.Contains(st.stdout, "manual override") {
+	if !strings.Contains(st.stdout, ".env -> .env.d/prod/.env; expected .env.d/dev/.env") {
 		t.Fatalf("status:\n%s", st.stdout)
 	}
 	r.checkoutMain()
@@ -132,7 +133,7 @@ func TestStatusReportsBroken(t *testing.T) {
 		t.Fatal(err)
 	}
 	res := r.ok("status")
-	if !strings.Contains(res.stdout, "BROKEN") || !strings.Contains(res.stdout, "create it") {
+	if !strings.Contains(res.stdout, "target missing") || !strings.Contains(res.stdout, "expected .env.d/staging/.env") {
 		t.Fatalf("status:\n%s", res.stdout)
 	}
 	if err := os.Remove(r.path(".env.d/staging/.env")); err != nil {
@@ -166,6 +167,7 @@ func TestFileCheckoutIsSilent(t *testing.T) {
 
 func TestDetachedHead(t *testing.T) {
 	r := newRepo(t)
+	requireSymlinks(t, r.root)
 	r.ok("init")
 	r.git("checkout", "-q", "--detach")
 	res := r.hook()
@@ -180,6 +182,7 @@ func TestDetachedHead(t *testing.T) {
 
 func TestCustomHookPreserved(t *testing.T) {
 	r := newRepo(t)
+	requireSymlinks(t, r.root)
 	custom := "#!/bin/sh\necho custom\n"
 	r.write(".git/hooks/post-checkout", custom)
 	r.ok("init")
@@ -221,10 +224,11 @@ func TestSchemaTooNewRefuses(t *testing.T) {
 
 func TestMapAddUnknownBucketBlocked(t *testing.T) {
 	r := newRepo(t)
+	requireSymlinks(t, r.root)
 	r.ok("init")
 	before := r.read(".envbuckets.toml")
 	res := r.run("map", "add", "x", "nope")
-	if res.code != ExitBlocked || !strings.Contains(res.stderr, "bucket add nope") {
+	if res.code != ExitBlocked || !strings.Contains(res.stderr, "bucket nope does not exist in any scope") {
 		t.Fatalf("got %d %s", res.code, res.all())
 	}
 	if r.read(".envbuckets.toml") != before {
@@ -241,7 +245,7 @@ func TestBucketRmGuards(t *testing.T) {
 	r.ok("bucket", "add", "scratch")
 	r.write(".env.d/scratch/.env", "SECRET=1\n")
 	res = r.run("bucket", "rm", "scratch")
-	if res.code != ExitBlocked || !strings.Contains(res.stderr, "--purge") {
+	if res.code != ExitBlocked || !strings.Contains(res.stderr, "contains data or non-bucket files") {
 		t.Fatalf("non-empty: %d %s", res.code, res.all())
 	}
 	res = r.runIn(r.root, "no\n", "bucket", "rm", "scratch", "--purge")
@@ -260,6 +264,7 @@ func TestBucketRmGuards(t *testing.T) {
 
 func TestDuplicateAndCatchAllBlocked(t *testing.T) {
 	r := newRepo(t)
+	requireSymlinks(t, r.root)
 	r.ok("init")
 	r.ok("bucket", "add", "dev")
 	r.ok("map", "add", "main", "dev")
@@ -267,8 +272,11 @@ func TestDuplicateAndCatchAllBlocked(t *testing.T) {
 		t.Fatalf("duplicate: %d", res.code)
 	}
 	r.ok("map", "add", "*", "dev")
-	if res := r.run("map", "add", "feature/*", "dev"); res.code != ExitBlocked || !strings.Contains(res.stderr, "catch-all") {
-		t.Fatalf("catch-all: %d %s", res.code, res.all())
+	if res := r.run("map", "add", "*", "dev"); res.code != ExitBlocked {
+		t.Fatalf("second catch-all: %d %s", res.code, res.all())
+	}
+	if res := r.ok("map", "add", "feature/*", "dev"); !strings.Contains(res.stdout, "priority 2, before the catch-all") {
+		t.Fatalf("insert before catch-all: %s", res.stdout)
 	}
 }
 
@@ -319,7 +327,7 @@ func TestCommandsFromSubdirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	res := r.runIn(sub, "", "bucket", "list")
-	if res.code != ExitOK || !strings.Contains(res.stdout, "scope root") {
+	if res.code != ExitOK || !strings.Contains(res.stdout, "Scope root") {
 		t.Fatalf("%d %s", res.code, res.all())
 	}
 	res = r.runIn(sub, "", "use", "prod")
@@ -331,7 +339,7 @@ func TestCommandsFromSubdirectory(t *testing.T) {
 func TestStatusUninitialized(t *testing.T) {
 	r := newRepo(t)
 	res := r.run("status")
-	if res.code != ExitConfig || !strings.Contains(res.stderr, "envbuckets init") {
+	if res.code != ExitConfig || !strings.Contains(res.stderr, "not initialized") {
 		t.Fatalf("%d %s", res.code, res.all())
 	}
 	if res := r.runIn(t.TempDir(), "", "status"); res.code != ExitEnv {
@@ -341,6 +349,7 @@ func TestStatusUninitialized(t *testing.T) {
 
 func TestUsageErrors(t *testing.T) {
 	r := newRepo(t)
+	requireSymlinks(t, r.root)
 	r.ok("init")
 	for _, args := range [][]string{{"use"}, {"map", "add", "x"}, {"bucket"}, {"scope", "add"}, {"init", "--bogus"}, {"link"}, {"unlink", "x"}} {
 		if res := r.run(args...); res.code != ExitUsage {

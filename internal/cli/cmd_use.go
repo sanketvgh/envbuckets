@@ -9,12 +9,19 @@ import (
 func runUse(args []string, env Env) error {
 	flags := newFlags("use")
 	scopeName := flags.String("scope", "", "target scope by name")
+	all := flags.Bool("all", false, "target all configured scopes")
 	rest, err := parseFlags(flags, args)
 	if err != nil {
 		return err
 	}
 	if len(rest) != 1 {
 		return usage("use: expected exactly one bucket name").then("envbuckets bucket list")
+	}
+	if *all && scopeFlagProvided(flags) {
+		return usage("use: --all and --scope cannot be used together")
+	}
+	if scopeFlagProvided(flags) && *scopeName == "" {
+		return usage("use: --scope requires a name")
 	}
 	bucket := rest[0]
 	if err := config.ValidateName(bucket); err != nil {
@@ -23,6 +30,17 @@ func runUse(args []string, env Env) error {
 	p, err := openProject(env)
 	if err != nil {
 		return err
+	}
+	if *all {
+		selected, err := p.selectScopes(env, *scopeName, true, false)
+		if err != nil {
+			return err
+		}
+		states := make([]scopeReadiness, 0, len(selected))
+		for _, s := range selected {
+			states = append(states, evaluateScope(s, bucket, true))
+		}
+		return executePlans(env, states, bucket, false)
 	}
 	s, err := p.resolveScope(env, *scopeName)
 	if err != nil {
@@ -47,10 +65,10 @@ func runUse(args []string, env Env) error {
 		return err
 	}
 	if !changed {
-		fmt.Fprintf(env.Stdout, "%s: %s already -> %s\n", s.Name, s.display(envFile), linkTarget(bucket))
+		fmt.Fprintf(env.Stdout, "%s: already linked %s -> %s\n", s.Name, s.display(envFile), s.display(linkTarget(bucket)))
 		return nil
 	}
-	fmt.Fprintf(env.Stdout, "%s: %s -> %s\n", s.Name, s.display(envFile), linkTarget(bucket))
-	fmt.Fprintln(env.Stdout, "note: manual override, the next checkout matching a rule repoints it\n  next: restart your dev servers")
+	fmt.Fprintf(env.Stdout, "%s: linked %s -> %s\n", s.Name, s.display(envFile), s.display(linkTarget(bucket)))
+	fmt.Fprintln(env.Stdout, "Manual selection; the next checkout with a matching rule may change it.")
 	return nil
 }

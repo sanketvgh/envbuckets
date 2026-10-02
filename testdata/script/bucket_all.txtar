@@ -1,0 +1,35 @@
+# bucket add --all creates empty files only in existing scope directories,
+# never overwrites, and bucket list --all shows the availability matrix.
+[!exec:git] skip 'git is required'
+[!symlink] skip 'symlinks are required'
+
+exec git init -q -b main
+mkdir apps/api apps/web
+exec envbuckets init
+exec envbuckets scope add apps/api
+exec envbuckets scope add apps/web
+exec envbuckets bucket add dev --scope api
+
+exec envbuckets bucket add dev --all
+stdout 'ok: api: apps/api/\.env\.d/dev/\.env already exists, left untouched'
+stdout 'created: web: apps/web/\.env\.d/dev/\.env \(empty\)'
+stdout 'Created 1; 1 already present, 0 failed\.'
+exec envbuckets map add '*' dev
+
+exec envbuckets bucket list --all
+stdout 'bucket +api +web +used by'
+stdout 'dev +present +present +rule \*'
+stdout 'note: api: no apps/api/\.env link yet'
+
+rm apps/web
+! exec envbuckets bucket add qa --all
+stdout 'failed: web: scope directory apps/web is missing, not created'
+stderr 'envbuckets: bucket qa was not created in 1 of 2 scopes'
+! exists apps/web
+exists apps/api/.env.d/qa/.env
+
+! exec envbuckets bucket add qa --all --scope api
+stderr '--all and --scope cannot be used together'
+
+-- README --
+fixture

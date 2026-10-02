@@ -1,0 +1,41 @@
+# Rule maintenance: add inserts before the catch-all, update keeps
+# priority, move keeps mappings, and refusals leave the config unchanged.
+[!exec:git] skip 'git is required'
+[!symlink] skip 'symlinks are required'
+
+exec git init -q -b main
+exec envbuckets init
+exec envbuckets bucket add dev
+exec envbuckets bucket add staging
+exec envbuckets bucket add prod
+exec envbuckets map add main staging
+exec envbuckets map add '*' dev
+
+exec envbuckets map add 'release/*' prod
+stdout 'priority 2, before the catch-all'
+exec envbuckets map list
+stdout '2\. release/\* +-> prod'
+stdout '3\. \* +-> dev'
+
+exec envbuckets map update 'release/*' staging
+stdout 'updated rule release/\*: prod -> staging \(priority 2\)'
+
+exec envbuckets map move 'release/*' --before main
+stdout '> 1\. release/\* +-> staging'
+stdout '  2\. main +-> staging'
+
+cp .envbuckets.toml before.toml
+! exec envbuckets map move main --after '*'
+stderr 'envbuckets: the catch-all `\*` rule must stay last'
+! exec envbuckets map move main --before main
+stderr 'relative to itself'
+! exec envbuckets map move main
+stderr 'exactly one of --before or --after'
+! exec envbuckets map update nope dev
+stderr 'no such rule'
+! exec envbuckets map add main dev
+stderr 'already maps to staging'
+cmp .envbuckets.toml before.toml
+
+-- README --
+fixture

@@ -24,6 +24,7 @@ type scope struct {
 	Name string
 	Path string
 	Dir  string
+	Root string
 }
 
 type project struct {
@@ -74,7 +75,7 @@ func (p *project) reloadScopes() {
 }
 
 func (p *project) newScope(name, rel string) scope {
-	return scope{Name: name, Path: rel, Dir: filepath.Join(p.root, filepath.FromSlash(rel))}
+	return scope{Name: name, Path: rel, Dir: filepath.Join(p.root, filepath.FromSlash(rel)), Root: p.root}
 }
 
 func (p *project) scopeByName(name string) (scope, bool) {
@@ -122,6 +123,20 @@ func (p *project) resolveScope(env Env, name string) (scope, error) {
 	return best, nil
 }
 
+func (p *project) selectScopes(env Env, name string, all, defaultAll bool) ([]scope, error) {
+	if all && name != "" {
+		return nil, usage("--all and --scope cannot be used together")
+	}
+	if all || (defaultAll && name == "") {
+		return append([]scope(nil), p.scopes...), nil
+	}
+	s, err := p.resolveScope(env, name)
+	if err != nil {
+		return nil, err
+	}
+	return []scope{s}, nil
+}
+
 func withinScope(scopePath, rel string) bool {
 	if scopePath == "." {
 		return true
@@ -150,8 +165,71 @@ func relPath(root, dir string) (string, error) {
 }
 
 func (s scope) exists() bool {
-	info, err := os.Stat(s.Dir)
-	return err == nil && info.IsDir()
+	return s.checkScopeDir() == nil
+}
+
+// checkScopeDir rejects links in a registered scope path, including links in
+// parent components. A configured scope must not redirect operations elsewhere.
+func (s scope) checkScopeDir() error {
+	rel, err := filepath.Rel(s.Root, s.Dir)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return blocked("scope %s resolves outside the repo", s.Path)
+	}
+	current := s.Root
+	if rel == "." {
+		info, err := os.Stat(current)
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			return blocked("repo root is not a directory")
+		}
+		return nil
+	}
+	for _, part := range strings.Split(rel, string(filepath.Separator)) {
+		current = filepath.Join(current, part)
+		info, err := os.Lstat(current)
+		if err != nil {
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return blocked("scope path %s contains a symlink, refusing to follow it", s.Path)
+		}
+		if !info.IsDir() {
+			return blocked("scope path %s is not a directory", s.Path)
+		}
+	}
+	return nil
+}
+
+func (s scope) checkBucketParents(name string) error {
+	if err := s.checkScopeDir(); err != nil {
+		return err
+	}
+	paths := []string{s.bucketsPath()}
+	if name != "" {
+		paths = append(paths, s.bucketDir(name))
+	}
+	for _, p := range paths {
+		info, err := os.Lstat(p)
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return blocked("%s is a symlink, refusing to follow it", filepath.ToSlash(p))
+		}
+		if !info.IsDir() {
+			return blocked("%s is not a directory", filepath.ToSlash(p))
+		}
+	}
+	return nil
+}
+
+func (s scope) bucketRel(name string) string {
+	return filepath.Join(filepath.FromSlash(s.Path), bucketsDir, name)
 }
 
 func (s scope) envPath() string {
@@ -191,19 +269,17 @@ func bucketFromTarget(target string) (string, bool) {
 }
 
 func (s scope) bucketFileExists(name string) bool {
-	info, err := os.Stat(s.bucketFile(name))
+	if err := s.checkBucketParents(name); err != nil {
+		return false
+	}
+	info, err := os.Lstat(s.bucketFile(name))
 	return err == nil && info.Mode().IsRegular()
 }
 
-func (s scope) bucketFileEmpty(name string) (bool, error) {
-	info, err := os.Stat(s.bucketFile(name))
-	if err != nil {
-		return false, err
-	}
-	return info.Size() == 0, nil
-}
-
 func (s scope) buckets() ([]string, error) {
+	if err := s.checkBucketParents(""); err != nil {
+		return nil, err
+	}
 	entries, err := os.ReadDir(s.bucketsPath())
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
@@ -238,6 +314,9 @@ type linkState struct {
 }
 
 func (s scope) linkState() (linkState, error) {
+	if err := s.checkScopeDir(); err != nil {
+		return linkState{}, err
+	}
 	st, err := fsx.Inspect(s.envPath())
 	if err != nil {
 		return linkState{}, err
@@ -256,7 +335,18 @@ func (s scope) linkState() (linkState, error) {
 }
 
 func (s scope) pointTo(bucket string) (bool, error) {
-	return fsx.SetSymlink(s.envPath(), linkTarget(bucket), s.bucketsPath())
+	if err := s.checkBucketParents(bucket); err != nil {
+		return false, err
+	}
+	if !s.bucketFileExists(bucket) {
+		return false, blocked("%s is not a regular bucket file", s.display(linkTarget(bucket)))
+	}
+	root, err := os.OpenRoot(s.Root)
+	if err != nil {
+		return false, err
+	}
+	defer root.Close()
+	return fsx.SetSymlinkRoot(root, filepath.Join(filepath.FromSlash(s.Path), envFile), linkTarget(bucket), s.bucketRel(""))
 }
 
 func readLine(env Env) (string, bool) {

@@ -1,6 +1,7 @@
 # Direct hook invocation has an explicit success argument and no-op states
 # leave output quiet when there is no project configuration.
 [!exec:git] skip 'git is required'
+[!symlink] skip 'symlinks are required'
 
 exec git init -q -b main
 exec envbuckets hook post-checkout name 0

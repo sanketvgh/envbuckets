@@ -1,5 +1,6 @@
 # Existing hook bytes are preserved across init and uninstall.
 [!exec:git] skip 'git is required'
+[!symlink] skip 'symlinks are required'
 
 exec git init -q -b main
 cp .git/hooks/post-checkout original-hook

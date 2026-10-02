@@ -106,11 +106,11 @@ func (c *Config) validate() error {
 			return fmt.Errorf("rules[%d]: %w", i, err)
 		}
 		if seenPattern[r.Pattern] {
-			return fmt.Errorf("rules[%d]: duplicate pattern %q", i, r.Pattern)
+			return fmt.Errorf("rules[%d]: %w %q", i, ErrDuplicateRule, r.Pattern)
 		}
 		seenPattern[r.Pattern] = true
-		if r.Pattern == "*" && i != len(c.Rules)-1 {
-			return fmt.Errorf("rules[%d]: catch-all must be last", i)
+		if r.Pattern == CatchAll && i != len(c.Rules)-1 {
+			return fmt.Errorf("rules[%d]: %w", i, ErrCatchAllOrder)
 		}
 		if err := ValidateName(r.Bucket); err != nil {
 			return fmt.Errorf("rules[%d]: bucket: %w", i, err)
@@ -173,10 +173,117 @@ func (c *Config) Match(branch string, match func(pattern, name string) bool) *Ru
 	return nil
 }
 
+// CatchAll is the pattern that matches every branch and must stay last.
+const CatchAll = "*"
+
+// Rule-edit failures, distinguishable with errors.Is.
+var (
+	ErrNoRule        = errors.New("no such rule")
+	ErrDuplicateRule = errors.New("duplicate pattern")
+	ErrCatchAllOrder = errors.New("catch-all must stay last")
+	ErrSelfReference = errors.New("rule moved relative to itself")
+)
+
+// RuleIndex returns the position of pattern in Rules, or -1.
+func (c *Config) RuleIndex(pattern string) int {
+	for i, r := range c.Rules {
+		if r.Pattern == pattern {
+			return i
+		}
+	}
+	return -1
+}
+
+// AddRule inserts r last, or just before an existing catch-all, and
+// returns its zero-based position.
+func (c *Config) AddRule(r Rule) (int, error) {
+	if err := ValidatePattern(r.Pattern); err != nil {
+		return -1, err
+	}
+	if err := ValidateName(r.Bucket); err != nil {
+		return -1, fmt.Errorf("bucket: %w", err)
+	}
+	if i := c.RuleIndex(r.Pattern); i >= 0 {
+		return -1, fmt.Errorf("%w: %q already maps to %s", ErrDuplicateRule, r.Pattern, c.Rules[i].Bucket)
+	}
+	at := len(c.Rules)
+	if r.Pattern != CatchAll && c.HasCatchAll() {
+		at = c.RuleIndex(CatchAll)
+	}
+	rules := make([]Rule, 0, len(c.Rules)+1)
+	rules = append(rules, c.Rules[:at]...)
+	rules = append(rules, r)
+	rules = append(rules, c.Rules[at:]...)
+	return at, c.replaceRules(rules)
+}
+
+// UpdateRule points pattern at bucket in place and returns the previous
+// bucket and the rule's position.
+func (c *Config) UpdateRule(pattern, bucket string) (string, int, error) {
+	if err := ValidateName(bucket); err != nil {
+		return "", -1, fmt.Errorf("bucket: %w", err)
+	}
+	i := c.RuleIndex(pattern)
+	if i < 0 {
+		return "", -1, fmt.Errorf("%w: %q", ErrNoRule, pattern)
+	}
+	prev := c.Rules[i].Bucket
+	rules := append([]Rule(nil), c.Rules...)
+	rules[i].Bucket = bucket
+	return prev, i, c.replaceRules(rules)
+}
+
+// MoveRule places pattern directly before or after anchor and reports
+// whether the order changed.
+func (c *Config) MoveRule(pattern, anchor string, after bool) (bool, error) {
+	if pattern == anchor {
+		return false, fmt.Errorf("%w: %q", ErrSelfReference, pattern)
+	}
+	from := c.RuleIndex(pattern)
+	if from < 0 {
+		return false, fmt.Errorf("%w: %q", ErrNoRule, pattern)
+	}
+	if c.RuleIndex(anchor) < 0 {
+		return false, fmt.Errorf("%w: %q", ErrNoRule, anchor)
+	}
+	moved := c.Rules[from]
+	rules := make([]Rule, 0, len(c.Rules))
+	for _, r := range c.Rules {
+		if r.Pattern == pattern {
+			continue
+		}
+		if r.Pattern == anchor && !after {
+			rules = append(rules, moved)
+		}
+		rules = append(rules, r)
+		if r.Pattern == anchor && after {
+			rules = append(rules, moved)
+		}
+	}
+	changed := false
+	for i := range rules {
+		changed = changed || rules[i] != c.Rules[i]
+	}
+	return changed, c.replaceRules(rules)
+}
+
+func (c *Config) replaceRules(rules []Rule) error {
+	next := *c
+	next.Rules = rules
+	if err := next.validate(); err != nil {
+		if errors.Is(err, ErrCatchAllOrder) {
+			return ErrCatchAllOrder
+		}
+		return err
+	}
+	c.Rules = rules
+	return nil
+}
+
 // HasCatchAll reports whether a `*` rule exists.
 func (c *Config) HasCatchAll() bool {
 	for _, r := range c.Rules {
-		if r.Pattern == "*" {
+		if r.Pattern == CatchAll {
 			return true
 		}
 	}

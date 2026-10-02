@@ -22,11 +22,13 @@ const (
 
 // Env is the process environment a command runs in.
 type Env struct {
-	Cwd     string
-	Stdin   io.Reader
-	Stdout  io.Writer
-	Stderr  io.Writer
-	Version string
+	Cwd       string
+	Stdin     io.Reader
+	Stdout    io.Writer
+	Stderr    io.Writer
+	Version   string
+	jsonData  *any
+	jsonError **exitError
 }
 
 // exitError is a failure with a stable class (exit code), a one-line
@@ -76,30 +78,46 @@ func className(code int) string {
 const helpText = `envbuckets - your .env switches branches with you.
 
 Usage:
-  envbuckets init [--into <bucket>]     scaffold + hook + gitignore + per-scope bootstrap
+  envbuckets init [--into <bucket>] [--scaffold]  hook + gitignore + bootstrap; optional rule buckets
   envbuckets status                      branch -> rule -> per-scope bucket + symlink health
-  envbuckets use <bucket> [--scope s]    repoint the resolved scope (manual override)
+  envbuckets check [--scope s]           verify structural readiness for the current branch
+  envbuckets apply [--scope s] [--dry-run] apply the current branch mapping
+  envbuckets use <bucket> [--scope s|--all] repoint scope(s) (manual override)
   envbuckets link <bucket> [--branch b]  pin a branch to a bucket, overrides rules (local)
   envbuckets unlink [--branch b]         remove the pin, rules apply again
   envbuckets uninstall [--purge]         deactivate in this project; data kept by default
 
-  envbuckets bucket add <name>           create <scope>/.env.d/<name>/ + empty .env
+  envbuckets bucket add <name> [--scope s|--all]  create empty bucket file(s)
   envbuckets bucket rm <name> [--purge]  refuse if referenced or non-empty
-  envbuckets bucket list                 buckets in scope with rules and active marker
+  envbuckets bucket list [--scope s|--all]       buckets in scope, or a scope matrix
 
-  envbuckets map add <pattern> <bucket>  repo-wide rule, appended (first match wins)
+  envbuckets map add <pattern> <bucket>  add a rule before a catch-all *
+  envbuckets map update <pattern> <bucket>  change bucket, keep priority
+  envbuckets map move <pattern> --before|--after <pattern>
   envbuckets map rm <pattern>
   envbuckets map list
+  envbuckets map explain <branch>        explain a pin or matching rule
 
   envbuckets scope add <path> [--name n] register a scope directory
-  envbuckets scope rm <name> [--purge]   unregister; values kept unless --purge
+  envbuckets scope rm <name> [--purge]   unregister; data kept unless --purge
+  envbuckets scope purge <path>          erase data left by an unregistered scope
   envbuckets scope list
 
   envbuckets version
+
+Global option: --json returns one versioned JSON object and never prompts.
 `
 
 // Run executes args and returns the process exit code.
 func Run(args []string, env Env) int {
+	args, jsonMode := extractJSONFlag(args)
+	if jsonMode {
+		return runJSON(args, env)
+	}
+	return runText(args, env)
+}
+
+func runText(args []string, env Env) int {
 	if len(args) == 0 {
 		fmt.Fprint(env.Stdout, helpText)
 		return ExitOK
@@ -109,6 +127,16 @@ func Run(args []string, env Env) int {
 	}
 	env.Stdin = bufio.NewReader(env.Stdin)
 	cmd, rest := args[0], args[1:]
+	if commandHelpRequested(rest) {
+		if help, ok := groupHelp(cmd, rest); ok {
+			fmt.Fprint(env.Stdout, help)
+			return ExitOK
+		}
+		if help, ok := commandHelp(cmd); ok {
+			fmt.Fprint(env.Stdout, help)
+			return ExitOK
+		}
+	}
 	var err error
 	switch cmd {
 	case "version", "--version", "-v":
@@ -123,6 +151,10 @@ func Run(args []string, env Env) int {
 		err = runInit(rest, env)
 	case "status":
 		err = runStatus(rest, env)
+	case "check":
+		err = runCheck(rest, env)
+	case "apply":
+		err = runApply(rest, env)
 	case "use":
 		err = runUse(rest, env)
 	case "link":
@@ -143,6 +175,35 @@ func Run(args []string, env Env) int {
 	return report(err, env)
 }
 
+func commandHelpRequested(args []string) bool {
+	for _, arg := range args {
+		if arg == "--help" || arg == "-h" {
+			return true
+		}
+	}
+	return false
+}
+
+func commandHelp(cmd string) (string, bool) {
+	switch cmd {
+	case "status":
+		return "Usage: envbuckets status\n\nShow current branch resolution and each scope's actual .env state.\n", true
+	case "check":
+		return "Usage: envbuckets check [--scope <name>]\n\nCheck structural readiness for the current branch. Defaults to all scopes.\n", true
+	case "apply":
+		return "Usage: envbuckets apply [--scope <name>] [--dry-run]\n\nApply the current branch's pin or rule to all scopes by default. --dry-run plans without writing.\n", true
+	case "use":
+		return "Usage: envbuckets use <bucket> [--scope <name> | --all]\n\nTemporarily point one scope, or all scopes with --all, to a bucket.\n", true
+	case "link":
+		return "Usage: envbuckets link <bucket> [--branch <name>]\n\nPin a local branch to a bucket. Defaults to the current branch.\n", true
+	case "unlink":
+		return "Usage: envbuckets unlink [--branch <name>]\n\nRemove a local branch pin. Defaults to the current branch.\n", true
+	case "uninstall":
+		return "Usage: envbuckets uninstall [--purge]\n\nRemove the hook and restore managed .env files in this project. By default, bucket data and config are kept. --purge also removes bucket data, config, and local pins after confirmation.\n", true
+	}
+	return "", false
+}
+
 func report(err error, env Env) int {
 	if err == nil {
 		return ExitOK
@@ -151,11 +212,15 @@ func report(err error, env Env) int {
 	if !errors.As(err, &ee) {
 		ee = envErr("%v", err)
 	}
-	fmt.Fprintf(env.Stderr, "envbuckets: %s: %s\n", className(ee.code), ee.msg)
-	if ee.next != "" {
-		fmt.Fprintf(env.Stderr, "  next: %s\n", ee.next)
+	if env.jsonError != nil {
+		*env.jsonError = ee
 	}
+	fmt.Fprintf(env.Stderr, "envbuckets: %s\n", ee.msg)
 	return ee.code
+}
+
+func warnf(env Env, format string, args ...any) {
+	fmt.Fprintln(env.Stderr, "envbuckets: warning: "+fmt.Sprintf(format, args...))
 }
 
 func newFlags(name string) *flag.FlagSet {
@@ -196,9 +261,24 @@ func isBoolFlag(f *flag.Flag) bool {
 	return ok && b.IsBoolFlag()
 }
 
+func scopeFlagProvided(fs *flag.FlagSet) bool {
+	found := false
+	fs.Visit(func(f *flag.Flag) {
+		found = found || f.Name == "scope"
+	})
+	return found
+}
+
 func subcommand(group string, args []string) (string, []string, error) {
 	if len(args) == 0 {
-		return "", nil, usage("%s: missing subcommand", group).then("envbuckets %s add|rm|list", group)
+		choices := "add|rm|list"
+		switch group {
+		case "map":
+			choices = "add|update|move|rm|list|explain"
+		case "scope":
+			choices = "add|rm|purge|list"
+		}
+		return "", nil, usage("%s: missing subcommand", group).then("envbuckets %s %s", group, choices)
 	}
 	return args[0], args[1:], nil
 }

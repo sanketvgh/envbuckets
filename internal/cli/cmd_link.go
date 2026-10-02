@@ -36,9 +36,8 @@ func runLink(args []string, env Env) error {
 	if err := gitx.SetLink(p.root, branch, bucket); err != nil {
 		return envErr("cannot write the link to .git/config: %v", err).then("check git config --local --list")
 	}
-	fmt.Fprintf(env.Stdout, "linked %s -> %s (local, overrides rules, not committed)\n", branch, bucket)
+	fmt.Fprintf(env.Stdout, "Pinned branch %s to bucket %s in .git/config (overrides rules).\n", branch, bucket)
 	if !current {
-		fmt.Fprintf(env.Stdout, "  next: git checkout %s\n", branch)
 		return nil
 	}
 	p.applyNow(env, bucket)
@@ -68,16 +67,16 @@ func runUnlink(args []string, env Env) error {
 		return envErr("cannot remove the link from .git/config: %v", err).then("check git config --local --list")
 	}
 	if !removed {
-		fmt.Fprintf(env.Stdout, "%s has no link, nothing to do\n", branch)
+		fmt.Fprintf(env.Stdout, "Branch %s has no local pin.\n", branch)
 		return nil
 	}
-	fmt.Fprintf(env.Stdout, "unlinked %s, rules apply again\n", branch)
+	fmt.Fprintf(env.Stdout, "Removed local pin for branch %s; rules apply again.\n", branch)
 	if !current {
 		return nil
 	}
 	rule := p.cfg.Match(branch, pattern.Match)
 	if rule == nil {
-		fmt.Fprintf(env.Stdout, "no rule matches %q, .env left as-is\n  next: envbuckets map add <pattern> <bucket>\n", branch)
+		fmt.Fprintf(env.Stdout, "no rule matches %q, .env left as-is\n", branch)
 		return nil
 	}
 	p.applyNow(env, rule.Bucket)
@@ -118,10 +117,10 @@ func linkedBranches(root, bucket string) ([]string, error) {
 func (p *project) applyNow(env Env, bucket string) {
 	sw := p.switchAll(bucket)
 	if sw.switched > 0 {
-		fmt.Fprintf(env.Stdout, "%s -> %s - %s switched\n  next: restart your dev servers\n",
+		fmt.Fprintf(env.Stdout, "%s -> %s - %s switched\n",
 			joinOr(sw.previous, "?"), bucket, scopeCount(sw.switched))
 	}
 	for _, w := range sw.warnings {
-		fmt.Fprintf(env.Stderr, "warning: %s\n", w)
+		warnf(env, "%s", w)
 	}
 }

@@ -14,9 +14,15 @@ func runScope(args []string, env Env) error {
 		return err
 	}
 	flags := newFlags("scope " + sub)
-	name := flags.String("name", "", "add: scope name (default: directory name)")
-	into := flags.String("into", "", "add: bucket to move an existing real .env into")
-	purge := flags.Bool("purge", false, "rm: also delete the scope's .env.d/ and its .gitignore lines (asks for DELETE)")
+	var name, into *string
+	var purge *bool
+	switch sub {
+	case "add":
+		name = flags.String("name", "", "scope name (default: directory name)")
+		into = flags.String("into", "", "bucket to move an existing real .env into")
+	case "rm":
+		purge = flags.Bool("purge", false, "also delete the scope's .env.d/ and its .gitignore lines (asks for DELETE)")
+	}
 	rest, err = parseFlags(flags, rest)
 	if err != nil {
 		return err
@@ -30,16 +36,30 @@ func runScope(args []string, env Env) error {
 		if len(rest) != 1 {
 			return usage("scope add: expected <path>").then("envbuckets scope add apps/api --name api")
 		}
-		return scopeAdd(env, p, rest[0], *name, *into)
 	case "rm":
 		if len(rest) != 1 {
 			return usage("scope rm: expected <name>").then("envbuckets scope list")
 		}
-		return scopeRm(env, p, rest[0], *purge)
+	case "purge":
+		if len(rest) != 1 {
+			return usage("scope purge: expected one repo-relative <path>").then("envbuckets scope purge apps/web")
+		}
 	case "list":
-		return scopeList(env, p)
+		if len(rest) != 0 {
+			return usage("scope list: takes no arguments").then("envbuckets scope list")
+		}
 	default:
-		return usage("scope: unknown subcommand %q", sub).then("envbuckets scope add|rm|list")
+		return usage("scope: unknown subcommand %q", sub).then("envbuckets scope add|rm|purge|list")
+	}
+	switch sub {
+	case "add":
+		return scopeAdd(env, p, rest[0], *name, *into)
+	case "rm":
+		return scopeRm(env, p, rest[0], *purge)
+	case "purge":
+		return scopePurge(env, p, rest[0])
+	default:
+		return scopeList(env, p)
 	}
 }
 
@@ -89,15 +109,12 @@ func scopeAdd(env Env, p *project, arg, name, into string) error {
 	if _, err := ensureIgnored(p.root, ignoreLines(p.scopes)); err != nil {
 		return err
 	}
-	fmt.Fprintf(env.Stdout, "registered scope %s (%s)\n  next: envbuckets status\n", name, rel)
+	fmt.Fprintf(env.Stdout, "registered scope %s (%s)\n", name, rel)
 	if wasImplicit && rel != "." {
-		fmt.Fprintln(env.Stdout, "note: the repo root is no longer an implicit scope\n  next: if the root has its own .env, run: envbuckets scope add . --name root")
+		fmt.Fprintln(env.Stdout, "note: the repo root is no longer an implicit scope")
 	}
 	s, _ := p.scopeByName(name)
-	step := func(tag, format string, a ...any) {
-		fmt.Fprintf(env.Stdout, "  [%s] %s\n", tag, fmt.Sprintf(format, a...))
-	}
-	return bootstrapScope(env, s, into, step)
+	return bootstrapScope(env, s, into, stepPrinter(env))
 }
 
 func nested(a, b string) bool {
@@ -119,10 +136,10 @@ func scopeRm(env Env, p *project, name string, purge bool) error {
 	}
 	s, _ := p.scopeByName(name)
 	if purge {
-		if err := confirmDelete(env, s.display(bucketsDir)+"/ for scope "+name); err != nil {
+		if err := checkPurgeTarget(p.root, s); err != nil {
 			return err
 		}
-		if err := os.RemoveAll(s.bucketsPath()); err != nil {
+		if err := purgeScopeData(env, p.root, s); err != nil {
 			return err
 		}
 	}
@@ -132,19 +149,14 @@ func scopeRm(env Env, p *project, name string, purge bool) error {
 	}
 	fmt.Fprintf(env.Stdout, "unregistered scope %s (%s)\n", name, s.Path)
 	if !purge {
-		fmt.Fprintf(env.Stdout, "kept: %s/ and its .gitignore lines, so values never become git-visible\n  next: to erase them: envbuckets scope rm %s --purge\n", s.display(bucketsDir), name)
-		return nil
+		fmt.Fprintf(env.Stdout, "kept: %s/ and its .gitignore lines, so values never become git-visible\n", s.display(bucketsDir))
 	}
-	if _, err := dropIgnored(p.root, scopeIgnoreLines(s)); err != nil {
-		return err
-	}
-	fmt.Fprintf(env.Stdout, "removed: %s/ and its .gitignore lines\n", s.display(bucketsDir))
 	return nil
 }
 
 func scopeList(env Env, p *project) error {
 	if len(p.cfg.Scopes) == 0 {
-		fmt.Fprintln(env.Stdout, "no scopes declared, the repo root is the implicit scope\n  next: for a monorepo: envbuckets scope add <path> --name <name>")
+		fmt.Fprintln(env.Stdout, "no scopes declared, the repo root is the implicit scope")
 	}
 	for _, s := range p.scopes {
 		fmt.Fprintf(env.Stdout, "  %-12s %-20s %s\n", s.Name, s.Path, scopeStatus(s, target{}))
