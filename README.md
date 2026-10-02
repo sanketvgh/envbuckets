@@ -52,6 +52,9 @@ envbuckets check                    # exit 0 only if every .env points where it 
 Have a monorepo? `envbuckets scope add apps/api --name api` gives each app
 its own `.env.d/`. The branch rules are shared by all of them.
 
+For setup, every command and flag, monorepos, and recovery, see the
+[documentation guide](docs/README.md).
+
 ## Everyday workflows
 
 **Check before you start services.** `envbuckets check` looks at the
@@ -176,19 +179,19 @@ your-repo/
 
 ## Commands
 
-| Command                                   | What it does                                                                                              |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `init [--into <bucket>] [--scaffold]`     | Move your `.env` into a bucket, install the hook, update `.gitignore`. `--scaffold` creates rule buckets  |
-| `status`                                  | Show the branch, the pin or rule that matched, and each scope's active and expected bucket                |
-| `check [--scope <name>]`                  | Exit 0 only if every scope is on the expected bucket and its file exists                                  |
-| `apply [--scope <name>] [--dry-run]`      | Point scopes at the current branch's bucket now, repairing missing links                                  |
-| `use <bucket> [--scope <name> \| --all]`  | Switch by hand. The next checkout that matches a rule switches it back                                    |
-| `link <bucket>`                           | Pin the current branch (or `--branch <name>`) to a bucket. Overrides rules, stays local to your clone     |
-| `unlink`                                  | Remove the pin so the rules apply again                                                                   |
-| `bucket add\|rm\|list`                    | Add, remove, or list buckets in the current scope. `add` and `list` take `--all`                          |
-| `map add\|update\|move\|rm\|list\|explain` | Edit, reorder, list, or explain branch rules                                                             |
-| `scope add\|rm\|purge\|list`              | Add, remove, or list scopes (for monorepos). `purge` deletes data a removed scope left behind             |
-| `uninstall [--purge]`                     | Turn `.env` back into a real file and remove the hook. `--purge` also deletes `.env.d/` after you confirm |
+| Command                                    | What it does                                                                                              |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `init [--into <bucket>] [--scaffold]`      | Move your `.env` into a bucket, install the hook, update `.gitignore`. `--scaffold` creates rule buckets  |
+| `status`                                   | Show the branch, the pin or rule that matched, and each scope's active and expected bucket                |
+| `check [--scope <name>]`                   | Exit 0 only if every scope is on the expected bucket and its file exists                                  |
+| `apply [--scope <name>] [--dry-run]`       | Point scopes at the current branch's bucket now, repairing missing links                                  |
+| `use <bucket> [--scope <name> \| --all]`   | Switch by hand. The next checkout that matches a rule switches it back                                    |
+| `link <bucket>`                            | Pin the current branch (or `--branch <name>`) to a bucket. Overrides rules, stays local to your clone     |
+| `unlink`                                   | Remove the pin so the rules apply again                                                                   |
+| `bucket add\|rm\|list`                     | Add, remove, or list buckets in the current scope. `add` and `list` take `--all`                          |
+| `map add\|update\|move\|rm\|list\|explain` | Edit, reorder, list, or explain branch rules                                                              |
+| `scope add\|rm\|purge\|list`               | Add, remove, or list scopes (for monorepos). `purge` deletes data a removed scope left behind             |
+| `uninstall [--purge]`                      | Turn `.env` back into a real file and remove the hook. `--purge` also deletes `.env.d/` after you confirm |
 
 The documented commands explain themselves with `--help`, for example
 `envbuckets map move --help`.
