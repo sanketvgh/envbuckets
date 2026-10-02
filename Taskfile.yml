@@ -7,6 +7,7 @@ vars:
   BASE_DIR: '{{.ROOT_DIR}}/tmp/base'
   WARMUP: '{{.WARMUP | default 20}}'
   RUNS: '{{.RUNS | default 200}}'
+  GOVULNCHECK_VERSION: v1.8.0
 
 tasks:
   build:
@@ -15,15 +16,17 @@ tasks:
       - go build -trimpath -o {{.EXE}} .
 
   fmt:
-    desc: Format Go code (gofumpt + goimports via golangci-lint).
+    desc: Format Go code (gofumpt + goimports) and Markdown (oxfmt; needs pnpm and `pnpm install`).
     cmds:
       - golangci-lint fmt ./...
+      - pnpm run --silent fmt
 
   lint:
-    desc: Lint Go code and fail if formatting differs.
+    desc: Lint Go code and fail if Go or Markdown formatting differs (Markdown needs pnpm and `pnpm install`).
     cmds:
       - golangci-lint fmt --diff ./...
       - golangci-lint run ./...
+      - pnpm run --silent fmt:check
 
   test:
     desc: Run Go unit tests.
@@ -41,6 +44,17 @@ tasks:
       - task: lint
       - task: test
       - task: test:integration
+
+  security:
+    desc: Scan Go dependencies with govulncheck and workflows with zizmor (needs uv).
+    cmds:
+      - go run golang.org/x/vuln/cmd/govulncheck@{{.GOVULNCHECK_VERSION}} ./...
+      - uvx zizmor --offline .github
+
+  hooks:
+    desc: Install the pre-push hook (lint, test, security) for this clone.
+    cmds:
+      - git config core.hooksPath .githooks
 
   snapshot:
     desc: Validate config, cross-compile all targets, lay out npm packages. No tag, no publish.

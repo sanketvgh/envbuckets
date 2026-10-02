@@ -1,0 +1,13 @@
+{
+  "name": "envbuckets-dev",
+  "private": true,
+  "packageManager": "pnpm@11.15.0",
+  "description": "Repo tooling only. The published package lives in npm/.",
+  "scripts": {
+    "fmt": "oxfmt \"**/*.md\"",
+    "fmt:check": "oxfmt --check \"**/*.md\""
+  },
+  "devDependencies": {
+    "oxfmt": "0.71.0"
+  }
+}
