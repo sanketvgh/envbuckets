@@ -144,7 +144,7 @@ func TestInitScaffoldPartialFailure(t *testing.T) {
 	if res.code != ExitBlocked || !strings.Contains(res.stdout, "[failed] api: apps/api/.env.d/prod/.env exists but is not a regular file") {
 		t.Fatalf("exit %d\n%s", res.code, res.all())
 	}
-	if !strings.Contains(res.stdout, "created 2, already present 0, failed 1") || !strings.Contains(res.stderr, "re-run envbuckets init --scaffold") {
+	if !strings.Contains(res.stdout, "created 2, already present 0, failed 1") || !strings.Contains(res.stderr, "scaffold incomplete") {
 		t.Fatalf("summary:\n%s", res.all())
 	}
 }

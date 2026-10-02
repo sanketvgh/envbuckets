@@ -228,7 +228,7 @@ func TestMapAddUnknownBucketBlocked(t *testing.T) {
 	r.ok("init")
 	before := r.read(".envbuckets.toml")
 	res := r.run("map", "add", "x", "nope")
-	if res.code != ExitBlocked || !strings.Contains(res.stderr, "bucket add nope") {
+	if res.code != ExitBlocked || !strings.Contains(res.stderr, "bucket nope does not exist in any scope") {
 		t.Fatalf("got %d %s", res.code, res.all())
 	}
 	if r.read(".envbuckets.toml") != before {
@@ -245,7 +245,7 @@ func TestBucketRmGuards(t *testing.T) {
 	r.ok("bucket", "add", "scratch")
 	r.write(".env.d/scratch/.env", "SECRET=1\n")
 	res = r.run("bucket", "rm", "scratch")
-	if res.code != ExitBlocked || !strings.Contains(res.stderr, "--purge") {
+	if res.code != ExitBlocked || !strings.Contains(res.stderr, "contains data or non-bucket files") {
 		t.Fatalf("non-empty: %d %s", res.code, res.all())
 	}
 	res = r.runIn(r.root, "no\n", "bucket", "rm", "scratch", "--purge")

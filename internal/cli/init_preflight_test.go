@@ -43,7 +43,7 @@ func TestInitPreflightUnwritableRepo(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.Chmod(r.root, 0o755) }) //nolint:gosec // restore so TempDir cleanup works
 	res := r.run("init")
-	if res.code != ExitEnv || !strings.Contains(res.stderr, "nothing was changed") || r.exists(".envbuckets.toml") {
+	if res.code != ExitEnv || !strings.Contains(res.stderr, "cannot write in") || r.exists(".envbuckets.toml") {
 		t.Fatalf("exit %d\n%s", res.code, res.all())
 	}
 }
@@ -68,8 +68,7 @@ func TestInitPreflightReportsProbeLeftBehind(t *testing.T) {
 	}
 	t.Cleanup(func() { removeProbe = os.Remove })
 	res := r.run("init")
-	if res.code != ExitEnv || !strings.Contains(res.stderr, "cannot remove the symlink probe .envbuckets-probe-") ||
-		!strings.Contains(res.stderr, "nothing else was changed") {
+	if res.code != ExitEnv || !strings.Contains(res.stderr, "cannot remove the symlink probe .envbuckets-probe-") {
 		t.Fatalf("exit %d\n%s", res.code, res.all())
 	}
 	if r.exists(".envbuckets.toml") || r.exists(".gitignore") {

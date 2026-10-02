@@ -110,7 +110,7 @@ func TestScopeContext(t *testing.T) {
 	}
 	r.ok("scope", "rm", "root")
 	res = r.run("bucket", "list")
-	if res.code != ExitEnv || !strings.Contains(res.stderr, "--scope") {
+	if res.code != ExitEnv || !strings.Contains(res.stderr, "not inside any scope") {
 		t.Fatalf("cwd outside scopes: %d %s", res.code, res.all())
 	}
 }

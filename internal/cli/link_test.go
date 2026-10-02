@@ -139,7 +139,7 @@ func TestLinkFollowsBranchRenameAndDelete(t *testing.T) {
 func TestLinkGuards(t *testing.T) {
 	r := setup(t)
 	r.newBranch("feature/x")
-	if res := r.run("link", "nope"); res.code != ExitBlocked || !strings.Contains(res.stderr, "bucket add nope") {
+	if res := r.run("link", "nope"); res.code != ExitBlocked || !strings.Contains(res.stderr, "bucket nope does not exist in any scope") {
 		t.Fatalf("unknown bucket: %d %s", res.code, res.all())
 	}
 	if res := r.run("link", "../x"); res.code != ExitUsage {

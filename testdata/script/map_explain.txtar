@@ -22,7 +22,7 @@ stdout 'branch: release/9 \(no local branch, explained as if checked out\)'
 stdout 'rule:   2\. release/\* -> prod \(first match wins\)'
 stdout 'a +available apps/a/\.env\.d/prod/\.env'
 stdout 'b +missing apps/b/\.env\.d/prod/\.env'
-stdout 'next: envbuckets bucket add prod --all'
+! stdout 'next:'
 ! exists apps/b/.env.d/prod
 
 exec envbuckets map explain main
