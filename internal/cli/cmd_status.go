@@ -23,6 +23,12 @@ func runStatus(args []string, env Env) error {
 		return err
 	}
 	printReadiness(env, r)
+	switch {
+	case r.branch == "":
+		fmt.Fprintln(env.Stdout, "  next: git checkout <branch>, or envbuckets use <bucket>")
+	case !r.resolved:
+		fmt.Fprintln(env.Stdout, "  next: envbuckets map add <pattern> <bucket>, or envbuckets link <bucket>")
+	}
 	return nil
 }
 

@@ -1,11 +1,35 @@
 package cli
 
 import (
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/sanketvgh/envbuckets/internal/gitx"
 )
+
+func TestMissingLinkHintsApplyAndApplyRepairsIt(t *testing.T) {
+	r := setup(t)
+	if err := os.Remove(r.path(".env")); err != nil {
+		t.Fatal(err)
+	}
+	if res := r.hook(); !strings.Contains(res.stderr, "no .env symlink, skipped, next: envbuckets apply") {
+		t.Fatalf("hook: %s", res.all())
+	}
+	if res := r.ok("link", "prod"); !strings.Contains(res.stderr, "no .env symlink, skipped, next: envbuckets apply") {
+		t.Fatalf("link: %s", res.all())
+	}
+	if res := r.ok("unlink"); !strings.Contains(res.stderr, "no .env symlink, skipped, next: envbuckets apply") {
+		t.Fatalf("unlink: %s", res.all())
+	}
+	if r.exists(".env") {
+		t.Fatal("hook, link, or unlink created the missing link")
+	}
+	r.ok("apply")
+	if got := r.readlink(".env"); got != ".env.d/staging/.env" {
+		t.Fatalf("apply did not repair link: %s", got)
+	}
+}
 
 func TestLinkOverridesRulesAndSticks(t *testing.T) {
 	r := setup(t)

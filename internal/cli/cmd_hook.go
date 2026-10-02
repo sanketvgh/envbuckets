@@ -130,7 +130,7 @@ func switchScope(s scope, bucket string) (from, skip string, ok bool) {
 	case linkReal:
 		return "", fmt.Sprintf("%s: %s is a real file, left untouched, next: envbuckets init", s.Name, s.display(envFile)), false
 	case linkMissing:
-		return "", fmt.Sprintf("%s: no %s symlink, skipped, next: envbuckets init", s.Name, s.display(envFile)), false
+		return "", fmt.Sprintf("%s: no %s symlink, skipped, next: envbuckets apply", s.Name, s.display(envFile)), false
 	case linkBucket:
 		if ls.bucket == bucket && !ls.dangling {
 			return "", "", true

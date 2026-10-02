@@ -7,7 +7,7 @@ import (
 
 func TestAffectedCommandHelpNeedsNoProject(t *testing.T) {
 	r := newRepo(t)
-	for _, args := range [][]string{{"status", "--help"}, {"check", "--help"}, {"apply", "--help"}, {"use", "--help"}, {"link", "--help"}, {"unlink", "--help"}} {
+	for _, args := range [][]string{{"status", "--help"}, {"check", "--help"}, {"apply", "--help"}, {"use", "--help"}, {"link", "--help"}, {"unlink", "--help"}, {"uninstall", "--help"}} {
 		res := r.run(args...)
 		if res.code != ExitOK || !strings.Contains(res.stdout, "Usage: envbuckets "+args[0]) {
 			t.Errorf("%v: %d %s", args, res.code, res.all())

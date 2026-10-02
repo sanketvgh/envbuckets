@@ -62,6 +62,20 @@ func TestStatusDescribesMismatchWithoutCause(t *testing.T) {
 	}
 }
 
+func TestStatusSuggestsNextStepWhenBranchIsUnresolved(t *testing.T) {
+	r := newRepo(t)
+	if err := config.New().Save(r.root); err != nil {
+		t.Fatal(err)
+	}
+	if res := r.ok("status"); !strings.Contains(res.stdout, "next: envbuckets map add <pattern> <bucket>, or envbuckets link <bucket>") {
+		t.Fatalf("unmatched branch: %s", res.all())
+	}
+	r.git("checkout", "-q", "--detach")
+	if res := r.ok("status"); !strings.Contains(res.stdout, "next: git checkout <branch>, or envbuckets use <bucket>") {
+		t.Fatalf("detached HEAD: %s", res.all())
+	}
+}
+
 func TestCheckReportsMissingScopeDirectory(t *testing.T) {
 	r := newRepo(t)
 	requireSymlinks(t, r.root)

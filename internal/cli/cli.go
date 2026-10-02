@@ -186,6 +186,8 @@ func commandHelp(cmd string) (string, bool) {
 		return "Usage: envbuckets link <bucket> [--branch <name>]\n\nPin a local branch to a bucket. Defaults to the current branch.\n", true
 	case "unlink":
 		return "Usage: envbuckets unlink [--branch <name>]\n\nRemove a local branch pin. Defaults to the current branch.\n", true
+	case "uninstall":
+		return "Usage: envbuckets uninstall [--purge]\n\nRemove the hook and restore managed .env files in this project. By default, bucket data and config are kept. --purge also removes bucket data, config, and local pins after confirmation.\n", true
 	}
 	return "", false
 }
