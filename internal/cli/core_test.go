@@ -83,7 +83,7 @@ func TestUseIsATransientOverride(t *testing.T) {
 	r.newBranch("feature/a")
 	r.hook()
 	res := r.ok("use", "prod")
-	if !strings.Contains(res.stdout, "manual override") || r.readlink(".env") != ".env.d/prod/.env" {
+	if !strings.Contains(res.stdout, "Manual selection") || r.readlink(".env") != ".env.d/prod/.env" {
 		t.Fatalf("use:\n%s", res.all())
 	}
 	st := r.ok("status")
@@ -133,7 +133,7 @@ func TestStatusReportsBroken(t *testing.T) {
 		t.Fatal(err)
 	}
 	res := r.ok("status")
-	if !strings.Contains(res.stdout, "target missing") || !strings.Contains(res.stdout, ".env.d/staging/.env missing") {
+	if !strings.Contains(res.stdout, "target missing") || !strings.Contains(res.stdout, "expected .env.d/staging/.env") {
 		t.Fatalf("status:\n%s", res.stdout)
 	}
 	if err := os.Remove(r.path(".env.d/staging/.env")); err != nil {
@@ -327,7 +327,7 @@ func TestCommandsFromSubdirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	res := r.runIn(sub, "", "bucket", "list")
-	if res.code != ExitOK || !strings.Contains(res.stdout, "scope root") {
+	if res.code != ExitOK || !strings.Contains(res.stdout, "Scope root") {
 		t.Fatalf("%d %s", res.code, res.all())
 	}
 	res = r.runIn(sub, "", "use", "prod")

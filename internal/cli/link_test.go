@@ -36,7 +36,7 @@ func TestLinkOverridesRulesAndSticks(t *testing.T) {
 	r.newBranch("feature/x")
 	r.hook()
 	res := r.ok("link", "prod")
-	if !strings.Contains(res.stdout, "linked feature/x -> prod") || !strings.Contains(res.stdout, "dev -> prod - 1 scope switched") {
+	if !strings.Contains(res.stdout, "Pinned branch feature/x to bucket prod") || !strings.Contains(res.stdout, "dev -> prod - 1 scope switched") {
 		t.Fatalf("link:\n%s", res.all())
 	}
 	if got := r.readlink(".env"); got != ".env.d/prod/.env" {
@@ -46,7 +46,7 @@ func TestLinkOverridesRulesAndSticks(t *testing.T) {
 		t.Fatalf("linked bucket already active, hook must be silent:\n%s", res.all())
 	}
 	st := r.ok("status")
-	if !strings.Contains(st.stdout, "link:   prod") || !strings.Contains(st.stdout, "prod (ok)") {
+	if !strings.Contains(st.stdout, "Using bucket prod (local pin") || !strings.Contains(st.stdout, ".env -> .env.d/prod/.env") {
 		t.Fatalf("status:\n%s", st.stdout)
 	}
 	ml := r.ok("map", "list")
@@ -82,7 +82,7 @@ func TestUnlinkFallsBackToRule(t *testing.T) {
 	r.newBranch("feature/x")
 	r.ok("link", "prod")
 	res := r.ok("unlink")
-	if !strings.Contains(res.stdout, "unlinked feature/x") || r.readlink(".env") != ".env.d/dev/.env" {
+	if !strings.Contains(res.stdout, "Removed local pin for branch feature/x") || r.readlink(".env") != ".env.d/dev/.env" {
 		t.Fatalf("unlink:\n%s", res.all())
 	}
 	if res := r.ok("unlink"); !strings.Contains(res.stdout, "nothing to do") {
@@ -179,11 +179,11 @@ func TestUninstallKeepsLinksUnlessPurged(t *testing.T) {
 	r.newBranch("feature/x")
 	r.ok("link", "prod")
 	res := r.ok("uninstall")
-	if !strings.Contains(res.stdout, "[kept] branch links (1 in .git/config)") {
+	if !strings.Contains(res.stdout, "kept: branch links (1 in .git/config)") {
 		t.Fatalf("uninstall:\n%s", res.stdout)
 	}
 	res = r.runIn(r.root, "DELETE\n", "uninstall", "--purge")
-	if res.code != ExitOK || !strings.Contains(res.stdout, "[removed] branch links") {
+	if res.code != ExitOK || !strings.Contains(res.stdout, "removed: branch links") {
 		t.Fatalf("purge: %d\n%s", res.code, res.all())
 	}
 	if links, _ := gitx.Links(r.root); len(links) != 0 {

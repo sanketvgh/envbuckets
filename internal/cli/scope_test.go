@@ -93,7 +93,7 @@ func TestPerScopeFailSafe(t *testing.T) {
 	}
 	r.checkoutMain()
 	res = r.hook()
-	if !strings.Contains(res.stderr, "web: scope directory missing") || r.readlink("apps/api/.env") != ".env.d/staging/.env" {
+	if !strings.Contains(res.stderr, "web: scope directory apps/web missing") || r.readlink("apps/api/.env") != ".env.d/staging/.env" {
 		t.Fatalf("sparse checkout:\n%s", res.all())
 	}
 }
@@ -101,11 +101,11 @@ func TestPerScopeFailSafe(t *testing.T) {
 func TestScopeContext(t *testing.T) {
 	r := monorepo(t)
 	res := r.runIn(r.path("apps/api"), "", "bucket", "list")
-	if res.code != ExitOK || !strings.Contains(res.stdout, "scope api") {
+	if res.code != ExitOK || !strings.Contains(res.stdout, "Scope api") {
 		t.Fatalf("nearest scope: %d %s", res.code, res.all())
 	}
 	res = r.ok("bucket", "list", "--scope", "web")
-	if !strings.Contains(res.stdout, "scope web") {
+	if !strings.Contains(res.stdout, "Scope web") {
 		t.Fatalf("--scope: %s", res.stdout)
 	}
 	r.ok("scope", "rm", "root")

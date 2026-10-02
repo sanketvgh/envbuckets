@@ -23,7 +23,7 @@ func TestSymlinkedScopeCannotWriteOutsideRepo(t *testing.T) {
 	if err := cfg.Save(r.root); err != nil {
 		t.Fatal(err)
 	}
-	if res := r.ok("status"); !strings.Contains(res.stdout, "ERROR scope path") || !strings.Contains(res.stdout, "symlink") {
+	if res := r.ok("status"); !strings.Contains(res.stdout, "cannot access apps/external") || !strings.Contains(res.stdout, "symlink") {
 		t.Fatalf("status hid unsafe scope path: %s", res.all())
 	}
 	if res := r.run("bucket", "add", "qa", "--scope", "external"); res.code != ExitBlocked {
@@ -119,7 +119,7 @@ func TestSymlinkedBucketFileIsNotAvailable(t *testing.T) {
 	if res := r.run("bucket", "add", "qa"); res.code != ExitBlocked {
 		t.Fatalf("bucket add accepted file symlink: %d %s", res.code, res.all())
 	}
-	if res := r.run("check"); res.code != ExitBlocked || !strings.Contains(res.stdout, "MISSING .env.d/qa/.env") {
+	if res := r.run("check"); res.code != ExitBlocked || !strings.Contains(res.stdout, ".env.d/qa/.env missing") {
 		t.Fatalf("check accepted file symlink: %d %s", res.code, res.all())
 	}
 	if res := r.run("apply"); res.code != ExitBlocked || r.exists(envFile) {

@@ -14,14 +14,14 @@ func TestApplyRepairsMissingLinkAndDryRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	res := r.ok("apply", "--dry-run")
-	if !strings.Contains(res.stdout, "would point") || r.exists(".env") {
+	if !strings.Contains(res.stdout, "would link") || r.exists(".env") {
 		t.Fatalf("dry-run changed link: %s", res.all())
 	}
 	res = r.ok("apply")
-	if !strings.Contains(res.stdout, "1 changed, 0 unchanged, 0 failed") || r.readlink(".env") != ".env.d/staging/.env" {
+	if !strings.Contains(res.stdout, "Changed 1 scope; 0 unchanged, 0 failed.") || r.readlink(".env") != ".env.d/staging/.env" {
 		t.Fatalf("apply: %s", res.all())
 	}
-	if res := r.ok("check"); !strings.Contains(res.stdout, "1 ready") {
+	if res := r.ok("check"); !strings.Contains(res.stdout, "1 scope ready.") {
 		t.Fatalf("check: %s", res.all())
 	}
 }
@@ -40,17 +40,17 @@ func TestApplyPreservesUnmanagedAndReportsPartial(t *testing.T) {
 	r.ok("map", "add", "main", "dev")
 	r.write("apps/api/.env", "KEEP=1\n")
 	res := r.run("apply", "--dry-run")
-	if res.code != ExitBlocked || !strings.Contains(res.stdout, "1 changed, 0 unchanged, 1 failed") || r.exists("apps/web/.env") {
+	if res.code != ExitBlocked || !strings.Contains(res.stdout, "Would change 1 scope; 0 unchanged, 1 unable to change.") || r.exists("apps/web/.env") {
 		t.Fatalf("dry partial: %d %s", res.code, res.all())
 	}
 	res = r.run("apply")
-	if res.code != ExitBlocked || !strings.Contains(res.stdout, "1 changed, 0 unchanged, 1 failed") {
+	if res.code != ExitBlocked || !strings.Contains(res.stdout, "Changed 1 scope; 0 unchanged, 1 failed.") {
 		t.Fatalf("partial: %d %s", res.code, res.all())
 	}
 	if r.read("apps/api/.env") != "KEEP=1\n" || r.readlink("apps/web/.env") != ".env.d/dev/.env" {
 		t.Fatal("apply did not preserve the real file and switch independent scope")
 	}
-	if res := r.run("apply", "--scope", "web"); res.code != ExitOK || !strings.Contains(res.stdout, "0 changed, 1 unchanged, 0 failed") {
+	if res := r.run("apply", "--scope", "web"); res.code != ExitOK || !strings.Contains(res.stdout, "Changed 0 scopes; 1 unchanged, 0 failed.") {
 		t.Fatalf("selected apply: %d %s", res.code, res.all())
 	}
 	if res := r.run("check", "--scope", "web"); res.code != ExitOK || !strings.Contains(res.stdout, "1 scope ready.") {
@@ -84,7 +84,7 @@ func TestHookAndApplyPreserveForeignSymlink(t *testing.T) {
 	if err := os.Symlink("other.env", r.path(".env")); err != nil {
 		t.Fatal(err)
 	}
-	if res := r.run("apply"); res.code != ExitBlocked || !strings.Contains(res.stdout, "foreign") {
+	if res := r.run("apply"); res.code != ExitBlocked || !strings.Contains(res.stdout, "outside .env.d/") {
 		t.Fatalf("apply: %d %s", res.code, res.all())
 	}
 	if res := r.hook(); !strings.Contains(res.stderr, "foreign symlink") {

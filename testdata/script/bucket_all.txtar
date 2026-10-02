@@ -11,9 +11,9 @@ exec envbuckets scope add apps/web
 exec envbuckets bucket add dev --scope api
 
 exec envbuckets bucket add dev --all
-stdout '\[ok\] api: apps/api/\.env\.d/dev/\.env already exists, left untouched'
-stdout '\[created\] web: apps/web/\.env\.d/dev/\.env \(empty\)'
-stdout 'created 1, already present 1, failed 0'
+stdout 'ok: api: apps/api/\.env\.d/dev/\.env already exists, left untouched'
+stdout 'created: web: apps/web/\.env\.d/dev/\.env \(empty\)'
+stdout 'Created 1; 1 already present, 0 failed\.'
 exec envbuckets map add '*' dev
 
 exec envbuckets bucket list --all
@@ -23,8 +23,8 @@ stdout 'note: api: no apps/api/\.env link yet'
 
 rm apps/web
 ! exec envbuckets bucket add qa --all
-stdout '\[failed\] web: scope directory apps/web is missing, not created'
-stderr 'envbuckets: blocked: bucket qa was not created in 1 of 2 scopes'
+stdout 'failed: web: scope directory apps/web is missing, not created'
+stderr 'envbuckets: bucket qa was not created in 1 of 2 scopes'
 ! exists apps/web
 exists apps/api/.env.d/qa/.env
 

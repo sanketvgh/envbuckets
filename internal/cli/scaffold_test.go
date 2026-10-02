@@ -142,10 +142,10 @@ func TestInitScaffoldPartialFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	res := r.run("init", "--scaffold")
-	if res.code != ExitBlocked || !strings.Contains(res.stdout, "[failed] api: apps/api/.env.d/prod/.env exists but is not a regular file") {
+	if res.code != ExitBlocked || !strings.Contains(res.stdout, "failed: api: apps/api/.env.d/prod/.env exists but is not a regular file") {
 		t.Fatalf("exit %d\n%s", res.code, res.all())
 	}
-	if !strings.Contains(res.stdout, "created 2, already present 0, failed 1") || !strings.Contains(res.stderr, "scaffold incomplete") {
+	if !strings.Contains(res.stdout, "Created 2; 0 already present, 1 failed.") || !strings.Contains(res.stderr, "scaffold incomplete") {
 		t.Fatalf("summary:\n%s", res.all())
 	}
 }

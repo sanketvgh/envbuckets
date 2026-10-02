@@ -8,9 +8,9 @@ cp broken.toml .envbuckets.toml
 exec envbuckets hook post-checkout 1
 stderr 'acting dormant'
 ! exec envbuckets status
-stderr 'envbuckets: config:'
+stderr 'envbuckets: \.envbuckets\.toml is unreadable, refusing to act'
 exec envbuckets uninstall
-stdout 'deactivating in this project'
+stdout 'Uninstalling envbuckets in this project'
 
 -- README --
 fixture

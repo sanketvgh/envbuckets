@@ -119,9 +119,9 @@ func executePlans(env Env, states []scopeReadiness, bucket string, dryRun bool) 
 		*env.jsonData = view
 	}
 	if dryRun {
-		fmt.Fprintf(env.Stdout, "Would change %d scopes; %d unchanged, %d unable to change.\n", result.changed, result.unchanged, result.failed)
+		fmt.Fprintf(env.Stdout, "Would change %s; %d unchanged, %d unable to change.\n", scopeCount(result.changed), result.unchanged, result.failed)
 	} else {
-		fmt.Fprintf(env.Stdout, "Changed %d scopes; %d unchanged, %d failed.\n", result.changed, result.unchanged, result.failed)
+		fmt.Fprintf(env.Stdout, "Changed %s; %d unchanged, %d failed.\n", scopeCount(result.changed), result.unchanged, result.failed)
 	}
 	if result.failed > 0 {
 		return blocked("%d scope(s) could not be applied", result.failed).then("repair the reported paths, then retry")

@@ -12,7 +12,7 @@ func TestDefaultUninstallKeepsData(t *testing.T) {
 	r := setup(t)
 	r.write(".env.d/dev/.env", "A=1\n")
 	res := r.ok("uninstall")
-	if !strings.Contains(res.stdout, "[materialized] .env (was -> .env.d/dev/.env)") {
+	if !strings.Contains(res.stdout, "materialized: .env (was -> .env.d/dev/.env)") {
 		t.Fatalf("output:\n%s", res.stdout)
 	}
 	info, err := os.Lstat(r.path(".env"))
@@ -80,7 +80,7 @@ func TestUninstallIgnoresCorruptToml(t *testing.T) {
 func TestUninstallIdempotentAndOnFreshRepo(t *testing.T) {
 	r := newRepo(t)
 	res := r.ok("uninstall")
-	if strings.Contains(res.stdout, "[removed]") || strings.Contains(res.stdout, "[materialized]") {
+	if strings.Contains(res.stdout, "removed:") || strings.Contains(res.stdout, "materialized:") {
 		t.Fatalf("fresh repo:\n%s", res.stdout)
 	}
 	requireSymlinks(t, r.root)
@@ -89,7 +89,7 @@ func TestUninstallIdempotentAndOnFreshRepo(t *testing.T) {
 	r.ok("use", "dev")
 	r.ok("uninstall")
 	second := r.ok("uninstall")
-	if strings.Contains(second.stdout, "[removed]") || strings.Contains(second.stdout, "[materialized]") {
+	if strings.Contains(second.stdout, "removed:") || strings.Contains(second.stdout, "materialized:") {
 		t.Fatalf("second uninstall:\n%s", second.stdout)
 	}
 }
@@ -125,7 +125,7 @@ func TestRoundTrip(t *testing.T) {
 		t.Fatalf("bootstrap: %s", res.all())
 	}
 	prompted := r.ok("uninstall")
-	if !strings.Contains(prompted.stdout, "[materialized]") {
+	if !strings.Contains(prompted.stdout, "materialized:") {
 		t.Fatal("second uninstall should materialize again")
 	}
 	res = r.runIn(r.root, "fromprompt\n", "init")

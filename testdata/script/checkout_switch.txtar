@@ -9,9 +9,9 @@ exec git add README
 exec git commit -q -m init
 
 exec envbuckets init --into dev
-stdout '\[created\] \.envbuckets\.toml'
-stdout '\[created\] hook block \(\.git/hooks/post-checkout\)'
-stdout '\[created\] root: \.env moved to \.env\.d/dev/\.env'
+stdout 'created: \.envbuckets\.toml'
+stdout 'created: hook block \(\.git/hooks/post-checkout\)'
+stdout 'created: root: \.env moved to \.env\.d/dev/\.env'
 readlink .env .env.d/dev/.env
 exists .git/hooks/post-checkout
 

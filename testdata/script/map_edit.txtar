@@ -26,7 +26,7 @@ stdout '  2\. main +-> staging'
 
 cp .envbuckets.toml before.toml
 ! exec envbuckets map move main --after '*'
-stderr 'envbuckets: blocked: the catch-all `\*` rule must stay last'
+stderr 'envbuckets: the catch-all `\*` rule must stay last'
 ! exec envbuckets map move main --before main
 stderr 'relative to itself'
 ! exec envbuckets map move main
