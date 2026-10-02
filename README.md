@@ -3,7 +3,14 @@
 **Stop copy-pasting `.env` files every time you switch branches.**
 
 [![ci](https://github.com/sanketvgh/envbuckets/actions/workflows/ci.yml/badge.svg)](https://github.com/sanketvgh/envbuckets/actions/workflows/ci.yml)
+[![codeql](https://github.com/sanketvgh/envbuckets/actions/workflows/codeql.yml/badge.svg)](https://github.com/sanketvgh/envbuckets/actions/workflows/codeql.yml)
+[![dependency review](https://github.com/sanketvgh/envbuckets/actions/workflows/dependency-review.yml/badge.svg)](https://github.com/sanketvgh/envbuckets/actions/workflows/dependency-review.yml)
 [![npm](https://img.shields.io/npm/v/envbuckets?label=npm)](https://www.npmjs.com/package/envbuckets)
+[![release](https://img.shields.io/github/v/release/sanketvgh/envbuckets?include_prereleases&label=release)](https://github.com/sanketvgh/envbuckets/releases)
+[![downloads](https://img.shields.io/npm/dm/envbuckets)](https://www.npmjs.com/package/envbuckets)
+[![go](https://img.shields.io/github/go-mod/go-version/sanketvgh/envbuckets)](go.mod)
+[![node](https://img.shields.io/node/v/envbuckets)](https://www.npmjs.com/package/envbuckets)
+[![platforms](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20windows-blue)](https://github.com/sanketvgh/envbuckets/releases)
 [![license](https://img.shields.io/github/license/sanketvgh/envbuckets)](LICENSE)
 [![website](https://img.shields.io/badge/heysanket.com-333?logo=googlechrome&logoColor=white)](https://heysanket.com)
 [![x](https://img.shields.io/badge/x-@sanketvgh-000?logo=x&logoColor=white)](https://x.com/sanketvgh)
@@ -15,8 +22,8 @@
 
 envbuckets keeps one `.env` file per bucket (`dev`, `staging`, `prod`) and
 points `.env` at the right one for the branch you are on. A git hook does
-the switch every time you check out a branch. It never reads what is inside
-your env files.
+the switch every time you check out a branch. It never inspects or prints
+the values in your env files.
 
 ```text
 .env -> .env.d/staging/.env      # on main
@@ -186,19 +193,19 @@ your-repo/
 
 ## Commands
 
-| Command                                    | What it does                                                                                              |
-| ------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| `init [--into <bucket>] [--scaffold]`      | Move your `.env` into a bucket, install the hook, update `.gitignore`. `--scaffold` creates rule buckets  |
-| `status`                                   | Show the branch, the pin or rule that matched, and each scope's active and expected bucket                |
-| `check [--scope <name>]`                   | Exit 0 only if every scope is on the expected bucket and its file exists                                  |
-| `apply [--scope <name>] [--dry-run]`       | Point scopes at the current branch's bucket now, repairing missing links                                  |
-| `use <bucket> [--scope <name> \| --all]`   | Switch by hand. The next checkout that matches a rule switches it back                                    |
-| `link <bucket>`                            | Pin the current branch (or `--branch <name>`) to a bucket. Overrides rules, stays local to your clone     |
-| `unlink`                                   | Remove the pin so the rules apply again                                                                   |
-| `bucket add\|rm\|list`                     | Add, remove, or list buckets in the current scope. `add` and `list` take `--all`                          |
-| `map add\|update\|move\|rm\|list\|explain` | Edit, reorder, list, or explain branch rules                                                              |
-| `scope add\|rm\|purge\|list`               | Add, remove, or list scopes (for monorepos). `purge` deletes data a removed scope left behind             |
-| `uninstall [--purge]`                      | Turn `.env` back into a real file and remove the hook. `--purge` also deletes `.env.d/` after you confirm |
+| Command                                    | What it does                                                                                                         |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `init [--into <bucket>] [--scaffold]`      | Move your `.env` into a bucket, install the hook, update `.gitignore`. `--scaffold` creates rule buckets             |
+| `status`                                   | Show the branch, the pin or rule that matched, and each scope's active and expected bucket                           |
+| `check [--scope <name>]`                   | Exit 0 only if every scope is on the expected bucket and its file exists                                             |
+| `apply [--scope <name>] [--dry-run]`       | Point scopes at the current branch's bucket now, repairing missing links                                             |
+| `use <bucket> [--scope <name> \| --all]`   | Switch by hand. The next checkout that matches a rule switches it back                                               |
+| `link <bucket>`                            | Pin the current branch (or `--branch <name>`) to a bucket. Overrides rules, stays local to your clone                |
+| `unlink`                                   | Remove the pin so the rules apply again                                                                              |
+| `bucket add\|rm\|list`                     | Add, remove, or list buckets in the current scope. `add` and `list` take `--all`                                     |
+| `map add\|update\|move\|rm\|list\|explain` | Edit, reorder, list, or explain branch rules                                                                         |
+| `scope add\|rm\|purge\|list`               | Add, remove, or list scopes (for monorepos). `purge` deletes data a removed scope left behind                        |
+| `uninstall [--purge]`                      | Move the active bucket file to a real `.env` and remove the hook. `--purge` also deletes `.env.d/` after you confirm |
 
 The documented commands explain themselves with `--help`, for example
 `envbuckets map move --help`.
@@ -231,7 +238,7 @@ them is not.
 - **It never blocks a checkout.** The hook always exits 0 and never creates,
   moves, or deletes files.
 - **It stays inside the repo and offline.** No `$HOME`, no temp folders, no
-  network.
+  network. A Git hooks path outside the repo or through a symlink is refused.
 - **You can always remove it.** `uninstall` never reads the config, so a
   broken config cannot lock you in.
 
