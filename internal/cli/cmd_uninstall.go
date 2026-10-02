@@ -26,9 +26,9 @@ func runUninstall(args []string, env Env) error {
 		return err
 	}
 	step := func(tag, format string, a ...any) {
-		fmt.Fprintf(env.Stdout, "  [%s] %s\n", tag, fmt.Sprintf(format, a...))
+		fmt.Fprintf(env.Stdout, "  %s: %s\n", tag, fmt.Sprintf(format, a...))
 	}
-	fmt.Fprintln(env.Stdout, "envbuckets: deactivating in this project")
+	fmt.Fprintln(env.Stdout, "Uninstalling envbuckets in this project")
 
 	found, err := discoverScopes(root)
 	if err != nil {

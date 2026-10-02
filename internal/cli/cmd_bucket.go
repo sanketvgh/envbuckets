@@ -75,10 +75,10 @@ func bucketAdd(env Env, s scope, name string) error {
 		return err
 	}
 	if !created {
-		fmt.Fprintf(env.Stdout, "%s: bucket %s already exists (%s)\n", s.Name, name, s.display(linkTarget(name)))
+		fmt.Fprintf(env.Stdout, "%s: bucket %s already exists at %s\n", s.Name, name, s.display(linkTarget(name)))
 		return nil
 	}
-	fmt.Fprintf(env.Stdout, "%s: created bucket %s (empty %s)\n", s.Name, name, s.display(linkTarget(name)))
+	fmt.Fprintf(env.Stdout, "%s: created empty bucket %s at %s\n", s.Name, name, s.display(linkTarget(name)))
 	return nil
 }
 
@@ -169,7 +169,7 @@ func bucketRm(env Env, p *project, s scope, name string, purge bool) error {
 	if err := root.RemoveAll(dir); err != nil {
 		return err
 	}
-	fmt.Fprintf(env.Stdout, "%s: removed bucket %s\n", s.Name, name)
+	fmt.Fprintf(env.Stdout, "%s: removed bucket %s (%s/)\n", s.Name, name, s.display(bucketsDir+"/"+name))
 	return nil
 }
 
@@ -210,7 +210,7 @@ func bucketList(env Env, p *project, s scope) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(env.Stdout, "scope %s (%s):\n", s.Name, s.Path)
+	fmt.Fprintf(env.Stdout, "Scope %s (%s)\n", s.Name, s.Path)
 	if len(names) == 0 {
 		fmt.Fprintln(env.Stdout, "  (none)")
 		return nil

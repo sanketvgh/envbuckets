@@ -2,8 +2,9 @@
 
 `status` explains the current branch's pin or winning rule and reports
 each scope's active and expected bucket, missing files, broken links, and
-unmanaged `.env` files. It also suggests a next step on detached HEAD or
-when no rule matches. It is useful for inspection; use `check` as a gate:
+unmanaged `.env` files. Detached HEAD and an unmatched branch are reported
+explicitly; checkout leaves `.env` unchanged in either case. It is useful
+for inspection; use `check` as a gate:
 
 ```sh
 envbuckets status

@@ -40,7 +40,7 @@ func runUse(args []string, env Env) error {
 		for _, s := range selected {
 			states = append(states, evaluateScope(s, bucket, true))
 		}
-		return executePlans(env, states, bucket, false, "use")
+		return executePlans(env, states, bucket, false)
 	}
 	s, err := p.resolveScope(env, *scopeName)
 	if err != nil {
@@ -65,10 +65,10 @@ func runUse(args []string, env Env) error {
 		return err
 	}
 	if !changed {
-		fmt.Fprintf(env.Stdout, "%s: %s already -> %s\n", s.Name, s.display(envFile), linkTarget(bucket))
+		fmt.Fprintf(env.Stdout, "%s: already linked %s -> %s\n", s.Name, s.display(envFile), s.display(linkTarget(bucket)))
 		return nil
 	}
-	fmt.Fprintf(env.Stdout, "%s: %s -> %s\n", s.Name, s.display(envFile), linkTarget(bucket))
-	fmt.Fprintln(env.Stdout, "note: manual override, the next checkout matching a rule repoints it")
+	fmt.Fprintf(env.Stdout, "%s: linked %s -> %s\n", s.Name, s.display(envFile), s.display(linkTarget(bucket)))
+	fmt.Fprintln(env.Stdout, "Manual selection; the next checkout with a matching rule may change it.")
 	return nil
 }

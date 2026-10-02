@@ -10,7 +10,7 @@ envbuckets check --json
 envbuckets apply --dry-run --json
 ```
 
-For people, failures use `envbuckets: <category>: <reason>` on stderr.
+For people, failures use `envbuckets: <reason>` on stderr.
 Nonfatal warnings use `envbuckets: warning:`. Successful commands describe
 what changed. Display wording is free to improve; scripts and agents
 should use the JSON contract below.
@@ -51,7 +51,7 @@ version 1:
     "category": "blocked",
     "message": "selected scopes are not structurally ready"
   },
-  "output": "branch: feature/login\n..."
+  "output": "On branch feature/login\n..."
 }
 ```
 

@@ -58,7 +58,7 @@ func TestMonorepoSwitchAndStatus(t *testing.T) {
 		}
 	}
 	st := r.ok("status")
-	if strings.Count(st.stdout, "staging (ok)") != 3 || strings.Count(st.stdout, "rule:") != 1 {
+	if strings.Count(st.stdout, "-> .env.d/staging/.env") != 1 || strings.Count(st.stdout, "-> apps/api/.env.d/staging/.env") != 1 || strings.Count(st.stdout, "-> apps/web/.env.d/staging/.env") != 1 || strings.Count(st.stdout, "Using bucket staging") != 1 {
 		t.Fatalf("status:\n%s", st.stdout)
 	}
 	ignore := r.read(".gitignore")
@@ -162,7 +162,7 @@ func TestScopeAddBootstrapsRealEnv(t *testing.T) {
 	r.ok("init")
 	r.write("svc/.env", "S=1\n")
 	res := r.ok("scope", "add", "svc", "--into", "dev")
-	if !strings.Contains(res.stdout, "[created]") || r.readlink("svc/.env") != ".env.d/dev/.env" || r.read("svc/.env.d/dev/.env") != "S=1\n" {
+	if !strings.Contains(res.stdout, "created:") || r.readlink("svc/.env") != ".env.d/dev/.env" || r.read("svc/.env.d/dev/.env") != "S=1\n" {
 		t.Fatalf("bootstrap:\n%s", res.stdout)
 	}
 }

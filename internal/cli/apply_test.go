@@ -53,7 +53,7 @@ func TestApplyPreservesUnmanagedAndReportsPartial(t *testing.T) {
 	if res := r.run("apply", "--scope", "web"); res.code != ExitOK || !strings.Contains(res.stdout, "0 changed, 1 unchanged, 0 failed") {
 		t.Fatalf("selected apply: %d %s", res.code, res.all())
 	}
-	if res := r.run("check", "--scope", "web"); res.code != ExitOK || !strings.Contains(res.stdout, "check: 1 ready") {
+	if res := r.run("check", "--scope", "web"); res.code != ExitOK || !strings.Contains(res.stdout, "1 scope ready.") {
 		t.Fatalf("selected check: %d %s", res.code, res.all())
 	}
 	if res := r.run("check"); res.code != ExitBlocked {
@@ -70,7 +70,7 @@ func TestUseAllIsTransientAndRejectsConflictingSelectors(t *testing.T) {
 	if got := r.readlink(".env"); got != ".env.d/prod/.env" {
 		t.Fatalf("use --all: %s", got)
 	}
-	if res := r.run("check"); res.code != ExitBlocked || !strings.Contains(res.stdout, "expected: staging") {
+	if res := r.run("check"); res.code != ExitBlocked || !strings.Contains(res.stdout, "expected .env.d/staging/.env") {
 		t.Fatalf("manual use changed mapping: %d %s", res.code, res.all())
 	}
 }

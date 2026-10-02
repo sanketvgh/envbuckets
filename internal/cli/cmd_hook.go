@@ -122,7 +122,7 @@ func scopeCount(n int) string {
 func switchScope(s scope, bucket string) (from, skip string, ok bool) {
 	if err := s.checkScopeDir(); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return "", s.Name + ": scope directory missing, skipped", false
+			return "", fmt.Sprintf("%s: scope directory %s missing, skipped", s.Name, s.Path), false
 		}
 		return "", fmt.Sprintf("%s: unsafe scope path, skipped: %v", s.Name, err), false
 	}

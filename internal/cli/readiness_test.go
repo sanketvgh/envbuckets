@@ -18,7 +18,7 @@ func TestCheckUnresolvedAndUnmanaged(t *testing.T) {
 	}
 	r.ok("bucket", "add", "dev")
 	r.ok("map", "add", "main", "dev")
-	if res := r.run("check"); res.code != ExitBlocked || !strings.Contains(res.stdout, "managed link missing") {
+	if res := r.run("check"); res.code != ExitBlocked || !strings.Contains(res.stdout, ".env missing; expected .env.d/dev/.env") {
 		t.Fatalf("missing link: %d %s", res.code, res.all())
 	}
 	r.write(".env", "SECRET=untouched\n")
@@ -37,16 +37,16 @@ func TestCheckUnresolvedAndUnmanaged(t *testing.T) {
 func TestCheckPinAndBrokenLink(t *testing.T) {
 	r := setup(t)
 	r.ok("link", "dev")
-	if res := r.run("check"); res.code != ExitOK || !strings.Contains(res.stdout, "link:   dev") {
+	if res := r.run("check"); res.code != ExitOK || !strings.Contains(res.stdout, "Using bucket dev (local pin") {
 		t.Fatalf("pin readiness: %d %s", res.code, res.all())
 	}
 	if err := os.Remove(r.path(".env.d/dev/.env")); err != nil {
 		t.Fatal(err)
 	}
-	if res := r.run("check"); res.code != ExitBlocked || !strings.Contains(res.stdout, "BROKEN") || !strings.Contains(res.stdout, "MISSING .env.d/dev/.env") {
+	if res := r.run("check"); res.code != ExitBlocked || !strings.Contains(res.stdout, "target missing") || !strings.Contains(res.stdout, ".env.d/dev/.env missing") {
 		t.Fatalf("broken: %d %s", res.code, res.all())
 	}
-	if res := r.run("status"); res.code != ExitOK || !strings.Contains(res.stdout, "BROKEN") {
+	if res := r.run("status"); res.code != ExitOK || !strings.Contains(res.stdout, "target missing") {
 		t.Fatalf("status: %d %s", res.code, res.all())
 	}
 }
@@ -54,7 +54,7 @@ func TestCheckPinAndBrokenLink(t *testing.T) {
 func TestStatusDescribesMismatchWithoutCause(t *testing.T) {
 	r := setup(t)
 	res := r.ok("status")
-	if !strings.Contains(res.stdout, "active: dev; expected: staging") || strings.Contains(res.stdout, "manual override") {
+	if !strings.Contains(res.stdout, ".env -> .env.d/dev/.env; expected .env.d/staging/.env") || strings.Contains(res.stdout, "manual override") {
 		t.Fatalf("status: %s", res.stdout)
 	}
 	if res := r.run("check"); res.code != ExitBlocked {
@@ -67,11 +67,11 @@ func TestStatusReportsUnresolvedBranch(t *testing.T) {
 	if err := config.New().Save(r.root); err != nil {
 		t.Fatal(err)
 	}
-	if res := r.ok("status"); !strings.Contains(res.stdout, "rule:   none; checkout leaves .env as-is") || strings.Contains(res.stdout, "next:") {
+	if res := r.ok("status"); !strings.Contains(res.stdout, "No matching rule or local pin; checkout leaves .env unchanged.") || strings.Contains(res.stdout, "next:") {
 		t.Fatalf("unmatched branch: %s", res.all())
 	}
 	r.git("checkout", "-q", "--detach")
-	if res := r.ok("status"); !strings.Contains(res.stdout, "branch: (detached HEAD)") || strings.Contains(res.stdout, "next:") {
+	if res := r.ok("status"); !strings.Contains(res.stdout, "HEAD detached") || strings.Contains(res.stdout, "next:") {
 		t.Fatalf("detached HEAD: %s", res.all())
 	}
 }
@@ -88,10 +88,10 @@ func TestCheckReportsMissingScopeDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	res := r.run("check")
-	if res.code != ExitBlocked || !strings.Contains(res.stdout, "MISSING directory apps/api") {
+	if res.code != ExitBlocked || !strings.Contains(res.stdout, "apps/api missing (scope directory)") {
 		t.Fatalf("missing scope: %d %s", res.code, res.all())
 	}
-	if st := r.ok("status"); !strings.Contains(st.stdout, "MISSING directory apps/api") {
+	if st := r.ok("status"); !strings.Contains(st.stdout, "apps/api missing (scope directory)") {
 		t.Fatalf("status: %s", st.all())
 	}
 }

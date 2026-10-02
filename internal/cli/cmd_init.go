@@ -42,7 +42,7 @@ func runInit(args []string, env Env) error {
 		return err
 	}
 	step := stepPrinter(env)
-	fmt.Fprintln(env.Stdout, "envbuckets: activating in this project")
+	fmt.Fprintln(env.Stdout, "Initializing envbuckets in this project")
 	if missing {
 		cfg = config.New()
 	}

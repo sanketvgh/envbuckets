@@ -70,7 +70,7 @@ func runJSON(args []string, env Env) int {
 	}
 	if failure != nil {
 		response.Error = &jsonError{Category: className(failure.code), Message: failure.msg}
-		reportText := fmt.Sprintf("envbuckets: %s: %s\n", className(failure.code), failure.msg)
+		reportText := fmt.Sprintf("envbuckets: %s\n", failure.msg)
 		response.Warnings = strings.TrimSuffix(warnings.String(), reportText)
 	} else {
 		response.Warnings = warnings.String()
@@ -78,7 +78,7 @@ func runJSON(args []string, env Env) int {
 	encoder := json.NewEncoder(originalOut)
 	encoder.SetEscapeHTML(false)
 	if err := encoder.Encode(response); err != nil {
-		fmt.Fprintf(originalErr, "envbuckets: environment: cannot write JSON response: %v\n", err)
+		fmt.Fprintf(originalErr, "envbuckets: cannot write JSON response: %v\n", err)
 		return ExitEnv
 	}
 	return code

@@ -43,12 +43,13 @@ func TestInitScaffoldFreshClone(t *testing.T) {
 	r := freshClone(t)
 	res := r.ok("init", "--scaffold")
 	for _, want := range []string{
-		"[created] api: apps/api/.env.d/staging/.env (empty)",
-		"[created] api: apps/api/.env.d/prod/.env (empty)",
-		"[created] api: apps/api/.env.d/dev/.env (empty)",
-		"[skipped] web: scope directory apps/web missing, not created",
-		"scaffold: created 3, already present 0, failed 0 (buckets from shared rules: staging, prod, dev)",
-		"not scaffolded: web",
+		"created: api: apps/api/.env.d/staging/.env (empty)",
+		"created: api: apps/api/.env.d/prod/.env (empty)",
+		"created: api: apps/api/.env.d/dev/.env (empty)",
+		"skipped: web: scope directory apps/web missing, not created",
+		"Buckets from shared rules: staging, prod, dev",
+		"Created 3; 0 already present, 0 failed.",
+		"Not scaffolded: web",
 	} {
 		if !strings.Contains(res.stdout, want) {
 			t.Fatalf("missing %q:\n%s", want, res.stdout)
@@ -66,7 +67,7 @@ func TestInitScaffoldFreshClone(t *testing.T) {
 
 	r.write("apps/api/.env.d/dev/.env", "FILLED=1\n")
 	res = r.ok("init", "--scaffold")
-	if !strings.Contains(res.stdout, "scaffold: created 0, already present 3, failed 0") || strings.Contains(res.stdout, "fill the new") {
+	if !strings.Contains(res.stdout, "Created 0; 3 already present, 0 failed.") || strings.Contains(res.stdout, "fill the new") {
 		t.Fatalf("rerun:\n%s", res.stdout)
 	}
 	if r.read("apps/api/.env.d/dev/.env") != "FILLED=1\n" {
@@ -88,7 +89,7 @@ func TestInitScaffoldWithInto(t *testing.T) {
 	r.write(".envbuckets.toml", "schema = 1\n\n[[rules]]\npattern = \"main\"\nbucket = \"staging\"\n\n[[rules]]\npattern = \"*\"\nbucket = \"dev\"\n")
 	r.write(".env", "A=1\n")
 	res := r.ok("init", "--scaffold", "--into", "dev")
-	if !strings.Contains(res.stdout, "[ok] root: .env.d/dev/.env already exists") || !strings.Contains(res.stdout, "[created] root: .env.d/staging/.env (empty)") {
+	if !strings.Contains(res.stdout, "ok: root: .env.d/dev/.env already exists") || !strings.Contains(res.stdout, "created: root: .env.d/staging/.env (empty)") {
 		t.Fatalf("scaffold+into:\n%s", res.stdout)
 	}
 	if r.readlink(".env") != ".env.d/dev/.env" || r.read(".env.d/dev/.env") != "A=1\n" {

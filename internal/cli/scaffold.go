@@ -53,9 +53,10 @@ func scaffoldScopes(env Env, p *project, bootstrapped map[string]bool, step func
 			total.failed = append(total.failed, res.failed...)
 		}
 	}
-	fmt.Fprintf(env.Stdout, "scaffold: %s (buckets from shared rules: %s)\n", total.summary(), joinOr(buckets, ""))
+	fmt.Fprintf(env.Stdout, "Buckets from shared rules: %s\n", joinOr(buckets, ""))
+	fmt.Fprintln(env.Stdout, total.summary())
 	if len(waiting) > 0 {
-		fmt.Fprintf(env.Stdout, "  not scaffolded: %s, see the [skipped] lines above\n", joinOr(waiting, ""))
+		fmt.Fprintf(env.Stdout, "  Not scaffolded: %s (see skipped scopes above)\n", joinOr(waiting, ""))
 	}
 	if len(total.failed) > 0 {
 		return blocked("scaffold incomplete: %d files not created", len(total.failed)).

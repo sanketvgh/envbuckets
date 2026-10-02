@@ -11,12 +11,11 @@ func TestMapExplainHypotheticalBranch(t *testing.T) {
 	before := r.read(".envbuckets.toml")
 	res := r.ok("map", "explain", "release/2.0")
 	for _, want := range []string{
-		"branch: release/2.0 (no local branch, explained as if checked out)",
-		"rule:   2. release/* -> prod (first match wins)",
-		"bucket: prod",
-		"root         available .env.d/prod/.env | active: dev",
-		"api          available apps/api/.env.d/prod/.env | active: dev",
-		"web          missing apps/web/.env.d/prod/.env | active: dev",
+		"Branch release/2.0 (no local branch, explained as if checked out)",
+		"Using bucket prod (rule release/*, priority 2)",
+		"root         .env.d/prod/.env exists; .env -> .env.d/dev/.env",
+		"api          apps/api/.env.d/prod/.env exists; apps/api/.env -> apps/api/.env.d/dev/.env",
+		"web          apps/web/.env.d/prod/.env missing; apps/web/.env -> apps/web/.env.d/dev/.env",
 	} {
 		if !strings.Contains(res.stdout, want) {
 			t.Fatalf("missing %q:\n%s", want, res.stdout)
@@ -33,11 +32,11 @@ func TestMapExplainHypotheticalBranch(t *testing.T) {
 func TestMapExplainCurrentBranchAndCatchAll(t *testing.T) {
 	r := monorepo(t)
 	res := r.ok("map", "explain", "main")
-	if !strings.Contains(res.stdout, "branch: main (current)") || !strings.Contains(res.stdout, "1. main -> staging") {
+	if !strings.Contains(res.stdout, "Branch main (current)") || !strings.Contains(res.stdout, "Using bucket staging (rule main, priority 1)") {
 		t.Fatalf("main:\n%s", res.stdout)
 	}
 	res = r.ok("map", "explain", "feature/x")
-	if !strings.Contains(res.stdout, "3. * -> dev") || strings.Contains(res.stdout, "next:") {
+	if !strings.Contains(res.stdout, "Using bucket dev (rule *, priority 3)") || strings.Contains(res.stdout, "next:") {
 		t.Fatalf("catch-all:\n%s", res.stdout)
 	}
 }
@@ -48,10 +47,9 @@ func TestMapExplainPinOverridesRule(t *testing.T) {
 	r.ok("link", "staging", "--branch", "release/1.0")
 	res := r.ok("map", "explain", "release/1.0")
 	for _, want := range []string{
-		"link:   staging (local pin, overrides rules)",
-		"rule:   2. release/* -> prod (overridden by the pin)",
-		"bucket: staging",
-		"web          available apps/web/.env.d/staging/.env",
+		"Using bucket staging (local pin; overrides rules)",
+		"Overridden rule: 2. release/* -> prod",
+		"web          apps/web/.env.d/staging/.env exists",
 	} {
 		if !strings.Contains(res.stdout, want) {
 			t.Fatalf("missing %q:\n%s", want, res.stdout)
@@ -66,7 +64,7 @@ func TestMapExplainNoMatch(t *testing.T) {
 	r.ok("bucket", "add", "prod")
 	r.ok("map", "add", "release/*", "prod")
 	res := r.ok("map", "explain", "feature/x")
-	for _, want := range []string{"rule:   none matches", "bucket: none"} {
+	for _, want := range []string{"No matching rule or local pin; checkout leaves .env unchanged."} {
 		if !strings.Contains(res.stdout, want) {
 			t.Fatalf("missing %q:\n%s", want, res.stdout)
 		}
@@ -82,7 +80,7 @@ func TestMapExplainMissingScopeDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	res := r.ok("map", "explain", "main")
-	if !strings.Contains(res.stdout, "web          MISSING directory apps/web") {
+	if !strings.Contains(res.stdout, "web          apps/web missing (scope directory)") {
 		t.Fatalf("missing dir:\n%s", res.stdout)
 	}
 }

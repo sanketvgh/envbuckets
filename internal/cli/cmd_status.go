@@ -34,17 +34,21 @@ func runStatus(args []string, env Env) error {
 func printReadiness(env Env, r readiness) {
 	switch {
 	case r.branch == "":
-		fmt.Fprintln(env.Stdout, "branch: (detached HEAD)\nexpected: unresolved; checkout leaves .env as-is")
+		fmt.Fprintln(env.Stdout, "HEAD detached")
+		fmt.Fprintln(env.Stdout, "No bucket selected; checkout leaves .env unchanged.")
 	case !r.resolved:
-		fmt.Fprintf(env.Stdout, "branch: %s\nrule:   none; checkout leaves .env as-is\n", r.branch)
+		fmt.Fprintf(env.Stdout, "On branch %s\n", r.branch)
+		fmt.Fprintln(env.Stdout, "No matching rule or local pin; checkout leaves .env unchanged.")
 	case r.target.linked:
-		fmt.Fprintf(env.Stdout, "branch: %s\nlink:   %s (local, overrides rules; envbuckets unlink to drop)\n", r.branch, r.target.bucket)
+		fmt.Fprintf(env.Stdout, "On branch %s\n", r.branch)
+		fmt.Fprintf(env.Stdout, "Using bucket %s (local pin; overrides rules)\n", r.target.bucket)
 	default:
-		fmt.Fprintf(env.Stdout, "branch: %s\nrule:   %s -> %s (priority %d)\n", r.branch, r.target.via, r.target.bucket, r.target.priority)
+		fmt.Fprintf(env.Stdout, "On branch %s\n", r.branch)
+		fmt.Fprintf(env.Stdout, "Using bucket %s (rule %s, priority %d)\n", r.target.bucket, r.target.via, r.target.priority)
 	}
-	fmt.Fprintln(env.Stdout, "scopes:")
+	fmt.Fprintln(env.Stdout)
 	for _, s := range r.scopes {
-		fmt.Fprintf(env.Stdout, "  %-12s %s\n", s.scope.Name, scopeReadinessText(s, r.target.bucket, r.resolved))
+		fmt.Fprintf(env.Stdout, "%-12s %s\n", s.scope.Name, scopeReadinessText(s, r.target.bucket, r.resolved))
 	}
 }
 
@@ -52,35 +56,33 @@ func scopeReadinessText(r scopeReadiness, expected string, resolved bool) string
 	s := r.scope
 	if !r.directoryExists {
 		if !errors.Is(r.directoryErr, os.ErrNotExist) {
-			return "ERROR scope path: " + r.directoryErr.Error()
+			return "cannot access " + s.Path + ": " + r.directoryErr.Error()
 		}
-		return "MISSING directory " + s.Path
+		return s.Path + " missing (scope directory)"
 	}
 	if r.linkErr != nil {
-		return "ERROR " + r.linkErr.Error()
+		return "cannot inspect " + s.display(envFile) + ": " + r.linkErr.Error()
 	}
 	var facts []string
 	switch r.link.kind {
 	case linkMissing:
-		facts = append(facts, "no "+s.display(envFile)+" (managed link missing)")
+		facts = append(facts, s.display(envFile)+" missing")
 	case linkReal:
 		facts = append(facts, s.display(envFile)+" is a real file, unmanaged")
 	case linkForeign:
 		facts = append(facts, fmt.Sprintf("%s -> %s (foreign, unmanaged)", s.display(envFile), r.link.target))
 	case linkBucket:
-		facts = append(facts, "active: "+r.link.bucket)
+		facts = append(facts, s.display(envFile)+" -> "+s.display(linkTarget(r.link.bucket)))
 		if r.link.dangling {
-			facts = append(facts, "BROKEN active link")
+			facts = append(facts, "target missing")
 		}
 	}
 	if resolved {
-		expectedText := "expected: " + expected
-		if r.healthy() {
-			expectedText += " (ok)"
+		if !r.healthy() && r.expectedExists {
+			facts = append(facts, "expected "+s.display(linkTarget(expected)))
 		}
-		facts = append(facts, expectedText)
 		if !r.expectedExists {
-			facts = append(facts, "MISSING "+s.display(linkTarget(expected))+" (create it)")
+			facts = append(facts, s.display(linkTarget(expected))+" missing")
 		}
 	}
 	return strings.Join(facts, "; ")

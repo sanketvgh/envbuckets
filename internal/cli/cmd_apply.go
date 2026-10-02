@@ -23,9 +23,9 @@ func planScope(r scopeReadiness, bucket string) scopePlan {
 	case r.linkErr != nil:
 		p.reason = fmt.Sprintf("cannot inspect .env: %v", r.linkErr)
 	case r.link.kind == linkReal:
-		p.reason = "real .env is unmanaged"
+		p.reason = r.scope.display(envFile) + " is a real file (unmanaged)"
 	case r.link.kind == linkForeign:
-		p.reason = "foreign .env symlink is unmanaged"
+		p.reason = fmt.Sprintf("%s -> %s is outside %s/ (unmanaged)", r.scope.display(envFile), r.link.target, bucketsDir)
 	case !r.expectedExists:
 		p.reason = "expected bucket file missing: " + r.scope.display(linkTarget(bucket))
 	case r.link.kind == linkBucket && r.link.bucket == bucket && !r.link.dangling:
@@ -68,10 +68,10 @@ func runApply(args []string, env Env) error {
 	if !r.resolved {
 		return blocked("no mapping matches branch %q", r.branch).then("envbuckets map add <pattern> <bucket>, or envbuckets link <bucket>")
 	}
-	return executePlans(env, r.scopes, r.target.bucket, *dryRun, "apply")
+	return executePlans(env, r.scopes, r.target.bucket, *dryRun)
 }
 
-func executePlans(env Env, states []scopeReadiness, bucket string, dryRun bool, command string) error {
+func executePlans(env Env, states []scopeReadiness, bucket string, dryRun bool) error {
 	var result applyResult
 	view := jsonPlanResult{Bucket: bucket, DryRun: dryRun, Scopes: make([]jsonPlanScope, 0, len(states))}
 	for _, state := range states {
@@ -81,12 +81,12 @@ func executePlans(env Env, states []scopeReadiness, bucket string, dryRun bool, 
 		case "unchanged":
 			result.unchanged++
 			row.Action = "unchanged"
-			fmt.Fprintf(env.Stdout, "%s: unchanged (%s)\n", plan.scope.Name, bucket)
+			fmt.Fprintf(env.Stdout, "%s: already linked %s -> %s\n", plan.scope.Name, plan.scope.display(envFile), plan.scope.display(linkTarget(bucket)))
 		case "change":
 			if dryRun {
 				result.changed++
 				row.Action = "would_change"
-				fmt.Fprintf(env.Stdout, "%s: would point %s -> %s\n", plan.scope.Name, plan.scope.display(envFile), plan.scope.display(linkTarget(bucket)))
+				fmt.Fprintf(env.Stdout, "%s: would link %s -> %s\n", plan.scope.Name, plan.scope.display(envFile), plan.scope.display(linkTarget(bucket)))
 				view.Scopes = append(view.Scopes, row)
 				continue
 			}
@@ -94,23 +94,23 @@ func executePlans(env Env, states []scopeReadiness, bucket string, dryRun bool, 
 			if err != nil {
 				result.failed++
 				row.Action, row.Reason = "failed", err.Error()
-				fmt.Fprintf(env.Stdout, "%s: failed: %v\n", plan.scope.Name, err)
+				fmt.Fprintf(env.Stdout, "%s: cannot link %s: %v\n", plan.scope.Name, plan.scope.display(envFile), err)
 				view.Scopes = append(view.Scopes, row)
 				continue
 			}
 			if changed {
 				result.changed++
 				row.Action = "changed"
-				fmt.Fprintf(env.Stdout, "%s: %s -> %s\n", plan.scope.Name, plan.scope.display(envFile), plan.scope.display(linkTarget(bucket)))
+				fmt.Fprintf(env.Stdout, "%s: linked %s -> %s\n", plan.scope.Name, plan.scope.display(envFile), plan.scope.display(linkTarget(bucket)))
 			} else {
 				result.unchanged++
 				row.Action = "unchanged"
-				fmt.Fprintf(env.Stdout, "%s: unchanged (%s)\n", plan.scope.Name, bucket)
+				fmt.Fprintf(env.Stdout, "%s: already linked %s -> %s\n", plan.scope.Name, plan.scope.display(envFile), plan.scope.display(linkTarget(bucket)))
 			}
 		default:
 			result.failed++
 			row.Action, row.Reason = "blocked", plan.reason
-			fmt.Fprintf(env.Stdout, "%s: blocked: %s\n", plan.scope.Name, plan.reason)
+			fmt.Fprintf(env.Stdout, "%s: %s\n", plan.scope.Name, plan.reason)
 		}
 		view.Scopes = append(view.Scopes, row)
 	}
@@ -118,11 +118,11 @@ func executePlans(env Env, states []scopeReadiness, bucket string, dryRun bool, 
 		view.Changed, view.Unchanged, view.Failed = result.changed, result.unchanged, result.failed
 		*env.jsonData = view
 	}
-	label := command
 	if dryRun {
-		label = "dry-run"
+		fmt.Fprintf(env.Stdout, "Would change %d scopes; %d unchanged, %d unable to change.\n", result.changed, result.unchanged, result.failed)
+	} else {
+		fmt.Fprintf(env.Stdout, "Changed %d scopes; %d unchanged, %d failed.\n", result.changed, result.unchanged, result.failed)
 	}
-	fmt.Fprintf(env.Stdout, "%s: %d changed, %d unchanged, %d failed\n", label, result.changed, result.unchanged, result.failed)
 	if result.failed > 0 {
 		return blocked("%d scope(s) could not be applied", result.failed).then("repair the reported paths, then retry")
 	}

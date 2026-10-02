@@ -114,10 +114,7 @@ func scopeAdd(env Env, p *project, arg, name, into string) error {
 		fmt.Fprintln(env.Stdout, "note: the repo root is no longer an implicit scope")
 	}
 	s, _ := p.scopeByName(name)
-	step := func(tag, format string, a ...any) {
-		fmt.Fprintf(env.Stdout, "  [%s] %s\n", tag, fmt.Sprintf(format, a...))
-	}
-	return bootstrapScope(env, s, into, step)
+	return bootstrapScope(env, s, into, stepPrinter(env))
 }
 
 func nested(a, b string) bool {

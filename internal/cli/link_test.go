@@ -72,7 +72,7 @@ func TestUseOnLinkedBranchIsReportedAsOverride(t *testing.T) {
 	r.ok("link", "prod")
 	r.ok("use", "dev")
 	st := r.ok("status")
-	if !strings.Contains(st.stdout, "active: dev; expected: prod") || !strings.Contains(st.stdout, "link:   prod") {
+	if !strings.Contains(st.stdout, ".env -> .env.d/dev/.env; expected .env.d/prod/.env") || !strings.Contains(st.stdout, "Using bucket prod (local pin") {
 		t.Fatalf("status:\n%s", st.stdout)
 	}
 }
@@ -106,7 +106,7 @@ func TestLinkOtherBranchDoesNotSwitch(t *testing.T) {
 	r.git("branch", "feature/y")
 	r.hook()
 	res := r.ok("link", "prod", "--branch", "feature/y")
-	if !strings.Contains(res.stdout, "linked feature/y -> prod") || r.readlink(".env") != ".env.d/staging/.env" {
+	if !strings.Contains(res.stdout, "Pinned branch feature/y to bucket prod") || r.readlink(".env") != ".env.d/staging/.env" {
 		t.Fatalf("link --branch:\n%s", res.all())
 	}
 	r.git("checkout", "-q", "feature/y")

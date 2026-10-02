@@ -32,7 +32,7 @@ func runCheck(args []string, env Env) error {
 	}
 	printReadiness(env, r)
 	if r.healthy() {
-		fmt.Fprintf(env.Stdout, "check: %d ready\n", len(r.scopes))
+		fmt.Fprintf(env.Stdout, "%s ready.\n", scopeCount(len(r.scopes)))
 		return nil
 	}
 	ready := 0
@@ -41,7 +41,7 @@ func runCheck(args []string, env Env) error {
 			ready++
 		}
 	}
-	fmt.Fprintf(env.Stdout, "check: %d ready, %d unhealthy or unresolved\n", ready, len(r.scopes)-ready)
+	fmt.Fprintf(env.Stdout, "%d ready, %d not ready.\n", ready, len(r.scopes)-ready)
 	switch {
 	case r.branch == "":
 		return blocked("expected environment unresolved on detached HEAD").then("git checkout <branch>, or envbuckets use <bucket>")

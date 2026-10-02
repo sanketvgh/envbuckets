@@ -12,14 +12,14 @@ func TestInitIsIdempotent(t *testing.T) {
 	r := newRepo(t)
 	requireSymlinks(t, r.root)
 	first := r.ok("init")
-	if !strings.Contains(first.stdout, "[created] .envbuckets.toml") || !strings.Contains(first.stdout, "[created] hook block") {
+	if !strings.Contains(first.stdout, "created: .envbuckets.toml") || !strings.Contains(first.stdout, "created: hook block") {
 		t.Fatalf("first init:\n%s", first.stdout)
 	}
 	if !r.exists(".envbuckets.toml") || !strings.Contains(r.read(".gitignore"), block.Begin) {
 		t.Fatal("structure not created")
 	}
 	second := r.ok("init")
-	if strings.Contains(second.stdout, "[created]") {
+	if strings.Contains(second.stdout, "created:") {
 		t.Fatalf("second init not idempotent:\n%s", second.stdout)
 	}
 }
@@ -87,7 +87,7 @@ func TestUseIsATransientOverride(t *testing.T) {
 		t.Fatalf("use:\n%s", res.all())
 	}
 	st := r.ok("status")
-	if !strings.Contains(st.stdout, "active: prod; expected: dev") {
+	if !strings.Contains(st.stdout, ".env -> .env.d/prod/.env; expected .env.d/dev/.env") {
 		t.Fatalf("status:\n%s", st.stdout)
 	}
 	r.checkoutMain()
@@ -133,7 +133,7 @@ func TestStatusReportsBroken(t *testing.T) {
 		t.Fatal(err)
 	}
 	res := r.ok("status")
-	if !strings.Contains(res.stdout, "BROKEN") || !strings.Contains(res.stdout, "expected: staging") {
+	if !strings.Contains(res.stdout, "target missing") || !strings.Contains(res.stdout, ".env.d/staging/.env missing") {
 		t.Fatalf("status:\n%s", res.stdout)
 	}
 	if err := os.Remove(r.path(".env.d/staging/.env")); err != nil {

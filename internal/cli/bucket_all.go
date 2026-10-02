@@ -18,7 +18,7 @@ type bulkResult struct {
 }
 
 func (r bulkResult) summary() string {
-	return fmt.Sprintf("created %d, already present %d, failed %d", len(r.created), len(r.present), len(r.failed))
+	return fmt.Sprintf("Created %d; %d already present, %d failed.", len(r.created), len(r.present), len(r.failed))
 }
 
 func createInScopes(scopes []scope, name string, step func(string, string, ...any)) bulkResult {
@@ -62,7 +62,7 @@ func bucketAddAll(env Env, p *project, name string) error {
 
 func stepPrinter(env Env) func(string, string, ...any) {
 	return func(tag, format string, a ...any) {
-		fmt.Fprintf(env.Stdout, "  [%s] %s\n", tag, fmt.Sprintf(format, a...))
+		fmt.Fprintf(env.Stdout, "  %s: %s\n", tag, fmt.Sprintf(format, a...))
 	}
 }
 
@@ -136,7 +136,7 @@ func bucketListAll(env Env, p *project) error {
 	if err := tw.Flush(); err != nil {
 		return err
 	}
-	fmt.Fprintln(env.Stdout, "present: file exists, contents not checked | active: .env points here | BROKEN: .env points here, file missing")
+	fmt.Fprintln(env.Stdout, "present = file exists (contents not checked); active = .env points here; broken = target file missing")
 	for _, n := range notes {
 		fmt.Fprintf(env.Stdout, "note: %s\n", n)
 	}

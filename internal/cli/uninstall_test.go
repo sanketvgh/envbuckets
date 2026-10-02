@@ -100,7 +100,7 @@ func TestUninstallWithBrokenSymlink(t *testing.T) {
 		t.Fatal(err)
 	}
 	res := r.ok("uninstall")
-	if !strings.Contains(res.stderr, "BROKEN") || !strings.Contains(res.stdout, "[skipped] .env") {
+	if !strings.Contains(res.stderr, "BROKEN") || !strings.Contains(res.stdout, "skipped: .env") {
 		t.Fatalf("output:\n%s", res.all())
 	}
 	if r.exists(".git/hooks/post-checkout") {
@@ -149,7 +149,7 @@ func TestCrashBetweenMaterializeAndHookRemoval(t *testing.T) {
 		t.Fatalf("hook should be inert:\n%s", res.all())
 	}
 	res := r.ok("uninstall")
-	if !strings.Contains(res.stdout, "[skipped] .env (already a real file)") || r.exists(".git/hooks/post-checkout") {
+	if !strings.Contains(res.stdout, "skipped: .env (already a real file)") || r.exists(".git/hooks/post-checkout") {
 		t.Fatalf("re-run:\n%s", res.stdout)
 	}
 }

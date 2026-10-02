@@ -12,10 +12,10 @@ func TestBucketAddAllIsIdempotentAndPreserves(t *testing.T) {
 	r.write("apps/api/.env.d/prod/.env", "KEEP=1\n")
 	res := r.ok("bucket", "add", "prod", "--all")
 	for _, want := range []string{
-		"[ok] root: .env.d/prod/.env already exists, left untouched",
-		"[ok] api: apps/api/.env.d/prod/.env already exists",
-		"[created] web: apps/web/.env.d/prod/.env (empty)",
-		"created 1, already present 2, failed 0",
+		"ok: root: .env.d/prod/.env already exists, left untouched",
+		"ok: api: apps/api/.env.d/prod/.env already exists",
+		"created: web: apps/web/.env.d/prod/.env (empty)",
+		"Created 1; 2 already present, 0 failed.",
 	} {
 		if !strings.Contains(res.stdout, want) {
 			t.Fatalf("missing %q:\n%s", want, res.stdout)
@@ -25,7 +25,7 @@ func TestBucketAddAllIsIdempotentAndPreserves(t *testing.T) {
 		t.Fatal("existing file changed or new file not empty")
 	}
 	res = r.ok("bucket", "add", "prod", "--all")
-	if !strings.Contains(res.stdout, "created 0, already present 3, failed 0") || strings.Contains(res.stdout, "next:") {
+	if !strings.Contains(res.stdout, "Created 0; 3 already present, 0 failed.") || strings.Contains(res.stdout, "next:") {
 		t.Fatalf("rerun:\n%s", res.stdout)
 	}
 	if r.readlink("apps/web/.env") != ".env.d/dev/.env" {
@@ -43,16 +43,16 @@ func TestBucketAddAllPartialFailure(t *testing.T) {
 		t.Fatalf("exit %d\n%s", res.code, res.all())
 	}
 	for _, want := range []string{
-		"[created] root: .env.d/qa/.env",
-		"[created] api: apps/api/.env.d/qa/.env",
-		"[failed] web: scope directory apps/web is missing, not created",
-		"created 2, already present 0, failed 1",
+		"created: root: .env.d/qa/.env",
+		"created: api: apps/api/.env.d/qa/.env",
+		"failed: web: scope directory apps/web is missing, not created",
+		"Created 2; 0 already present, 1 failed.",
 	} {
 		if !strings.Contains(res.stdout, want) {
 			t.Fatalf("missing %q:\n%s", want, res.stdout)
 		}
 	}
-	if !strings.Contains(res.stderr, "envbuckets: blocked: bucket qa was not created in 1 of 3 scopes") {
+	if !strings.Contains(res.stderr, "envbuckets: bucket qa was not created in 1 of 3 scopes") {
 		t.Fatalf("stderr:\n%s", res.stderr)
 	}
 	if r.exists("apps/web") {

@@ -7,6 +7,22 @@ uses letters, digits, `_`, and `-`, starting with a letter or digit.
 Pass `--json` to any command for a versioned response; see
 [CLI output and AI agents](agent-integration.md).
 
+Human output follows familiar CLI conventions. `status` names the branch and
+selected bucket, then shows each scope's actual `.env` path and any expected
+or missing bucket file. Commands that change links report the paths changed;
+commands that skip a scope give the reason. Errors go to stderr as
+`envbuckets: <reason>`. For example:
+
+```text
+On branch main
+Using bucket dev (rule *, priority 1)
+
+root         .env -> .env.d/dev/.env
+api          apps/api/.env missing; expected apps/api/.env.d/dev/.env
+```
+
+The text is for people and may change. Use `--json` and exit codes in scripts.
+
 | Command                         | Flags                                       | Action                                                                                               |
 | ------------------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `init`                          | `--into <bucket>`, `--scaffold`             | Install config, hook, and ignore block; bootstrap real `.env` files; optionally create rule buckets. |
