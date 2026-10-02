@@ -20,5 +20,8 @@ and the relevant page in [docs/](docs/README.md); use
 - When changing command behavior or output, update relevant unit tests,
   `testdata/script/*.txtar`, and the affected documentation. Do not reintroduce
   `next:` labels or machine error classes in human-facing messages.
+- Use `<gitmoji> <type>(<scope>): <summary>` for commits and PR titles, such as
+  `✨ feat(cli): add readiness checks`. Keep the type and scope meaningful for
+  the final change.
 - Release publishing is handled by `.github/workflows/release.yml`. `task
   snapshot` builds release artifacts locally without publishing.
