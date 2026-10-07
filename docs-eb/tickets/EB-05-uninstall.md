@@ -2,12 +2,13 @@
 
 **Goal:** leave the project working without envbuckets, with no data lost.
 
-**Scope:** find managed paths from bucket contents without reading the config, replace each envbuckets link with a real copy of its target (temp file next to it, then atomic rename), then remove the hook block. Keep `.env.d/`, the config, and the ignore block. `uninstall -n` lists the files it would turn back into real files and the hook change, then stops.
+**Scope:** find envbuckets links without reading the config: take the candidate paths from the files in `.env.d/*/` and keep the ones that are links into `.env.d/`, so the repo is never walked. Rename each link's target file from the active bucket over the link (one atomic rename, so the path never disappears and nothing is copied), then remove the hook block, including the alpha's `envbuckets v1` block. Other buckets, the config, and the ignore block stay. Print `Moving <bucket path> to <path>` per file, `Removing the envbuckets hook from .git/hooks/post-checkout`, and a hint that the other buckets are still in `.env.d/`. `uninstall -n` prints the same lines as `Would ...` and stops.
 
 ## Acceptance criteria
 
-- Each formerly linked path is a real file with the active bucket's bytes, and bucket files are unchanged.
-- Broken links are reported and left alone; the rest completes.
+- Each formerly linked path is now the active bucket's file, moved rather than copied. Other buckets are unchanged.
+- Running `init` afterwards imports the same files again without collisions.
+- Broken links get an `error:` line and are left alone; the rest completes, and the exit code is 1.
 - Only the envbuckets hook block is removed. Other hook content stays byte-identical and executable, and a hook file that held only our block is deleted.
 - Works with a missing or broken config.
 - Running it twice, or on a repo that was never set up, does nothing and exits 0.

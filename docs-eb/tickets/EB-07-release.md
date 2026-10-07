@@ -2,7 +2,7 @@
 
 **Goal:** ship the new product as one coherent CLI.
 
-**Scope:** README and command help for the new product; remove scope-era code, commands, and docs, and the TOML dependency; update `AGENTS.md` and `CLAUDE.md`; end-to-end scripts for every acceptance criterion in `PRODUCT.md`; npm package smoke test.
+**Scope:** README and command help for the new product; remove scope-era code, commands, docs, txtar scripts, and the TOML dependency; rebuild the `task bench` fixture with the new commands (it still calls `bucket add` and `map add`); update `AGENTS.md` and `CLAUDE.md`; make sure `schema/envbuckets.schema.json` is on `main` so the `$schema` URL resolves, and show editor setup in the README; end-to-end scripts for every acceptance criterion in `PRODUCT.md`; npm package smoke test.
 
 ## Acceptance criteria
 
