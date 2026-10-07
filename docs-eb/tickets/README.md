@@ -1,0 +1,13 @@
+# Implementation tickets
+
+These tickets split [`../PRODUCT.md`](../PRODUCT.md) into reviewable pieces. Each ticket ships with unit tests, txtar integration scripts where Git behavior matters, and doc updates.
+
+| ID    | Ticket                                              | Depends on     |
+| ----- | --------------------------------------------------- | -------------- |
+| EB-01 | [Paths, buckets, and config](EB-01-paths-config.md) | none           |
+| EB-02 | [Switch engine and hook](EB-02-switch-hook.md)      | EB-01          |
+| EB-03 | [init, add, and switch -c](EB-03-init-add.md)       | EB-01, EB-02   |
+| EB-04 | [status](EB-04-status.md)                           | EB-01, EB-02   |
+| EB-05 | [uninstall](EB-05-uninstall.md)                     | EB-02          |
+| EB-06 | [Colored output](EB-06-colors.md)                   | EB-01, EB-04   |
+| EB-07 | [Release and acceptance](EB-07-release.md)          | EB-01 to EB-06 |
