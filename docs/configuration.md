@@ -8,8 +8,13 @@ project if the config is broken.
 
 ## Match branches
 
-Rules run in order. The first matching pattern wins. `*` is a catch-all
-and stays last; it matches `/` too. A local branch pin, described in
+Rules run in order. The first matching pattern wins. A `*` rule stays last.
+Like Git globs, `*` and `?` stop at `/`; `**` can cross directory separators
+when it appears at a pattern boundary (`**/`, `/**`, or by itself). A trailing
+`/` matches everything beneath that prefix. Character sets and ranges such as
+`[0-9]`, negated sets such as `[!a-c]`, POSIX classes such as `[[:digit:]]`,
+and backslash escapes are supported. Brace expansion is not. A local branch
+pin, described in
 [Branch switching](branch-switching.md), overrides every rule.
 
 ```sh

@@ -73,7 +73,7 @@ func TestEffectiveScopesImplicitRoot(t *testing.T) {
 }
 
 func TestValidatePattern(t *testing.T) {
-	if ValidatePattern("") == nil || ValidatePattern("a b") == nil || ValidatePattern(strings.Repeat("x", 129)) == nil {
+	if ValidatePattern("") == nil || ValidatePattern("a b") == nil || ValidatePattern(strings.Repeat("x", 129)) == nil || ValidatePattern("release/[abc") == nil {
 		t.Fatal("invalid patterns accepted")
 	}
 	if ValidatePattern("release/*") != nil {

@@ -14,6 +14,7 @@ import (
 	"github.com/BurntSushi/toml"
 
 	"github.com/sanketvgh/envbuckets/internal/fsx"
+	"github.com/sanketvgh/envbuckets/internal/pattern"
 )
 
 // FileName is the committed config file at the repo root.
@@ -155,7 +156,7 @@ func ValidatePattern(p string) error {
 	case len(p) > maxPattern:
 		return fmt.Errorf("pattern longer than %d chars", maxPattern)
 	}
-	return nil
+	return pattern.Validate(p)
 }
 
 // CleanScopePath normalizes a scope path to slash form with "." for root.
