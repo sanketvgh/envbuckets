@@ -32,4 +32,4 @@
 - Both commands write to stdout, never read file contents, and change nothing.
 - `status` works on a detached HEAD. Without a config it prints `fatal:` with a hint to run `envbuckets init`, and exits 1.
 - `branches` uses the same matcher as the hook, so its answer always matches what a checkout would do.
-- Add a 1000-branch case to `task bench`. The hook's time does not change with the number of branches.
+- Rebuild `task bench` (removed in EB-00) on the new CLI, with a 1000-branch case. The hook's time does not change with the number of branches.

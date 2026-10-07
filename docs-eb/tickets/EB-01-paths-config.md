@@ -25,6 +25,7 @@
 - Every JSON config in `PRODUCT.md` passes the CLI parser and the schema. `task lint` validates them against the schema with a JSON Schema validator run through pnpm (such as `ajv-cli`), next to `oxfmt`.
 - A leftover alpha `.envbuckets.toml` is never read.
 - Unit tests cover traversal, `.git` variants, symlinked parents, tracked files, clutter names, and rule order.
+- The alpha's path-attack cases listed in EB-00 are rewritten here and pass.
 - Table tests cover every row of the Patterns table, `**` next to and away from `/`, `**/` matching zero folders, character classes, escapes, and broken patterns.
 
 **Out of scope:** commands.
