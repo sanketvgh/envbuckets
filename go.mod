@@ -3,7 +3,6 @@ module github.com/sanketvgh/envbuckets
 go 1.27.1
 
 require (
-	github.com/BurntSushi/toml v1.6.0
 	github.com/git-lfs/wildmatch/v2 v2.0.1
 	github.com/rogpeppe/go-internal v1.16.0
 )

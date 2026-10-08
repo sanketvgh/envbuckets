@@ -34,7 +34,7 @@ func newRepo(t *testing.T) *repo {
 	return r
 }
 
-func (r *repo) git(args ...string) string {
+func (r *repo) git(args ...string) {
 	r.t.Helper()
 	cmd := exec.Command("git", args...) //nolint:gosec // test helper, fixed args
 	cmd.Dir = r.root
@@ -42,7 +42,6 @@ func (r *repo) git(args ...string) string {
 	if err != nil {
 		r.t.Fatalf("git %v: %v\n%s", args, err, out)
 	}
-	return strings.TrimSpace(string(out))
 }
 
 func (r *repo) path(rel string) string {
@@ -57,29 +56,6 @@ func (r *repo) write(rel, content string) {
 	if err := os.WriteFile(r.path(rel), []byte(content), 0o644); err != nil {
 		r.t.Fatal(err)
 	}
-}
-
-func (r *repo) read(rel string) string {
-	r.t.Helper()
-	data, err := os.ReadFile(r.path(rel))
-	if err != nil {
-		r.t.Fatalf("read %s: %v", rel, err)
-	}
-	return string(data)
-}
-
-func (r *repo) exists(rel string) bool {
-	_, err := os.Lstat(r.path(rel))
-	return err == nil
-}
-
-func (r *repo) readlink(rel string) string {
-	r.t.Helper()
-	target, err := os.Readlink(r.path(rel))
-	if err != nil {
-		r.t.Fatalf("readlink %s: %v", rel, err)
-	}
-	return filepath.ToSlash(target)
 }
 
 type result struct {
@@ -100,58 +76,4 @@ func (r *repo) runIn(cwd, stdin string, args ...string) result {
 func (r *repo) run(args ...string) result {
 	r.t.Helper()
 	return r.runIn(r.root, "", args...)
-}
-
-func (r *repo) ok(args ...string) result {
-	r.t.Helper()
-	res := r.run(args...)
-	if res.code != ExitOK {
-		r.t.Fatalf("envbuckets %v: exit %d\n%s", args, res.code, res.all())
-	}
-	return res
-}
-
-func (r *repo) checkoutMain() {
-	r.t.Helper()
-	r.git("checkout", "-q", "main")
-}
-
-func (r *repo) newBranch(branch string) {
-	r.t.Helper()
-	r.git("checkout", "-q", "-b", branch)
-}
-
-func (r *repo) hook() result {
-	r.t.Helper()
-	res := r.run("hook", "0000", "0000", "1")
-	if res.code != ExitOK {
-		r.t.Fatalf("hook must exit 0, got %d\n%s", res.code, res.all())
-	}
-	return res
-}
-
-func requireSymlinks(t *testing.T, dir string) {
-	t.Helper()
-	probe := filepath.Join(dir, ".symlink-probe")
-	if err := os.Symlink("probe-target", probe); err != nil {
-		t.Skipf("symlinks unavailable here: %v", err)
-	}
-	_ = os.Remove(probe)
-}
-
-// setup initializes a single-scope repo with dev/staging/prod buckets and
-// rules main->staging, release/*->prod, *->dev, with .env pointing at dev.
-func setup(t *testing.T) *repo {
-	t.Helper()
-	r := newRepo(t)
-	requireSymlinks(t, r.root)
-	r.ok("init")
-	for _, b := range []string{"dev", "staging", "prod"} {
-		r.ok("bucket", "add", b)
-	}
-	r.ok("map", "add", "main", "staging")
-	r.ok("map", "add", "release/*", "prod")
-	r.ok("map", "add", "*", "dev")
-	r.ok("use", "dev")
-	return r
 }

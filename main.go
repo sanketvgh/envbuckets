@@ -19,7 +19,7 @@ func main() {
 	cwd, err := os.Getwd()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "envbuckets: %v\n", err)
-		os.Exit(cli.ExitEnv)
+		os.Exit(cli.ExitError)
 	}
 	os.Exit(cli.Run(os.Args[1:], cli.Env{
 		Cwd:     cwd,
