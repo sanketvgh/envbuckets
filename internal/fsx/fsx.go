@@ -78,6 +78,24 @@ func SetSymlink(link, target, stageDir string) (bool, error) {
 // atomic rename. Root keeps path traversal inside the repository even if a
 // directory component changes to a symlink between validation and the write.
 func StageSymlinkRoot(root *os.Root, target, stageDir string) (string, error) {
+	if !filepath.IsLocal(stageDir) {
+		return "", fmt.Errorf("staging directory %q is not local", stageDir)
+	}
+	info, err := root.Lstat(stageDir)
+	if err != nil {
+		return "", err
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		return "", fmt.Errorf("staging directory %q is unsafe", stageDir)
+	}
+	if stageDir != "." {
+		if err := validateRootPath(root, filepath.Join(stageDir, ".envbuckets-link"), true); err != nil {
+			return "", err
+		}
+	}
+	if err := validateLinkTarget(root, filepath.Join(stageDir, ".envbuckets-link"), target); err != nil {
+		return "", err
+	}
 	for range 10 {
 		var random [16]byte
 		if _, err := rand.Read(random[:]); err != nil {
@@ -97,6 +115,12 @@ func StageSymlinkRoot(root *os.Root, target, stageDir string) (string, error) {
 // SetSymlinkRoot performs the same swap as SetSymlink with repo-root-contained
 // operations, including its temporary link and final rename.
 func SetSymlinkRoot(root *os.Root, link, target, stageDir string) (bool, error) {
+	if err := validateRootPath(root, link, true); err != nil {
+		return false, err
+	}
+	if err := validateLinkTarget(root, link, target); err != nil {
+		return false, err
+	}
 	if err := root.Symlink(filepath.FromSlash(target), link); err == nil {
 		return true, nil
 	} else if !errors.Is(err, os.ErrExist) {
@@ -104,6 +128,11 @@ func SetSymlinkRoot(root *os.Root, link, target, stageDir string) (bool, error) 
 	}
 	if current, err := root.Readlink(link); err == nil && filepath.ToSlash(current) == target {
 		return false, nil
+	}
+	if info, err := root.Lstat(link); err == nil && info.Mode()&os.ModeSymlink == 0 {
+		return false, fmt.Errorf("refusing to replace real path %s with a symlink", link)
+	} else if err != nil && !os.IsNotExist(err) {
+		return false, err
 	}
 	tmp, err := StageSymlinkRoot(root, target, stageDir)
 	if err != nil {

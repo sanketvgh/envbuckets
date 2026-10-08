@@ -35,6 +35,7 @@ func compile(pattern string) (matcher *wildmatch.Wildmatch, err error) {
 	if strings.HasSuffix(pattern, "/") {
 		pattern += "**"
 	}
+	pattern = rewriteGitClasses(pattern)
 	if cached, ok := compiled.Load(pattern); ok {
 		return cached.(*wildmatch.Wildmatch), nil
 	}
@@ -47,6 +48,47 @@ func compile(pattern string) (matcher *wildmatch.Wildmatch, err error) {
 	matcher = wildmatch.NewWildmatch(pattern)
 	actual, _ := compiled.LoadOrStore(pattern, matcher)
 	return actual.(*wildmatch.Wildmatch), nil
+}
+
+// wildmatch differs from Git for a leading literal ] in a character set.
+// Escaping it preserves Git's []a] and [!]a] behavior.
+func rewriteGitClasses(pattern string) string {
+	var out strings.Builder
+	for i := 0; i < len(pattern); i++ {
+		if pattern[i] == '\\' {
+			out.WriteByte(pattern[i])
+			i++
+			if i < len(pattern) {
+				out.WriteByte(pattern[i])
+			}
+			continue
+		}
+		if pattern[i] != '[' {
+			out.WriteByte(pattern[i])
+			continue
+		}
+		end := classEnd(pattern, i)
+		if end < 0 {
+			out.WriteByte(pattern[i])
+			continue
+		}
+		body := pattern[i+1 : end]
+		negated := strings.HasPrefix(body, "!") || strings.HasPrefix(body, "^")
+		if negated {
+			out.WriteString("[[:print:]^")
+			body = body[1:]
+		} else {
+			out.WriteByte('[')
+		}
+		if strings.HasPrefix(body, "]") {
+			out.WriteString(`\]`)
+			body = body[1:]
+		}
+		out.WriteString(body)
+		out.WriteByte(']')
+		i = end
+	}
+	return out.String()
 }
 
 func validateSyntax(pattern string) error {

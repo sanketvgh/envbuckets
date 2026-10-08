@@ -1,0 +1,13 @@
+{
+  "name": "envbuckets",
+  "private": true,
+  "description": "Formatting and schema validation tools for envbuckets.",
+  "license": "MIT",
+  "scripts": {
+    "validate:schema": "node tools/validate-config-schema.mjs"
+  },
+  "devDependencies": {
+    "ajv": "8.20.0",
+    "oxfmt": "0.72.0"
+  }
+}

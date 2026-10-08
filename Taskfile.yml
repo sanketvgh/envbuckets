@@ -20,6 +20,8 @@ tasks:
     cmds:
       - golangci-lint fmt --diff ./...
       - golangci-lint run ./...
+      - pnpm --config.verifyDepsBeforeRun=false exec oxfmt --check schema/envbuckets.schema.json schema/testdata/invalid/*.json tools/validate-config-schema.mjs package.json
+      - pnpm --config.verifyDepsBeforeRun=false run validate:schema
 
   test:
     desc: Run Go unit tests.
@@ -31,8 +33,18 @@ tasks:
     cmds:
       - go test -tags integration -run TestScript -count=1 .
 
+  pattern:fixture:
+    desc: Regenerate recorded Git branch-pattern answers.
+    env:
+      UPDATE_GIT_FIXTURE: "1"
+      GOCACHE: '{{.ROOT_DIR}}/tmp/gocache'
+    cmds:
+      - go test -run TestGitFixture ./internal/pattern
+
   check:
     desc: Run lint, unit tests, and real-git integration tests.
+    env:
+      GOCACHE: '{{.ROOT_DIR}}/tmp/gocache'
     cmds:
       - task: lint
       - task: test

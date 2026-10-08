@@ -27,8 +27,14 @@ func TestMatch(t *testing.T) {
 		{"hotfix/[0-9]*", "hotfix/88-timeout", true},
 		{"hotfix/[!a-c]x", "hotfix/zx", true},
 		{"hotfix/[!a-c]x", "hotfix/bx", false},
+		{"[]a]", "]", true},
+		{"[]a]", "a", true},
+		{"[]a]", "b", false},
+		{"[!]a]", "]", false},
+		{"[!]a]", "b", true},
 		{"x/[[:digit:]]", "x/7", true},
 		{`release/\*`, "release/*", true},
+		{`\[`, "[", true},
 		{"{main,master}", "main", false},
 	}
 	for _, tc := range cases {

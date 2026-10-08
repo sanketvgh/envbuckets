@@ -1,0 +1,202 @@
+[
+  {
+    "pattern": "main",
+    "branch": "main",
+    "match": true
+  },
+  {
+    "pattern": "main",
+    "branch": "main-2",
+    "match": false
+  },
+  {
+    "pattern": "*",
+    "branch": "anything",
+    "match": true
+  },
+  {
+    "pattern": "*",
+    "branch": "anything/at/all",
+    "match": false
+  },
+  {
+    "pattern": "?",
+    "branch": "x",
+    "match": true
+  },
+  {
+    "pattern": "?",
+    "branch": "xx",
+    "match": false
+  },
+  {
+    "pattern": "release/*",
+    "branch": "release/1.2",
+    "match": true
+  },
+  {
+    "pattern": "release/*",
+    "branch": "release/1.2/rc1",
+    "match": false
+  },
+  {
+    "pattern": "release/**",
+    "branch": "release/1.2/rc1",
+    "match": true
+  },
+  {
+    "pattern": "release/**",
+    "branch": "release",
+    "match": false
+  },
+  {
+    "pattern": "release/",
+    "branch": "release/1.2/rc1",
+    "match": true
+  },
+  {
+    "pattern": "release/",
+    "branch": "release",
+    "match": false
+  },
+  {
+    "pattern": "**/hotfix",
+    "branch": "hotfix",
+    "match": true
+  },
+  {
+    "pattern": "**/hotfix",
+    "branch": "team/hotfix",
+    "match": true
+  },
+  {
+    "pattern": "**/hotfix",
+    "branch": "hotfix-2",
+    "match": false
+  },
+  {
+    "pattern": "**/spike-*",
+    "branch": "spike-cache",
+    "match": true
+  },
+  {
+    "pattern": "**/spike-*",
+    "branch": "alice/spike-cache",
+    "match": true
+  },
+  {
+    "pattern": "**/spike-*",
+    "branch": "alice/fix-spikes",
+    "match": false
+  },
+  {
+    "pattern": "v?.?",
+    "branch": "v1.2",
+    "match": true
+  },
+  {
+    "pattern": "v?.?",
+    "branch": "v1.10",
+    "match": false
+  },
+  {
+    "pattern": "hotfix/[0-9]*",
+    "branch": "hotfix/42-login",
+    "match": true
+  },
+  {
+    "pattern": "hotfix/[0-9]*",
+    "branch": "hotfix/login",
+    "match": false
+  },
+  {
+    "pattern": "hotfix/[!a-c]x",
+    "branch": "hotfix/zx",
+    "match": true
+  },
+  {
+    "pattern": "hotfix/[!a-c]x",
+    "branch": "hotfix/bx",
+    "match": false
+  },
+  {
+    "pattern": "hotfix/[^a-c]x",
+    "branch": "hotfix/zx",
+    "match": true
+  },
+  {
+    "pattern": "hotfix/[^a-c]x",
+    "branch": "hotfix/bx",
+    "match": false
+  },
+  {
+    "pattern": "x/[[:digit:]]",
+    "branch": "x/7",
+    "match": true
+  },
+  {
+    "pattern": "x/[[:digit:]]",
+    "branch": "x/a",
+    "match": false
+  },
+  {
+    "pattern": "a**b",
+    "branch": "axb",
+    "match": true
+  },
+  {
+    "pattern": "a**b",
+    "branch": "a/x/b",
+    "match": false
+  },
+  {
+    "pattern": "a**/b",
+    "branch": "a/x/b",
+    "match": false
+  },
+  {
+    "pattern": "a/**/b",
+    "branch": "a/x/y/b",
+    "match": true
+  },
+  {
+    "pattern": "a/**/b",
+    "branch": "a/b",
+    "match": true
+  },
+  {
+    "pattern": "[]a]",
+    "branch": "]",
+    "match": true
+  },
+  {
+    "pattern": "[]a]",
+    "branch": "a",
+    "match": true
+  },
+  {
+    "pattern": "[]a]",
+    "branch": "b",
+    "match": false
+  },
+  {
+    "pattern": "[!]a]",
+    "branch": "]",
+    "match": false
+  },
+  {
+    "pattern": "[!]a]",
+    "branch": "a",
+    "match": false
+  },
+  {
+    "pattern": "[!]a]",
+    "branch": "b",
+    "match": true
+  },
+  {
+    "pattern": "{main,master}",
+    "branch": "main",
+    "match": false
+  }
+]

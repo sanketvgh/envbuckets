@@ -47,4 +47,6 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+      - name: Run filesystem helper tests
+        run: go test ./internal/fsx/...
       - run: go test -tags integration -run TestScript -v .
