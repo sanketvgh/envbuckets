@@ -17,7 +17,7 @@ func TestValidatePathSafety(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer r.Close()
-	for _, path := range []string{"../escape", filepath.Join(".git", "config"), filepath.Join(".GIT", "config"), filepath.Join("GIT~1", "config"), filepath.Join(".env.d", "dev", ".env"), "."} {
+	for _, path := range []string{"../escape", filepath.Join(dir, "absolute"), filepath.Join(".git", "config"), filepath.Join(".GIT", "config"), filepath.Join("GIT~1", "config"), filepath.Join(".env.d", "dev", ".env"), "."} {
 		if err := r.ValidatePath(path); err == nil {
 			t.Errorf("ValidatePath(%q) unexpectedly succeeded", path)
 		}
@@ -62,7 +62,7 @@ func TestScanBucketSkipsClutterAndReportsUnsafeEntries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(files, []string{"a.env", filepath.Join("nested", "b.env")}) {
+	if !slices.Equal(files, []string{"a.env", "nested/b.env"}) {
 		t.Fatalf("files = %v", files)
 	}
 	if !slices.Equal(unsafe, []string{"link.env"}) {
@@ -171,6 +171,13 @@ func TestMoveAndLinkWorkWithoutReadPermission(t *testing.T) {
 	info, err := r.Root.Lstat(".env")
 	if err != nil || info.Mode()&os.ModeSymlink == 0 {
 		t.Fatalf("chmod 000 move did not install link: %v %v", info, err)
+	}
+	if err := LinkFile(r.Root, "alias.env", ".env.d/dev/.env"); err != nil {
+		t.Fatalf("chmod 000 link target: %v", err)
+	}
+	info, err = r.Root.Lstat("alias.env")
+	if err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("chmod 000 LinkFile did not install link: %v %v", info, err)
 	}
 }
 

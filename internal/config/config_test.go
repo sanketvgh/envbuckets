@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -20,11 +22,13 @@ func TestParseErrorsNameFileAndProblem(t *testing.T) {
 	for _, tc := range []struct{ input, part string }{
 		{`{"default":"dev","bad":true}`, "bad"},
 		{`{"rules":[]}`, "default"},
+		{`{"default":""}`, "default"},
 		{`{"default":"bad/name"}`, "bucket"},
 		{`{"default":"-x"}`, "bucket"},
 		{`{"default":"_x"}`, "bucket"},
 		{`{"default":"dev","rules":[{"branch":"main","bucket":"-x"}]}`, "bucket"},
 		{`{"default":"dev","rules":null}`, "array"},
+		{`{"default":"dev","rules":[{"branch":"","bucket":"prod"}]}`, "branch"},
 		{`{"default":"dev"} {}`, "invalid json"},
 		{`{"default":"dev","rules":[{"branch":"[","bucket":"prod"}]}`, "pattern"},
 	} {
@@ -69,5 +73,28 @@ func TestValidBucketBoundaries(t *testing.T) {
 		if ValidBucket(name) {
 			t.Errorf("ValidBucket(%q) = true", name)
 		}
+	}
+}
+
+func TestLoadIgnoresLegacyTOML(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".envbuckets.toml"), []byte("invalid = ["), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".envbuckets.json"), []byte(`{"default":"dev"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+
+	c, err := Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Default != "dev" {
+		t.Fatalf("default = %q, want dev", c.Default)
 	}
 }
