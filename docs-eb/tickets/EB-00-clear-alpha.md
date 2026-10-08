@@ -4,7 +4,7 @@
 
 **Why first:** the alpha is built around scopes, `.git/config` branch pins, TOML rule editing, a `*` catch-all, and `--json`. None of that survives, and it already gets in the way: EB-01's Git-style matcher breaks the alpha's `*` catch-all and `testdata/script/branch_link.txtar`.
 
-**Base:** `origin/main` (`e22256c`). Local `main` and `feat/docs-demo` are behind it.
+**Status:** committed on `feat/docs-demo` as `1bf4fae` ("clear pre-rebuild implementation"). The exit checklist below has not been re-run against it.
 
 ## Delete
 
@@ -27,7 +27,7 @@
 | `internal/block`                                                                                                                                                 | Marker-guarded hook and `.gitignore` blocks. It finds any `# >>> envbuckets ` block, which EB-02 and EB-03 need to replace the alpha's `v1` blocks. |
 | `internal/fsx`                                                                                                                                                   | Symlink inspection, atomic symlink swaps through `os.Root`, atomic writes for the config and `.gitignore`.                                          |
 | `internal/gitx`: `Root`, `Branch`, `HooksDir` (with its local-hook-path check), `run`                                                                            | Repo root, current branch, and safe hook location.                                                                                                  |
-| `internal/pattern`                                                                                                                                               | EB-01 replaces it, and work on that is in progress. Do not touch it here.                                                                           |
+| `internal/pattern`                                                                                                                                               | EB-01 keeps it (a wrapper around `git-lfs/wildmatch/v2`) and extends it. Do not touch it here.                                                                           |
 | `main.go`, `integration_test.go` (git sandbox, `readlink` and `regular` commands), `harness_test.go` helpers (`newRepo`, `run`, `ok`, `hook`, `requireSymlinks`) | Generic test and entry-point plumbing.                                                                                                              |
 | `npm/`, `tools/npmpkg`, `.goreleaser.yaml`, `.github/` workflows, `.golangci.yml`, oxfmt setup, the other Taskfile tasks                                         | Packaging, CI, and security gates do not change.                                                                                                    |
 
@@ -66,4 +66,19 @@ The scope and `bucket rm --purge` cases go with their features.
 ## Notes
 
 - Releases are manual (`workflow_dispatch`), so `main` can sit between EB-00 and EB-07 without shipping a half-built CLI. Do not cut a release until EB-07.
-- The uncommitted EB-01 matcher work on `feat/docs-demo` changes `internal/pattern` (kept here) plus `internal/config/config.go` and `docs/configuration.md` (deleted here). Land this ticket first, then rebase that work and drop those two edits.
+- The EB-01 matcher work that was uncommitted when this ticket was written landed as `8c49516` before this ticket's commit, and the alpha `internal/config` and `docs/` were removed. The EB-01 code now in the working tree is new work, not the old matcher change.
+
+## Exit checklist
+
+Tick every box before starting EB-01.
+
+- [ ] `go build ./...`, `go vet ./...`, `task lint`, `go test ./...`, and `task test:integration` pass.
+- [ ] The smoke script runs on Linux, macOS, and Windows in CI.
+- [ ] `go mod tidy -diff` prints nothing and `go.mod` has no TOML dependency.
+- [ ] Outside `docs-eb/`, nothing mentions scopes, the removed commands, `.envbuckets.toml`, or `--json`.
+- [ ] A repo with the alpha hook block: a branch checkout with the new binary prints nothing and succeeds.
+- [ ] Every attack case in "Carry over before deleting" is written down in EB-01's test list before `security_paths_test.go` is deleted.
+- [ ] `task security` passes after the dependency change.
+- [ ] `README.md`, `AGENTS.md`, and `CLAUDE.md` point to `docs-eb/` and no longer describe the alpha.
+- [ ] The uncommitted EB-01 matcher work is rebased after this lands, with its two deleted-file edits dropped.
+- [ ] No release is cut (EB-07 owns that).
