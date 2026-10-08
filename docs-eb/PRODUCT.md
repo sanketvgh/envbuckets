@@ -24,7 +24,7 @@ repo/
 └── .git/hooks/post-checkout          # runs envbuckets after each branch switch
 ```
 
-- A **bucket** is a folder in `.env.d/`. A file's path inside the bucket is its path in the repo. Bucket names use letters, digits, `-`, and `_`.
+- A **bucket** is a folder in `.env.d/`. A file's path inside the bucket is its path in the repo. Bucket names start with a letter or digit and may then use letters, digits, `-`, and `_`.
 - Working files are relative symlinks, so editing `.env` edits the active bucket's file.
 - envbuckets never copies your files. It moves each one into a bucket once and links it; switching only re-points links. There is no copy mode.
 - Buckets can hold different files. Above, `apps/api/service-account.json` exists only while `dev` is active.
@@ -269,6 +269,7 @@ Paths Git already ignores are not added again. `status` warns about any linked p
 
 - Git.
 - Symlink support. On Windows, turn on Developer Mode. `init` checks this and stops with a clear message if links cannot be created.
+- A hooks folder inside the repo. `init` asks Git where hooks live, so a `core.hooksPath` inside the repo works. If it points outside the repo (a folder shared by many repos), `init` stops with `fatal:` instead of changing hooks for all of them.
 
 ## Output
 
@@ -290,7 +291,7 @@ Messages follow Git's conventions, so they read like Git.
 
 Exit codes: `0` success, `1` failed or only partly done, `2` usage error.
 
-In a terminal, `fatal:` and `error:` are red, `warning:` and `hint:` are yellow, `status` shows the bucket in use in green and problem paths in red, like `git status`, and `branches` shows the current branch in green, like `git branch`. Color is off when output is piped or redirected, or when `NO_COLOR` is set. The prefixes carry the meaning, so nothing depends on color. Styling uses [Lip Gloss](https://github.com/charmbracelet/lipgloss).
+In a terminal, `fatal:` and `error:` are red, `warning:` and `hint:` are yellow, `status` shows the bucket in use in green and problem paths in red, like `git status`, and `branches` shows the current branch in green, like `git branch`. Color is off when output is piped or redirected, or when `NO_COLOR` is set to any non-empty value. The prefixes carry the meaning, so nothing depends on color. Styling uses [Lip Gloss](https://github.com/charmbracelet/lipgloss).
 
 ## Doing it by hand
 
