@@ -78,6 +78,7 @@ func SetSymlink(link, target, stageDir string) (bool, error) {
 // atomic rename. Root keeps path traversal inside the repository even if a
 // directory component changes to a symlink between validation and the write.
 func StageSymlinkRoot(root *os.Root, target, stageDir string) (string, error) {
+	stageDir = rootPath(stageDir)
 	if !filepath.IsLocal(stageDir) {
 		return "", fmt.Errorf("staging directory %q is not local", stageDir)
 	}
@@ -101,7 +102,7 @@ func StageSymlinkRoot(root *os.Root, target, stageDir string) (string, error) {
 		if _, err := rand.Read(random[:]); err != nil {
 			return "", err
 		}
-		name := filepath.Join(stageDir, ".envbuckets-link-"+hex.EncodeToString(random[:]))
+		name := rootPath(filepath.Join(stageDir, ".envbuckets-link-"+hex.EncodeToString(random[:])))
 		if err := root.Symlink(filepath.FromSlash(target), name); errors.Is(err, os.ErrExist) {
 			continue
 		} else if err != nil {
@@ -115,6 +116,8 @@ func StageSymlinkRoot(root *os.Root, target, stageDir string) (string, error) {
 // SetSymlinkRoot performs the same swap as SetSymlink with repo-root-contained
 // operations, including its temporary link and final rename.
 func SetSymlinkRoot(root *os.Root, link, target, stageDir string) (bool, error) {
+	link = rootPath(link)
+	stageDir = rootPath(stageDir)
 	if err := validateRootPath(root, link, true); err != nil {
 		return false, err
 	}
@@ -171,6 +174,9 @@ func CopyFileAtomic(src, dst, stageDir string, perm os.FileMode) error {
 // CopyFileAtomicRoot streams a file through a temporary file without allowing
 // any source, staging, or destination path to escape root through symlinks.
 func CopyFileAtomicRoot(root *os.Root, src, dst, stageDir string, perm os.FileMode) error {
+	src = rootPath(src)
+	dst = rootPath(dst)
+	stageDir = rootPath(stageDir)
 	in, err := root.Open(src)
 	if err != nil {
 		return err
@@ -183,7 +189,7 @@ func CopyFileAtomicRoot(root *os.Root, src, dst, stageDir string, perm os.FileMo
 		if _, err := rand.Read(random[:]); err != nil {
 			return err
 		}
-		tmp = filepath.Join(stageDir, ".envbuckets-write-"+hex.EncodeToString(random[:]))
+		tmp = rootPath(filepath.Join(stageDir, ".envbuckets-write-"+hex.EncodeToString(random[:])))
 		out, err = root.OpenFile(tmp, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
 		if errors.Is(err, os.ErrExist) {
 			continue

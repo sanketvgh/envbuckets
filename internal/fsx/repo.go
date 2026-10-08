@@ -34,6 +34,10 @@ func OpenRepo(path string) (*Repo, error) {
 // Close releases the operating-system handle held on the repository root.
 func (r *Repo) Close() error { return r.Root.Close() }
 
+// rootPath converts host paths to the slash-separated paths required by
+// io/fs and os.Root, including on Windows.
+func rootPath(name string) string { return filepath.ToSlash(name) }
+
 // ValidatePath checks lexical locality, reserved trees, symlink parents, and
 // Git tracking before a managed path is used.
 func (r *Repo) ValidatePath(name string) error {
@@ -48,7 +52,7 @@ func (r *Repo) ValidatePath(name string) error {
 		}
 	}
 	for i := 1; i < len(parts); i++ {
-		parent := filepath.Join(parts[:i]...)
+		parent := strings.Join(parts[:i], "/")
 		info, err := r.Root.Lstat(parent)
 		if err != nil && !os.IsNotExist(err) {
 			return err
@@ -73,7 +77,7 @@ func (r *Repo) ScanBucket(bucket string) ([]string, []string, error) {
 	if !config.ValidBucket(bucket) {
 		return nil, nil, fmt.Errorf("invalid bucket name %q", bucket)
 	}
-	base := filepath.Join(".env.d", bucket)
+	base := rootPath(filepath.Join(".env.d", bucket))
 	for _, dir := range []string{".env.d", base} {
 		info, err := r.Root.Lstat(dir)
 		if err != nil {
@@ -139,11 +143,11 @@ func validateRootPath(root *os.Root, name string, allowFinalSymlink bool) error 
 	if !filepath.IsLocal(name) || name == "." {
 		return fmt.Errorf("path %q is not local", name)
 	}
-	clean := filepath.Clean(name)
+	clean := rootPath(filepath.Clean(name))
 	parts := strings.Split(filepath.ToSlash(clean), "/")
 	parent := "."
 	for i := 0; i < len(parts)-1; i++ {
-		parent = filepath.Join(parent, parts[i])
+		parent = rootPath(filepath.Join(parent, parts[i]))
 		info, err := root.Lstat(parent)
 		if os.IsNotExist(err) {
 			break
@@ -168,6 +172,7 @@ func validateRootPath(root *os.Root, name string, allowFinalSymlink bool) error 
 // LinkFile stages a relative symlink beside its destination and renames it
 // into place without opening the target file.
 func LinkFile(root *os.Root, link, target string) error {
+	link = rootPath(link)
 	if err := validateRootPath(root, link, true); err != nil {
 		return err
 	}
@@ -195,6 +200,8 @@ func LinkFile(root *os.Root, link, target string) error {
 // unavailable, it moves the original into the bucket before creating the link.
 // The bool reports whether the hard-link path was used.
 func MoveFileToBucket(root *os.Root, source, destination, linkTarget string) (bool, error) {
+	source = rootPath(source)
+	destination = rootPath(destination)
 	if err := validateRootPath(root, source, false); err != nil {
 		return false, err
 	}
