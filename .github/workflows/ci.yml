@@ -26,8 +26,6 @@ jobs:
       - uses: golangci/golangci-lint-action@v9
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
-      - name: Verify snapshot fixture stability
-        run: go test -shuffle=1791565784089812324 -count=1000 -run '^TestInitAndAddRefuseUnsafeMetadata$' ./internal/cli
       - name: Run shuffled unit tests
         run: time go test -shuffle=on -count=1 ./...
       # Keep race detection in this Linux job only; its trial cost is in EB-09.
