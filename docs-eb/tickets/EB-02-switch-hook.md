@@ -18,7 +18,7 @@
 ## Acceptance criteria
 
 - Target files link at their repo paths. Links absent from the target are removed, and their bucket files remain.
-- Real files and foreign symlinks are never changed. Other paths still switch; each skipped path gets an `error:` line, and the command exits 1.
+- Real files and foreign symlinks are never changed. Only canonical relative targets into `.env.d/<bucket>/` are managed; absolute or non-canonical targets are foreign. Other paths still switch; each skipped path gets an `error:` line, and the command exits 1.
 - Success prints one line (`Switched to bucket 'prod'` or `Already on bucket 'dev'`); links removed because the target lacks the file are not listed.
 - Each link swap is atomic. Rerunning `switch` after an interruption converges.
 - When the branch's bucket is missing, the hook and plain `switch` link the default bucket instead, printing `warning: bucket '<b>' does not exist; using '<default>' (default)` and a hint to create it with `switch -c`. Coming from `prod`, nothing from `prod` stays linked. If the default is missing too, the links stay and the warning says so.
@@ -29,7 +29,8 @@
 - With a broken config, the hook changes nothing and prints one `envbuckets: warning:` line naming the problem.
 - `switch -n` prints every planned link and removal, changes nothing, and exits with the code a real run would return.
 - The hook ignores file checkouts and detached HEAD, never prompts, exits 0 on every error, and does nothing when the binary is not on `PATH`.
-- Integration scripts cover a normal checkout, a glob rule, same-bucket silence, missing bucket falling back to the default (including from a `prod` branch), missing default, blocked path, file only in the old bucket, file checkout, detached HEAD, broken config, missing binary, an alpha hook block, a repo with a Git LFS `post-checkout` hook (installed before and after `envbuckets init`), a legacy hook that exits 1 or exits early, a linked worktree, a shared `core.hooksPath`, and a hook file that `git lfs install --force` has overwritten.
+- A shared, external, or symlinked hook path is refused without writing through the link.
+- Integration scripts cover a normal checkout, a glob rule, same-bucket silence, missing bucket falling back to the default (including from a `prod` branch), missing default, blocked path, file only in the old bucket, file checkout, detached HEAD, broken config, missing binary, an alpha hook block, a repo with a Git LFS `post-checkout` hook (installed before and after `envbuckets init`), a legacy hook that exits 1 or exits early, a linked worktree, a shared `core.hooksPath`, a symlinked hook path, non-canonical foreign links, and a hook file that `git lfs install --force` has overwritten.
 
 ## Gaps, risks, and tradeoffs
 

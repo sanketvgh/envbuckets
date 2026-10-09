@@ -23,6 +23,8 @@
 - Rerunning `init` on a set-up repo changes nothing. On a fresh clone it installs the hook and creates only what is missing.
 - `init` stops with a clear message when symlinks cannot be created, such as on Windows without Developer Mode. On the development machine used for this research (Windows, Developer Mode off) Go's `os.Symlink` fails with "A required privilege is not held by the client", which is the error to detect.
 - The ignore block is marker-guarded, never duplicated, and skips paths Git already ignores.
+- A symlinked `.gitignore` is refused without reading or modifying its target.
+- `init` never moves a real `.env` into or through a symlinked bucket directory; the source stays in place and the unsafe bucket is reported.
 - With `-n`, `init`, `add`, and `switch -c` leave the repo byte-identical and exit with the code a real run would return.
 
 ## Gaps, risks, and tradeoffs
@@ -58,5 +60,7 @@ Tick every box before starting EB-07's end-to-end work.
 - [ ] "Current bucket" follows the rule: links, else the branch's bucket, else stop on mixed links.
 - [ ] `-n` leaves the repo byte-identical and returns the real run's exit code for `init`, `add`, and `switch -c`.
 - [ ] The symlink probe reports a clear message for Windows without Developer Mode (privilege error), also under `init -n`.
+- [ ] A symlinked `.gitignore` target is neither read nor modified.
+- [ ] A real `.env` remains at its source path when the bucket directory is symlinked.
 - [ ] Output matches the PRODUCT.md sample runs for these commands.
 - [ ] `task check` passes.

@@ -12,6 +12,7 @@
 - Only the envbuckets hook block (the exact marker range) is removed. Other hook content stays byte-identical and executable, and a hook file whose remaining content is empty or only a shebang and whitespace is deleted. The file is rewritten through a temp file and a rename, so the hook is never half-written. A test compares every byte outside the block before and after.
 - Works with a missing or broken config.
 - Running it twice, or on a repo that was never set up, does nothing and exits 0.
+- Files outside `.env.d/` are never moved during uninstall; foreign links and their targets remain unchanged.
 - If interrupted, the project still runs and rerunning finishes the job.
 - `uninstall -n` changes nothing and exits with the code a real run would return.
 
@@ -45,6 +46,7 @@ Tick every box before starting EB-07's end-to-end work.
 - [ ] The hook file is rewritten through a temp file and a rename.
 - [ ] Works with a missing or broken config.
 - [ ] Running twice, or on a repo never set up, does nothing and exits 0.
+- [ ] A foreign link whose target is outside `.env.d/` and its target remain unchanged.
 - [ ] An interrupted run leaves the project working and rerunning finishes it.
 - [ ] `uninstall -n` changes nothing and returns the real exit code.
 - [ ] `task check` passes.

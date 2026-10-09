@@ -2,7 +2,7 @@
 
 **Goal:** the shared building blocks every command uses.
 
-**Status:** in progress. The working tree (uncommitted) has `internal/config` (strict `json/v2` parser, `BucketNamePattern`, `BucketFor`), `internal/output`, `internal/fsx/repo.go` (`OpenRepo`, `ValidatePath`, `ScanBucket`, `LinkFile`, `MoveFileToBucket`), `internal/pattern` changes plus `testdata/git-patterns.json` and `pattern_git_test.go`, `schema/envbuckets.schema.json`, and `tools/validate-config-schema.mjs`. It has not been checked against the exit checklist below.
+**Status:** passed. `task check` passes locally, and GitHub Actions run [37946531174](https://github.com/sanketvgh/envbuckets/actions/runs/37946531174) passed on commit `d74be56`, including Linux, macOS, and Windows integration jobs. The shared filesystem attack cases pass here; command-specific cases from EB-00 are handed off to EB-02, EB-03, and EB-05 below.
 
 **Scope:**
 
@@ -30,10 +30,17 @@
 - Every JSON config in `PRODUCT.md` passes the CLI parser and the schema. `task lint` also validates them with a JSON Schema validator run through pnpm (such as `ajv-cli`), next to `oxfmt`; the two validators cross-check each other.
 - A leftover alpha `.envbuckets.toml` is never read.
 - Unit tests cover traversal, `.git` variants, symlinked parents, tracked files, clutter names, and rule order.
-- The alpha's path-attack cases listed in EB-00 are rewritten here and pass.
+- Every EB-00 path-attack case is assigned to this ticket's shared-path tests or the ticket implementing the relevant command; the EB-01 filesystem cases pass.
 - Table tests cover every row of the Patterns table, `**` next to and away from `/`, `**/` matching zero folders, character classes, escapes, and broken patterns.
 
 **Out of scope:** commands.
+
+### Carried-over security cases
+
+- EB-01 tests the symlinked bucket directory and symlinked bucket-file scan cases through `fsx`.
+- EB-02 tests that non-canonical bucket links are foreign and that external or symlinked hook paths are refused.
+- EB-03 tests that a symlinked `.gitignore` is never read or modified and that `init` does not move a real `.env` through a symlinked bucket directory.
+- EB-05 tests that `uninstall` leaves files outside the buckets untouched.
 
 ## EB-02 to EB-06 handoff API
 
@@ -69,37 +76,37 @@
 Tick every box before starting EB-02. Later tickets build on these without reopening this one.
 
 **Paths**
-- [ ] All repo file operations go through one `os.Root` opened at the repo root.
-- [ ] Symlinked parent folders are refused by an explicit `Lstat` check on each parent component.
-- [ ] `.git/` (any case, `GIT~1`), `.env.d/`, absolute, `..`, and tracked paths are refused.
-- [ ] Path tests, including EB-00's carried-over attack cases, pass.
+- [x] All repo file operations go through one `os.Root` opened at the repo root.
+- [x] Symlinked parent folders are refused by an explicit `Lstat` check on each parent component.
+- [x] `.git/` (any case, `GIT~1`), `.env.d/`, absolute, `..`, and tracked paths are refused.
+- [x] Path tests for EB-01's shared filesystem cases pass; command-level EB-00 attacks are assigned to the matching command tickets.
 
 **Bucket scan**
-- [ ] Regular files only, clutter skipped, unsafe entries reported, no symlink followed, no content read.
+- [x] Regular files only, clutter skipped, unsafe entries reported, no symlink followed, no content read.
 
 **Config**
-- [ ] `encoding/json/v2` with `RejectUnknownMembers(true)`; missing `default` and bad bucket names checked after decoding.
-- [ ] Tests cover unknown key, nested unknown key, duplicate key, wrong-case key, invalid UTF-8, trailing data, trailing comma, wrong type.
-- [ ] Error messages are built from `JSONPointer` and `ErrUnknownName` as `.envbuckets.json: <problem>`.
-- [ ] A leftover `.envbuckets.toml` is never read.
+- [x] `encoding/json/v2` with `RejectUnknownMembers(true)`; missing `default` and bad bucket names checked after decoding.
+- [x] Tests cover unknown key, nested unknown key, duplicate key, wrong-case key, invalid UTF-8, trailing data, trailing comma, wrong type.
+- [x] Error messages are built from `JSONPointer` and `ErrUnknownName` as `.envbuckets.json: <problem>`.
+- [x] A leftover `.envbuckets.toml` is never read.
 
 **Schema**
-- [ ] Draft-07 schema with `additionalProperties: false` everywhere and a description on every key.
-- [ ] One bucket-name regex constant, valid in RE2 and ECMA, requiring a first character that is a letter or digit (tests: `-x`, `_x`, `x-`, `x_y` and an empty name).
-- [ ] The structural drift test passes.
-- [ ] PRODUCT.md configs pass the parser, the Go validator, and `ajv-cli`; invalid fixtures fail all three.
+- [x] Draft-07 schema with `additionalProperties: false` everywhere and a description on every key.
+- [x] One bucket-name regex constant, valid in RE2 and ECMA, requiring a first character that is a letter or digit (tests: `-x`, `_x`, `x-`, `x_y` and an empty name).
+- [x] The structural drift test passes.
+- [x] PRODUCT.md configs pass the parser, the Go validator, and `ajv-cli`; invalid fixtures fail all three.
 
 **Matcher**
-- [ ] First match wins; broken patterns are config errors.
-- [ ] Leading-`]` fix in; `[]a]` matches `]` and `a`.
-- [ ] The Git-recorded fixture (40+ cases) is committed with a regeneration task.
-- [ ] Every row of the Patterns table has a test.
+- [x] First match wins; broken patterns are config errors.
+- [x] Leading-`]` fix in; `[]a]` matches `]` and `a`.
+- [x] The Git-recorded fixture (40+ cases) is committed with a regeneration task.
+- [x] Every row of the Patterns table has a test.
 
 **Helpers**
-- [ ] Link and move helpers work, never read or copy contents, and pass the `chmod 000` test on Linux and macOS.
-- [ ] A simulated crash between steps leaves the file safe and rerunning repairs the link.
-- [ ] The output helper covers every prefix and the stdout/stderr split.
+- [x] Link and move helpers work, never read or copy contents, and pass the `chmod 000` test on Linux and macOS.
+- [x] A simulated crash between steps leaves the file safe and rerunning repairs the link.
+- [x] The output helper covers every prefix and the stdout/stderr split.
 
 **Hand-off**
-- [ ] Names used by EB-02 to EB-06 are fixed and documented in the ticket.
-- [ ] `task check` passes.
+- [x] Names used by EB-02 to EB-06 are fixed and documented in the ticket.
+- [x] `task check` passes.
