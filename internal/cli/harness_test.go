@@ -28,6 +28,9 @@ func newRepo(t *testing.T) *repo {
 	r.git("config", "user.email", "t@example.com")
 	r.git("config", "user.name", "t")
 	r.git("config", "commit.gpgsign", "false")
+	// Git's detached maintenance can remove its lock after a snapshot is taken.
+	// Finish fixture maintenance before returning from the initial commit.
+	r.git("config", "maintenance.autoDetach", "false")
 	r.write("README", "x\n")
 	r.git("add", "README")
 	r.git("commit", "-q", "-m", "init")
