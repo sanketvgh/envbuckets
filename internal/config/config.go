@@ -72,13 +72,13 @@ func Parse(data []byte) (Config, error) {
 func describeJSONError(err error) string {
 	if errors.Is(err, jsontext.ErrDuplicateName) {
 		if syntax, ok := errors.AsType[*jsontext.SyntacticError](err); ok && syntax.JSONPointer.LastToken() != "" {
-			return fmt.Sprintf("duplicate key %s", singleQuoted(syntax.JSONPointer.LastToken()))
+			return "duplicate key " + singleQuoted(syntax.JSONPointer.LastToken())
 		}
 		return "duplicate key"
 	}
 	if errors.Is(err, jsonv2.ErrUnknownName) {
 		if semantic, ok := errors.AsType[*jsonv2.SemanticError](err); ok {
-			return fmt.Sprintf("unknown key %s", singleQuoted(semantic.JSONPointer.LastToken()))
+			return "unknown key " + singleQuoted(semantic.JSONPointer.LastToken())
 		}
 		return "unknown key"
 	}
