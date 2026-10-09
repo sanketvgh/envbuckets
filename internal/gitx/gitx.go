@@ -48,6 +48,19 @@ func HooksDir(root string) (string, error) {
 	return filepath.Clean(p), nil
 }
 
+// CommonDir returns Git's shared metadata directory, including in a linked worktree.
+func CommonDir(root string) (string, error) {
+	out, err := run(root, "rev-parse", "--git-common-dir")
+	if err != nil {
+		return "", err
+	}
+	p := filepath.FromSlash(out)
+	if !filepath.IsAbs(p) {
+		p = filepath.Join(root, p)
+	}
+	return filepath.Clean(p), nil
+}
+
 func exitCode(err error) int {
 	var exit *exec.ExitError
 	if errors.As(err, &exit) {

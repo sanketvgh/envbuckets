@@ -1,0 +1,83 @@
+# Switch, dry-run parity, repair, fallback from prod, and value blindness.
+exec git init -q
+exec git add README .envbuckets.json
+exec git commit -qm initial
+exec envbuckets switch
+stdout 'Already on bucket ''dev'''
+readlink .env .env.d/dev/.env
+readlink apps/api/key.json ../../.env.d/dev/apps/api/key.json
+
+exec envbuckets switch -n prod
+stdout 'Would link .env to bucket ''prod'''
+stdout 'Would remove link apps/api/key.json'
+readlink .env .env.d/dev/.env
+readlink apps/api/key.json ../../.env.d/dev/apps/api/key.json
+
+exec envbuckets switch prod
+stdout 'Switched to bucket ''prod'''
+stderr 'This branch uses ''dev'''
+! stdout SYNTHETIC_SECRET
+! stderr SYNTHETIC_SECRET
+! exists apps/api/key.json
+regular .env.d/dev/apps/api/key.json
+exec envbuckets switch
+stdout 'Switched to bucket ''dev'''
+rm .env
+exec envbuckets switch
+stdout 'Already on bucket ''dev'''
+readlink .env .env.d/dev/.env
+
+# Naming a missing bucket never falls back or changes links, including -n.
+! exec envbuckets switch -n missing
+stderr 'fatal: no bucket named ''missing'''
+! exec envbuckets switch missing
+stderr 'switch -c missing'
+readlink .env .env.d/dev/.env
+
+# Blocked real files and foreign symlinks do not stop other paths switching.
+rm .env
+cp real .env
+symlink foreign -> README
+! exec envbuckets switch -n prod
+stderr 'error: cannot switch ''.env'''
+stderr 'error: cannot switch ''foreign'''
+readlink apps/api/key.json ../../.env.d/dev/apps/api/key.json
+! exec envbuckets switch prod
+stderr 'error: cannot switch ''.env'''
+stderr 'error: cannot switch ''foreign'''
+cmp .env real
+readlink foreign README
+! exists apps/api/key.json
+rm .env foreign
+exec envbuckets switch prod
+
+# Missing branch bucket falls back from prod and removes prod-only links.
+exec git switch -qc staging
+exec envbuckets switch
+stderr 'bucket ''staging'' does not exist; using ''dev'''
+stderr 'switch -c staging'
+readlink .env .env.d/dev/.env
+! exists foreign
+
+# If the default is also missing, dangling links are left alone.
+mv .env.d/dev .env.d/old-dev
+exec envbuckets switch
+stderr 'links not changed'
+readlink .env .env.d/dev/.env
+exec envbuckets switch -n
+! stdout .
+
+-- README --
+fixture
+-- .envbuckets.json --
+{"default":"dev","rules":[{"branch":"staging","bucket":"staging"}]}
+-- .env.d/dev/.env --
+SYNTHETIC_SECRET_DEV
+-- .env.d/dev/apps/api/key.json --
+SYNTHETIC_SECRET_KEY
+-- .env.d/prod/.env --
+SYNTHETIC_SECRET_PROD
+-- .env.d/prod/foreign --
+SYNTHETIC_SECRET_FOREIGN
+-- real --
+keep this real file

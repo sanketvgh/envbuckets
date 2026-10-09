@@ -57,8 +57,8 @@ func (r *Repo) ValidatePath(name string) error {
 		if err != nil && !os.IsNotExist(err) {
 			return err
 		}
-		if err == nil && info.Mode()&os.ModeSymlink != 0 {
-			return fmt.Errorf("path %q has a symlinked parent", name)
+		if err == nil && (info.Mode()&os.ModeSymlink != 0 || !info.IsDir()) {
+			return fmt.Errorf("path %q has an unsafe parent", name)
 		}
 	}
 	tracked, err := trackedByGit(r.Path, filepath.ToSlash(name))
@@ -137,6 +137,12 @@ func validateLinkTarget(root *os.Root, link, target string) error {
 		return fmt.Errorf("link target %q escapes the repository", target)
 	}
 	return validateRootPath(root, resolved, false)
+}
+
+// ValidateInternalPath checks repository metadata paths without allowing
+// symlinked parents or a symlink at the destination.
+func ValidateInternalPath(root *os.Root, name string) error {
+	return validateRootPath(root, name, false)
 }
 
 func validateRootPath(root *os.Root, name string, allowFinalSymlink bool) error {

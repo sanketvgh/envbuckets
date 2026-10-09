@@ -99,3 +99,22 @@ func TestLoadIgnoresLegacyTOML(t *testing.T) {
 		t.Fatalf("default = %q, want dev", c.Default)
 	}
 }
+
+func TestLoadRefusesConfigSymlink(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte("SYNTHETIC_SECRET"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(".env", filepath.Join(dir, ".envbuckets.json")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	_, err = Load(root)
+	if err == nil || !strings.Contains(err.Error(), "config must be a regular file") || strings.Contains(err.Error(), "SYNTHETIC_SECRET") {
+		t.Fatalf("unsafe config: %v", err)
+	}
+}

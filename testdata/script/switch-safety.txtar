@@ -1,0 +1,56 @@
+# Refuse tracked paths, symlink parents, and unsafe entries in buckets.
+exec git init -q
+exec git add README tracked .envbuckets.json
+exec git commit -qm initial
+mkdir safe-parent
+symlink apps -> safe-parent
+symlink .env.d/dev/unsafe -> .env
+! exec envbuckets switch -n
+stderr 'tracked by Git'
+stderr 'unsafe parent'
+stderr 'unsafe entry in target bucket'
+! exists .env
+! exists safe-parent/key
+! exec envbuckets switch
+stderr 'tracked by Git'
+stderr 'unsafe parent'
+stderr 'unsafe entry in target bucket'
+readlink .env .env.d/dev/.env
+cmp tracked expected-tracked
+! exists safe-parent/key
+
+# Working links through a symlinked old bucket are preserved and reported.
+rm .env
+symlink .env.d/old -> dev
+symlink .env -> .env.d/old/.env
+! exec envbuckets switch -n
+stderr 'unsafe symlink target'
+readlink .env .env.d/old/.env
+! exec envbuckets switch
+stderr 'unsafe symlink target'
+readlink .env .env.d/old/.env
+
+# Do not follow a config symlink into a managed environment file.
+rm .envbuckets.json
+symlink .envbuckets.json -> .env.d/dev/.env
+! exec envbuckets switch
+stderr 'config must be a regular file'
+! stderr SYNTHETIC_SECRET
+exec envbuckets hook old new 1
+stderr 'envbuckets: warning:'
+! stderr SYNTHETIC_SECRET
+
+-- README --
+fixture
+-- tracked --
+keep tracked file
+-- expected-tracked --
+keep tracked file
+-- .envbuckets.json --
+{"default":"dev"}
+-- .env.d/dev/.env --
+SYNTHETIC_SECRET_VALUE
+-- .env.d/dev/apps/key --
+synthetic key
+-- .env.d/dev/tracked --
+synthetic bucket tracked path

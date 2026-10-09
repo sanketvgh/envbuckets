@@ -6,44 +6,41 @@ import (
 	"bytes"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/sanketvgh/envbuckets/internal/fsx"
 )
 
 const (
-	// Begin is the exact v1 opening marker written to files.
-	Begin = "# >>> envbuckets v1 >>>"
-	// End is the exact v1 closing marker written to files.
-	End = "# <<< envbuckets v1 <<<"
+	// Begin is the opening marker written to shared files.
+	Begin = "# >>> envbuckets >>>"
+	// End is the closing marker written to shared files.
+	End = "# <<< envbuckets <<<"
 
 	beginPrefix = "# >>> envbuckets "
 	endPrefix   = "# <<< envbuckets "
 )
 
 // HookBody is the shell snippet inside the hook block.
-const HookBody = "if command -v envbuckets >/dev/null 2>&1; then\n  envbuckets hook \"$@\" || true\nfi"
+const HookBody = "command -v envbuckets >/dev/null 2>&1 || exit 0\nenvbuckets hook \"$@\" || true\nexit 0"
 
 func render(body string) []byte {
 	return []byte(Begin + "\n" + body + "\n" + End + "\n")
 }
 
 func find(content []byte) (start, end int, ok bool) {
-	bi := bytes.Index(content, []byte(beginPrefix))
-	if bi < 0 {
-		return 0, 0, false
+	pos, begin := 0, -1
+	for _, line := range bytes.SplitAfter(content, []byte("\n")) {
+		text := strings.TrimRight(string(line), "\r\n")
+		if begin < 0 && strings.HasPrefix(text, beginPrefix) && strings.HasSuffix(text, " >>>") {
+			begin = pos
+		} else if begin >= 0 && strings.HasPrefix(text, endPrefix) && strings.HasSuffix(text, " <<<") {
+			return begin, pos + len(line), true
+		}
+		pos += len(line)
 	}
-	ei := bytes.Index(content[bi:], []byte(endPrefix))
-	if ei < 0 {
-		return 0, 0, false
-	}
-	ei += bi
-	if nl := bytes.IndexByte(content[ei:], '\n'); nl >= 0 {
-		ei += nl + 1
-	} else {
-		ei = len(content)
-	}
-	return bi, ei, true
+	return 0, 0, false
 }
 
 // Body returns the lines between the markers, or nil when absent.
@@ -103,24 +100,15 @@ const (
 // InstallHook appends the envbuckets block to the hook at path, creating
 // the file with a shebang when absent and keeping it executable.
 func InstallHook(path string) (HookResult, error) {
-	existing, err := os.ReadFile(path)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
+	if bucketPath(path) {
+		return HookUnchanged, errors.New("hooks directory is inside a bucket tree")
+	}
+	root, err := os.OpenRoot(filepath.Dir(path))
+	if err != nil {
 		return HookUnchanged, err
 	}
-	var out []byte
-	if len(existing) == 0 {
-		out = []byte("#!/bin/sh\n")
-	} else {
-		out = existing
-	}
-	out, changed := Upsert(out, HookBody)
-	if !changed {
-		return HookUnchanged, os.Chmod(path, 0o755) //nolint:gosec // git hooks must be executable
-	}
-	if err := fsx.WriteFileAtomic(path, out, 0o755); err != nil {
-		return HookUnchanged, err
-	}
-	return HookWritten, os.Chmod(path, 0o755) //nolint:gosec // git hooks must be executable
+	defer root.Close()
+	return installHookRoot(root, filepath.Base(path))
 }
 
 // RemoveHook strips the block, deleting the file when only a shebang and

@@ -157,6 +157,41 @@ func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 	})
 }
 
+// WriteFileAtomicRoot stages metadata beside its destination inside root.
+// It rejects symlink paths and never opens or reads the destination file.
+func WriteFileAtomicRoot(root *os.Root, name string, data []byte, perm os.FileMode) error {
+	name = rootPath(name)
+	if err := ValidateInternalPath(root, name); err != nil {
+		return err
+	}
+	var random [16]byte
+	if _, err := rand.Read(random[:]); err != nil {
+		return err
+	}
+	tmp := rootPath(filepath.Join(filepath.Dir(name), ".envbuckets-write-"+hex.EncodeToString(random[:])))
+	f, err := root.OpenFile(tmp, os.O_CREATE|os.O_EXCL|os.O_WRONLY, perm)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = f.Close(); _ = root.Remove(tmp) }()
+	if _, err := f.Write(data); err != nil {
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		return err
+	}
+	if err := f.Chmod(perm); err != nil {
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	if err := ValidateInternalPath(root, name); err != nil {
+		return err
+	}
+	return root.Rename(tmp, name)
+}
+
 // CopyFileAtomic streams src into a temp file in stageDir and renames it
 // over dst.
 func CopyFileAtomic(src, dst, stageDir string, perm os.FileMode) error {

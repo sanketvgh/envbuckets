@@ -2,6 +2,12 @@
 
 **Goal:** link the right bucket after a branch switch, and on demand.
 
+**Progress:** phases 1–4 complete; phase 5 awaits CI. Phase 1 was confirmed complete by the user. Local test execution was stopped at the user's request; verification is delegated to the existing CI workflow. `task check`, platform verification, and runtime acceptance remain unchecked until results are available.
+
+Implementation: `internal/switcher/`, `internal/cli/cmd_switch.go`, and `internal/block/hook.go`. User documentation: [Switching buckets](../SWITCH.md). Real-Git cases are in `testdata/script/{switch,checkout,hooks,hooks-paths,hooks-lfs,switch-safety,switch-unreadable}.txtar`; hook installation is exercised directly because `init` belongs to EB-03.
+
+References checked during implementation: installed Go 1.27.1 `go doc os.Root`, `os.Root.Rename`, `os.Root.MkdirAll`, and `os.Rename`; the current official [`os` documentation](https://pkg.go.dev/os) (Go 1.27.2 when fetched); and Grep MCP's current [`git-lfs/git-lfs` hook installer](https://github.com/git-lfs/git-lfs/blob/main/lfs/hook.go).
+
 **Scope:**
 
 - Pick the target bucket from the branch using EB-01's rule matching.
@@ -14,6 +20,51 @@
 - Find the hooks directory with `git rev-parse --git-path hooks`, never a hardcoded `.git/hooks`. It honors `core.hooksPath` and resolves to the shared directory inside a linked worktree. If that directory is outside the repo (a shared `core.hooksPath`), stop with `fatal:` and a hint, because the hook would affect every repo that uses it.
 - The hook script uses `#!/bin/sh` and mode 0755. It runs `command -v envbuckets >/dev/null 2>&1 || exit 0`, calls envbuckets with `|| true`, and ends with `exit 0`. No path may return a non-zero status; tools such as pre-commit (exit 1) and Git LFS (exit 2) fail when their binary is missing, and this hook must not.
 - Install the marker-guarded hook block, appended after any existing hook content. Replace an existing envbuckets block, including the alpha's `# >>> envbuckets v1 >>>` block, instead of adding a second one.
+
+## Implementation phases
+
+Complete and review each phase checklist before starting the next. The final exit checklist still applies to the whole ticket.
+
+### Phase 1: Inspect EB-01 interfaces and define the switch plan
+
+- [x] Review the existing path, config, rule-matching, and CLI interfaces from EB-01.
+- [x] Define the typed plan actions for link, remove, skip with reason, and preflight error.
+- [x] Confirm the planner validates every path before any filesystem changes and can drive both real runs and `-n`.
+
+**Checkpoint:** the plan's inputs, actions, safety checks, and exit-code behavior are clear before applying changes.
+
+### Phase 2: Implement safe bucket switching
+
+- [x] Resolve the branch bucket and explicit bucket requests, including detached HEAD behavior.
+- [x] Plan target links, obsolete envbuckets links, and blocked paths; never alter real files or foreign symlinks.
+- [x] Apply relative symlink changes atomically where supported and ensure reruns converge.
+- [x] Implement missing-bucket fallback, missing-default behavior, dry-run output, success output, skip errors, and temporary-switch hint.
+
+**Checkpoint:** switch behavior and dry-run behavior are driven by the same plan and match the acceptance criteria.
+
+### Phase 3: Implement checkout hook management
+
+- [x] Resolve the hook directory with `git rev-parse --git-path hooks` and reject a shared hooks directory outside the repository.
+- [x] Install or replace the marker-guarded hook block, preserving existing content and replacing the alpha v1 block.
+- [x] Ensure the hook ignores file checkouts and detached HEAD, handles missing binary/config/errors, and always exits 0.
+
+**Checkpoint:** hook installation and execution satisfy the ticket's path, compatibility, and nonblocking requirements.
+
+### Phase 4: Add integration coverage and documentation
+
+- [x] Add integration scripts for switch, fallback, blocked paths, detached HEAD, broken config, and checkout behavior.
+- [x] Cover hook compatibility: Git LFS install orders, legacy early exit/failure, alpha block, linked worktree, shared `core.hooksPath`, and overwritten hook.
+- [x] Update user-facing docs for switch and hook behavior where needed.
+
+**Checkpoint:** every scenario listed in the ticket has a corresponding integration case and expected result.
+
+### Phase 5: Verify and close EB-02
+
+- [ ] Run the integration scripts and inspect their results.
+- [ ] Verify on Linux, macOS, and Windows as available, including Git for Windows invoking the hook through `sh`.
+- [ ] Run `task check` and complete every item in the exit checklist below.
+
+**Checkpoint:** all applicable exit checklist items are checked before starting EB-03, EB-04, or EB-05.
 
 ## Acceptance criteria
 

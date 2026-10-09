@@ -11,7 +11,7 @@ func TestVersionAndHook(t *testing.T) {
 	if version.code != ExitOK || !strings.Contains(version.stdout, "envbuckets test") {
 		t.Fatalf("version: %+v", version)
 	}
-	hook := r.run("hook", "old", "new", "1")
+	hook := r.run("hook", "old", "new", "0")
 	if hook.code != ExitOK || hook.all() != "" {
 		t.Fatalf("hook must be a silent success: %+v", hook)
 	}
