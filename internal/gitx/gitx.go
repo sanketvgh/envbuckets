@@ -61,6 +61,38 @@ func CommonDir(root string) (string, error) {
 	return filepath.Clean(p), nil
 }
 
+// LocalFiles lists untracked files, including ignored files but never descending
+// into wholly ignored directories. Directory entries and nested repositories
+// from Git's --directory output are intentionally omitted.
+func LocalFiles(root string) ([]string, error) {
+	var files []string
+	for _, extra := range [][]string{nil, {"--ignored", "--directory"}} {
+		args := append([]string{"ls-files", "--others", "--exclude-standard", "-z"}, extra...)
+		out, err := run(root, args...)
+		if err != nil {
+			return nil, err
+		}
+		for name := range strings.SplitSeq(out, "\x00") {
+			if name != "" && !strings.HasSuffix(name, "/") {
+				files = append(files, name)
+			}
+		}
+	}
+	return files, nil
+}
+
+// Ignored reports whether Git ignores a literal repository-relative path.
+func Ignored(root, name string) (bool, error) {
+	_, err := run(root, "check-ignore", "--no-index", "-q", "--", name)
+	if err == nil {
+		return true, nil
+	}
+	if exitCode(err) == 1 {
+		return false, nil
+	}
+	return false, err
+}
+
 func exitCode(err error) int {
 	if exit, ok := errors.AsType[*exec.ExitError](err); ok {
 		return exit.ExitCode()
@@ -79,6 +111,9 @@ func run(dir string, args ...string) (string, error) {
 			return "", fmt.Errorf("git %s: %w: %s", strings.Join(args, " "), err, msg)
 		}
 		return "", fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
+	}
+	if len(args) > 0 && args[0] == "ls-files" {
+		return stdout.String(), nil // NUL-delimited filenames may contain whitespace.
 	}
 	return strings.TrimSpace(stdout.String()), nil
 }

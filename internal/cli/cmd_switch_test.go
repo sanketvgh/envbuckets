@@ -195,7 +195,7 @@ func TestSwitchUsage(t *testing.T) {
 	if res := r.run("switch", ""); res.code != ExitError || !strings.Contains(res.stderr, "invalid bucket name") {
 		t.Fatalf("empty bucket: %+v", res)
 	}
-	for _, args := range [][]string{{"switch", "-x"}, {"switch", "dev", "prod"}, {"switch", "-c", "prod"}} {
+	for _, args := range [][]string{{"switch", "-x"}, {"switch", "dev", "prod"}, {"switch", "-c"}} {
 		res := r.run(args...)
 		if res.code != ExitUsage || !strings.Contains(res.stderr, "usage:") {
 			t.Fatalf("usage %v: %+v", args, res)

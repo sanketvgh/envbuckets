@@ -206,6 +206,10 @@ func LinkFile(root *os.Root, link, target string) error {
 // unavailable, it moves the original into the bucket before creating the link.
 // The bool reports whether the hard-link path was used.
 func MoveFileToBucket(root *os.Root, source, destination, linkTarget string) (bool, error) {
+	return moveFileToBucket(root, source, destination, linkTarget, root.Link, root.Rename)
+}
+
+func moveFileToBucket(root *os.Root, source, destination, linkTarget string, hardlink, rename func(string, string) error) (bool, error) {
 	source = rootPath(source)
 	destination = rootPath(destination)
 	if err := validateRootPath(root, source, false); err != nil {
@@ -229,21 +233,29 @@ func MoveFileToBucket(root *os.Root, source, destination, linkTarget string) (bo
 	} else if !os.IsNotExist(err) {
 		return false, err
 	}
-	if err := root.Link(source, destination); err != nil {
-		if moveErr := root.Rename(source, destination); moveErr != nil {
+	// Stage the symlink before moving anything. A privilege or staging failure
+	// must leave the original source in place, including on the rename fallback.
+	tmp, err := StageSymlinkRoot(root, linkTarget, filepath.Dir(source))
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = root.Remove(tmp) }()
+	if err := hardlink(source, destination); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return false, fmt.Errorf("destination %s already exists: %w", destination, err)
+		}
+		if moveErr := rename(source, destination); moveErr != nil {
 			return false, fmt.Errorf("move %s into bucket: %w", source, moveErr)
 		}
-		if linkErr := root.Symlink(filepath.FromSlash(linkTarget), source); linkErr != nil {
-			return false, fmt.Errorf("file moved to %s but link repair is needed at %s: %w", destination, source, linkErr)
+		if linkErr := rename(tmp, source); linkErr != nil {
+			if restoreErr := rename(destination, source); restoreErr != nil {
+				return false, fmt.Errorf("install link: %w; restore source: %w", linkErr, restoreErr)
+			}
+			return false, fmt.Errorf("install link %s: %w", source, linkErr)
 		}
 		return false, nil
 	}
-	tmp, err := StageSymlinkRoot(root, linkTarget, filepath.Dir(source))
-	if err != nil {
-		_ = root.Remove(destination)
-		return true, err
-	}
-	if err := root.Rename(tmp, source); err != nil {
+	if err := rename(tmp, source); err != nil {
 		_ = root.Remove(tmp)
 		_ = root.Remove(destination)
 		return true, fmt.Errorf("replace %s with link: %w", source, err)
@@ -252,7 +264,7 @@ func MoveFileToBucket(root *os.Root, source, destination, linkTarget string) (bo
 }
 
 func trackedByGit(root, path string) (bool, error) {
-	cmd := exec.Command("git", "ls-files", "--error-unmatch", "--", path) //nolint:gosec // fixed executable and argument vector; path is separated from options
+	cmd := exec.Command("git", "--literal-pathspecs", "ls-files", "--error-unmatch", "--", path) //nolint:gosec // fixed executable and argument vector; path is separated from options
 	cmd.Dir = root
 	err := cmd.Run()
 	if err == nil {

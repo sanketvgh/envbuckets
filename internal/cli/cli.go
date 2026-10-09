@@ -27,7 +27,9 @@ const helpText = `envbuckets - switch project files with Git branches.
 Usage:
   envbuckets version
   envbuckets help
-  envbuckets switch [-n] [<bucket>]
+  envbuckets init [-n]
+  envbuckets add [-n] <file>...
+  envbuckets switch [-n] [-c] [<bucket>]
   envbuckets hook [post-checkout arguments]
 `
 
@@ -48,6 +50,10 @@ func Run(args []string, env Env) int {
 		return runHook(args[1:], env)
 	case "switch":
 		return runSwitch(args[1:], env)
+	case "init":
+		return runInit(args[1:], env)
+	case "add":
+		return runAdd(args[1:], env)
 	default:
 		fmt.Fprintln(env.Stderr, "usage: envbuckets <command>")
 		return ExitUsage

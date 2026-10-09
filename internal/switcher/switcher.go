@@ -119,6 +119,20 @@ func Build(repo *fsx.Repo, cfg config.Config, branch, explicit string) Plan {
 		p.fail(fmt.Sprintf("cannot inspect bucket '%s': %s", p.Bucket, err), "")
 		return p
 	}
+	return planFiles(repo, p, files, unsafe)
+}
+
+// BuildFiles plans a switch to a new bucket whose empty files do not exist yet.
+// It shares destination validation with Build so dry runs need no bucket writes.
+func BuildFiles(repo *fsx.Repo, cfg config.Config, branch, bucket string, files []string) Plan {
+	p := Plan{Bucket: bucket, Reason: "default"}
+	if branch != "" {
+		p.BranchBucket, _ = cfg.BucketFor(branch)
+	}
+	return planFiles(repo, p, files, nil)
+}
+
+func planFiles(repo *fsx.Repo, p Plan, files, unsafe []string) Plan {
 	links, err := managedLinks(repo)
 	if err != nil {
 		p.fail(fmt.Sprintf("cannot inspect working tree: %s", err), "")
@@ -230,6 +244,31 @@ func managedLinks(repo *fsx.Repo) (map[string]string, error) {
 		return nil
 	})
 	return links, err
+}
+
+// CurrentBucket uses managed links, or the branch mapping when no links exist.
+// A detached HEAD without links and a mixed set of links cannot select a bucket.
+func CurrentBucket(repo *fsx.Repo, cfg config.Config, branch string) (string, error) {
+	links, err := managedLinks(repo)
+	if err != nil {
+		return "", err
+	}
+	var current string
+	for name, target := range links {
+		bucket := BucketOf(name, target)
+		if current != "" && current != bucket {
+			return "", errors.New("links point to several buckets; run \"envbuckets switch\" first")
+		}
+		current = bucket
+	}
+	if current != "" {
+		return current, nil
+	}
+	if branch == "" {
+		return "", errors.New("HEAD is detached and no links identify the current bucket; name a bucket with \"envbuckets switch <bucket>\" first")
+	}
+	current, _ = cfg.BucketFor(branch)
+	return current, nil
 }
 
 func inspectDestination(repo *fsx.Repo, name, previous string) error {

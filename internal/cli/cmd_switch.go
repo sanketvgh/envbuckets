@@ -12,15 +12,17 @@ import (
 
 func runSwitch(args []string, env Env) int {
 	var bucket string
-	dry, positional := false, false
+	dry, positional, create := false, false, false
 	for _, arg := range args {
 		switch {
 		case !positional && (arg == "-n" || arg == "--dry-run"):
 			dry = true
 		case !positional && arg == "--":
 			positional = true
+		case !positional && arg == "-c":
+			create = true
 		case !positional && strings.HasPrefix(arg, "-"):
-			fmt.Fprintf(env.Stderr, "error: unknown option '%s'\nusage: envbuckets switch [-n] [<bucket>]\n", arg)
+			fmt.Fprintf(env.Stderr, "error: unknown option '%s'\nusage: envbuckets switch [-n] [-c] [<bucket>]\n", arg)
 			return ExitUsage
 		case bucket == "":
 			if arg == "" {
@@ -29,9 +31,15 @@ func runSwitch(args []string, env Env) int {
 			}
 			bucket = arg
 		default:
-			fmt.Fprintln(env.Stderr, "usage: envbuckets switch [-n] [<bucket>]")
+			fmt.Fprintln(env.Stderr, "usage: envbuckets switch [-n] [-c] [<bucket>]")
 			return ExitUsage
 		}
+	}
+	if create {
+		if bucket == "" {
+			return commandUsage(env, "switch [-n] [-c] [<bucket>]", nil)
+		}
+		return createBucket(env, bucket, dry)
 	}
 	return switchBucket(env, bucket, dry, false)
 }

@@ -2,6 +2,8 @@
 
 **Goal:** get files into buckets.
 
+**Status:** user authorized commit and push; awaiting cross-platform CI for this code.
+
 **Scope:**
 
 - `init`: create the config if missing, with `$schema` as the first key and `default` set to `dev`, create the default bucket folder, write the `.gitignore` block, install the hook, and import untracked `.env` and `.env.*` files. Find candidates through Git so fully ignored folders like `node_modules/` are never walked. Replace the alpha's `.gitignore` block (`# >>> envbuckets v1 >>>`) instead of adding a second one. Print `Adding <path> to bucket '<b>'` per file, then `Initialized envbuckets in <repo>/.env.d/`; with no files found, add `hint: No local files found. Create them, then run "envbuckets add <file>".`
@@ -46,6 +48,33 @@
 - `init` skipping an unimportable file with a `warning:` finishes more work than stopping, but a quiet skip can be missed in a long run.
 - Probing for symlink support first adds one temporary file, which keeps `-n` honest.
 
+## Phase checklist
+
+- [x] Phase 1: review existing helpers; research Git discovery and Go filesystem APIs with MCP and `go doc`.
+- [x] Phase 2: implement safe import planning, `init`, `add`, and `switch -c`, including dry runs.
+- [x] Phase 3: add unit and real-Git integration coverage for the acceptance criteria.
+- [x] Phase 4: run formatting/fixes, review the diff, run lint/checks, inspect CI, and record evidence and limitations.
+- [ ] Phase 5: commit/push authorized by the user; verify this code in cross-platform CI and close the exit checklist.
+
+## Implementation and research notes
+
+- Queried grep MCP for `os.OpenRoot` usage in [Go's own filesystem tests](https://github.com/golang/go/blob/master/src/os/root_test.go). Consulted local Go 1.27.1 documentation with `go doc os.Root`, `os.Root.Rename`, `os.Root.Link`, `os.Root.OpenFile`, `errors.AsType`, `syscall.ERROR_PRIVILEGE_NOT_HELD`, and `github.com/rogpeppe/go-internal/testscript`.
+- Candidate discovery combines NUL-delimited `git ls-files --others --exclude-standard` with `--ignored --directory`. Synthetic Git tests verify that individually ignored files are found, wholly ignored folders are pruned, whitespace in filenames is preserved, and submodule gitlinks are not traversed. Git handles tree enumeration; envbuckets does not walk ignored directories to find imports.
+- All import paths and metadata are checked before changes. Ignore blocks preserve user rules and legacy entries, collapse duplicate/alpha blocks, escape literal filename patterns, and skip paths already ignored by Git. Existing managed links can restore missing ignore entries when rerunning `init`.
+- The move helper stages its symlink before attempting a hard link or rename. It removes the new hard link or restores the renamed source if installation fails. Injected failure tests cover both paths without reading real files.
+- Current-bucket detection uses canonical managed links, rejects mixed links, and otherwise uses the branch mapping. `add` refuses a missing current bucket with a creation hint. A detached HEAD requires existing managed links to identify the current bucket. `switch -c` uses the existing switch planner against a virtual list of empty files, so preflight and dry runs need no bucket writes.
+
+## Verification evidence (2026-10-09)
+
+- `task fix`: passed, zero issues after resolving a root-scoped snapshot-test lint finding; automatic changes reviewed.
+- `task lint:go`: passed, including formatting and modernize. The final `task check` also passed this stage.
+- JSON formatting and schema validation: passed; eight PRODUCT.md examples accepted and nine invalid fixtures rejected.
+- `go test ./...`: passed. Tests requiring symlinks skip on this Windows session, and Unix mode-000 tests skip on Windows. Portable Git discovery, ignore-block, preflight/usage, and privilege-error tests ran locally.
+- `task check`: lint/schema/unit stages passed; integration failed only because Windows returned `ERROR_PRIVILEGE_NOT_HELD` (1314). All eight failing scripts were audited: `checkout`, `hooks`, `hooks-lfs`, `hooks-paths`, `switch`, `switch-safety`, `init-add`, and `init-add-safety`. Local log: `tmp/eb03-check.log`. Test temporary directories for this run were kept under repository `tmp/eb03-tests`.
+- The `init`/`init -n` privilege test verifies that no metadata or source changes on failure; it also exercises valid `add`/`add -n` failure before imports. Wrapped LinkError classification specifically distinguishes 1314 from other errors and mentions Developer Mode only for that Windows privilege error.
+- Inspected CI with `gh run list` and `gh run view`: [run 37956688010](https://github.com/sanketvgh/envbuckets/actions/runs/37956688010) passed all Linux/macOS/Windows integration and safeguard jobs on baseline `316ed53`. **That run does not verify these uncommitted changes.**
+- At initial handoff, no commit or push had been performed. The user subsequently authorized commit and push to check these changes in CI. Symlink setup remains deferred as instructed. Successful import/link behavior, mode-000 behavior, and the full exit checklist require CI for the same code. Implementation and test coverage are present; symlink-dependent exit boxes remain open pending execution.
+
 ## Exit checklist
 
 Tick every box before starting EB-07's end-to-end work.
@@ -59,7 +88,7 @@ Tick every box before starting EB-07's end-to-end work.
 - [ ] `switch -c` creates zero-byte files, refuses an existing bucket, and never touches the current bucket.
 - [ ] "Current bucket" follows the rule: links, else the branch's bucket, else stop on mixed links.
 - [ ] `-n` leaves the repo byte-identical and returns the real run's exit code for `init`, `add`, and `switch -c`.
-- [ ] The symlink probe reports a clear message for Windows without Developer Mode (privilege error), also under `init -n`.
+- [x] The symlink probe reports a clear message for Windows without Developer Mode (privilege error), also under `init -n`.
 - [ ] A symlinked `.gitignore` target is neither read nor modified.
 - [ ] A real `.env` remains at its source path when the bucket directory is symlinked.
 - [ ] Output matches the PRODUCT.md sample runs for these commands.
