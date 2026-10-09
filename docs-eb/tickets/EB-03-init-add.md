@@ -2,7 +2,7 @@
 
 **Goal:** get files into buckets.
 
-**Status:** user authorized commit and push; awaiting cross-platform CI for this code.
+**Status:** passed; local checks and same-code cross-platform CI accepted under the Windows verification rule.
 
 **Scope:**
 
@@ -34,7 +34,7 @@
 **Gaps**
 
 - The Developer Mode probe is the only reliable check, so a machine that allows links in one folder but not another may pass the probe and fail later.
-- `init` finding candidates through Git needs a decision for repos with submodules or a very large untracked tree.
+- Git enumerates the untracked tree, skips submodule gitlinks, and prunes fully ignored folders. Very large nonignored trees still incur Git enumeration cost; envbuckets performs no additional directory walk for candidate discovery.
 
 **Risks**
 
@@ -54,7 +54,7 @@
 - [x] Phase 2: implement safe import planning, `init`, `add`, and `switch -c`, including dry runs.
 - [x] Phase 3: add unit and real-Git integration coverage for the acceptance criteria.
 - [x] Phase 4: run formatting/fixes, review the diff, run lint/checks, inspect CI, and record evidence and limitations.
-- [ ] Phase 5: commit/push authorized by the user; verify this code in cross-platform CI and close the exit checklist.
+- [x] Phase 5: commit/push authorized by the user; verify this code in cross-platform CI and close the exit checklist.
 
 ## Implementation and research notes
 
@@ -74,23 +74,25 @@
 - The `init`/`init -n` privilege test verifies that no metadata or source changes on failure; it also exercises valid `add`/`add -n` failure before imports. Wrapped LinkError classification specifically distinguishes 1314 from other errors and mentions Developer Mode only for that Windows privilege error.
 - Inspected CI with `gh run list` and `gh run view`: [run 37956688010](https://github.com/sanketvgh/envbuckets/actions/runs/37956688010) passed all Linux/macOS/Windows integration and safeguard jobs on baseline `316ed53`. **That run does not verify these uncommitted changes.**
 - At initial handoff, no commit or push had been performed. The user subsequently authorized commit and push to check these changes in CI. Symlink setup remains deferred as instructed. Successful import/link behavior, mode-000 behavior, and the full exit checklist require CI for the same code. Implementation and test coverage are present; symlink-dependent exit boxes remain open pending execution.
-- First pushed implementation: `a8feb93`, [CI run 37960018643](https://github.com/sanketvgh/envbuckets/actions/runs/37960018643). Windows integration and the main lint/unit/build/snapshot job passed. Linux/macOS integration exposed a script error: this pinned testscript version rejects multiple paths in one `chmod` command, despite its package documentation describing `path...`. Split both permission changes into one call per file; application code did not change. Awaiting verification of the corrected script.
+- First pushed implementation: `a8feb93`, [CI run 37960018643](https://github.com/sanketvgh/envbuckets/actions/runs/37960018643). Windows integration and the main lint/unit/build/snapshot job passed. Linux/macOS integration exposed a script error: this pinned testscript version rejects multiple paths in one `chmod` command, despite its package documentation describing `path...`. Split both permission changes into one call per file; application code did not change.
+- Corrected commit `823e0d9`: [CI run 37960285426](https://github.com/sanketvgh/envbuckets/actions/runs/37960285426) **passed all seven jobs**: integration and safeguards on Linux, macOS, and Windows, plus the main Go lint/unit/build/snapshot/npm-artifact job. The unreadable-file integration script passed on Linux/macOS. The main unit job exercised the rerun/fresh-clone, mixed-link, zero-byte creation, dry-run snapshot, unsafe-metadata, literal-filename, and both injected move-failure tests.
+- All exit criteria are now verified. Local `task check` integration remains blocked by Windows error 1314; the required local lint/schema/unit checks plus passing cross-platform CI for the same code satisfy AGENTS.md's Windows verification rule. Symlink setup remains deferred. Subsequent ticket/index updates change documentation only.
 
 ## Exit checklist
 
 Tick every box before starting EB-07's end-to-end work.
 
-- [ ] `init` creates the config, default bucket, `.gitignore` block, and hook, and imports untracked `.env` and `.env.*` files; tracked files and ignored folders are skipped.
-- [ ] `init` is safe to rerun and on a fresh clone only adds what is missing.
-- [ ] `init` on an alpha repo leaves exactly one `.gitignore` block and one hook block, and reports a leftover `.envbuckets.toml` as unused.
-- [ ] `add` checks every path first and changes nothing if any fails; it refuses directories, links, and tracked files.
-- [ ] A failure during `add` leaves the original file in place.
-- [ ] `init` and `add` work on files with mode `000` on Linux and macOS (move, not copy).
-- [ ] `switch -c` creates zero-byte files, refuses an existing bucket, and never touches the current bucket.
-- [ ] "Current bucket" follows the rule: links, else the branch's bucket, else stop on mixed links.
-- [ ] `-n` leaves the repo byte-identical and returns the real run's exit code for `init`, `add`, and `switch -c`.
+- [x] `init` creates the config, default bucket, `.gitignore` block, and hook, and imports untracked `.env` and `.env.*` files; tracked files and ignored folders are skipped.
+- [x] `init` is safe to rerun and on a fresh clone only adds what is missing.
+- [x] `init` on an alpha repo leaves exactly one `.gitignore` block and one hook block, and reports a leftover `.envbuckets.toml` as unused.
+- [x] `add` checks every path first and changes nothing if any fails; it refuses directories, links, and tracked files.
+- [x] A failure during `add` leaves the original file in place.
+- [x] `init` and `add` work on files with mode `000` on Linux and macOS (move, not copy).
+- [x] `switch -c` creates zero-byte files, refuses an existing bucket, and never touches the current bucket.
+- [x] "Current bucket" follows the rule: links, else the branch's bucket, else stop on mixed links.
+- [x] `-n` leaves the repo byte-identical and returns the real run's exit code for `init`, `add`, and `switch -c`.
 - [x] The symlink probe reports a clear message for Windows without Developer Mode (privilege error), also under `init -n`.
-- [ ] A symlinked `.gitignore` target is neither read nor modified.
-- [ ] A real `.env` remains at its source path when the bucket directory is symlinked.
-- [ ] Output matches the PRODUCT.md sample runs for these commands.
-- [ ] `task check` passes.
+- [x] A symlinked `.gitignore` target is neither read nor modified.
+- [x] A real `.env` remains at its source path when the bucket directory is symlinked.
+- [x] Output matches the PRODUCT.md sample runs for these commands.
+- [x] `task check` requirement satisfied under the Windows verification rule: local lint/schema/unit checks and same-code cross-platform CI passed; local integration is blocked only by symlink privilege.
