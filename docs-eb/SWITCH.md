@@ -65,5 +65,7 @@ Git LFS install orders, symlink safety, and linked worktrees. The LFS script ski
 when `git-lfs` is unavailable; the unreadable-file script uses Unix mode bits.
 The existing CI workflow runs unit tests on Linux and scripts on Linux, macOS,
 and Windows. [Run `37951292646`](https://github.com/sanketvgh/envbuckets/actions/runs/37951292646)
-passed those jobs on `f1c2133`. EB-02's full `task check` item remains open because
-the existing workflow omits that task's separate formatting and pnpm schema checks.
+passed those jobs on `f1c2133`. Local formatting, lint, schema validation, and unit
+tests also passed. The local integration stage requires symlink privilege that
+this Windows session lacks; the user accepted the passing CI results for that
+stage and deferred environment setup. EB-02 is passed.

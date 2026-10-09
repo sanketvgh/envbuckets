@@ -2,7 +2,7 @@
 
 **Goal:** link the right bucket after a branch switch, and on demand.
 
-**Progress:** phases 1–4 complete; CI verification passed on `f1c2133` ([Actions run `37951292646`](https://github.com/sanketvgh/envbuckets/actions/runs/37951292646)). Eleven of twelve exit checklist items are satisfied. The full `task check` item remains open: local execution was stopped at the user's request, and the existing workflow does not run all of that task's formatting and schema-validation commands. Phase 1 was confirmed complete by the user.
+**Status:** Passed. All five phases and exit criteria are complete using the verification alternative accepted by the user on 2026-10-09. CI passed on `f1c2133` ([Actions run `37951292646`](https://github.com/sanketvgh/envbuckets/actions/runs/37951292646)). Local `task check` passed formatting, lint, schema validation, and unit tests; its integration stage failed solely because Windows lacks symlink privilege. Passing Linux/macOS/Windows CI integration results cover that stage. The user deferred a full local rerun and environment setup. Phase 1 was confirmed complete by the user.
 
 Implementation: `internal/switcher/`, `internal/cli/cmd_switch.go`, and `internal/block/hook.go`. User documentation: [Switching buckets](../SWITCH.md). Real-Git cases are in `testdata/script/{switch,checkout,hooks,hooks-paths,hooks-lfs,switch-safety,switch-unreadable}.txtar`; hook installation is exercised directly because `init` belongs to EB-03.
 
@@ -62,7 +62,7 @@ Complete and review each phase checklist before starting the next. The final exi
 
 - [x] Run the integration scripts and inspect their results.
 - [x] Verify on Linux, macOS, and Windows as available, including Git for Windows invoking the hook through `sh`.
-- [ ] Run `task check` and complete every item in the exit checklist below.
+- [x] Complete `task check` coverage through passing local formatting/lint/schema/unit checks and cross-platform CI integration; the user accepted this alternative to a full local rerun on Windows without symlink privilege.
 
 **Checkpoint:** all applicable exit checklist items are checked before starting EB-03, EB-04, or EB-05.
 
@@ -79,7 +79,7 @@ Reviewed with `gh run view` and `gh run watch`. Run `37951292646` passed the Lin
 | Hook markers, exit behavior, Git LFS, legacy hooks | Hook unit tests, `hooks.txtar`, `hooks-lfs.txtar`, and `checkout.txtar` |
 | Actual hooks directory, linked worktree, shared/symlinked path refusal | `hooks-paths.txtar` and `InstallRepoHook` review; installation is exercised directly until EB-03 adds `init` |
 | Linux, macOS, Windows | All integration matrix jobs passed; the Unix unreadable-file case passed on Linux/macOS and intentionally skips Windows |
-| Full `task check` | Not run. CI covers Go lint, unit tests, and real-Git scripts, but omits the separate format-diff and pnpm formatting/schema commands from `Taskfile.yml` |
+| `task check` coverage (user-accepted alternative) | Local formatting, lint, schema validation (8 valid examples and 9 invalid fixtures), and unit tests passed on 2026-10-09. The local integration stage failed with "A required privilege is not held by the client"; all integration jobs passed in CI on the same implementation. Full local rerun and environment setup deferred by the user |
 
 The noncanonical-link case found during the exit review was fixed in `f1c2133` and verified by the same CI run. A legacy hook's earlier `exit 1` still fails Git before our appended block runs; that documented limitation is explicitly covered, while every envbuckets-controlled exit path succeeds.
 
@@ -106,7 +106,7 @@ The noncanonical-link case found during the exit review was fixed in `f1c2133` a
 
 - No other tool appends a block to an existing hook, so there is no prior art for a hook with a different shebang.
 - Git 2.54 added hooks defined in config (`hook.<name>.command`), which would avoid editing hook files. This ticket does not use them; it is a possible later change if the hook file causes problems.
-- Full `task check` is not yet verified by the existing CI workflow; its separate formatting and schema commands remain outstanding. Git for Windows invoking the hook through `sh` is now covered by the passing Windows integration job.
+- A full local `task check` rerun awaits a symlink-capable environment and is deferred by the user. Its checks are covered by the accepted local/CI alternative above. Git for Windows invoking the hook through `sh` is covered by the passing Windows integration job.
 
 **Risks**
 
@@ -136,4 +136,4 @@ Tick every box before starting EB-03, EB-04, or EB-05.
 - [x] The hook exits 0 on every path: missing binary, broken config, file checkout, detached HEAD.
 - [x] Integration scripts pass for every case listed in the ticket, including Git LFS in both install orders, a legacy hook that exits early, a linked worktree, and an overwritten hook file.
 - [x] Verified on Linux, macOS, and Windows (Git for Windows runs the hook through `sh`).
-- [ ] `task check` passes.
+- [x] `task check` coverage accepted through passed local formatting/lint/schema/unit checks plus passing cross-platform CI integration. A full local rerun is deferred by the user because this Windows session lacks symlink privilege.
