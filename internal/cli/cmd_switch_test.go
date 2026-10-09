@@ -88,9 +88,9 @@ func TestSwitchBlockedPathsAndDryRunParity(t *testing.T) {
 	if _, err := os.Lstat(r.path("apps/api/key.json")); !os.IsNotExist(err) {
 		t.Fatal("dry run wrote a link")
 	}
-	real := r.run("switch")
-	if dry.code != ExitError || real.code != dry.code || strings.Count(real.stderr, "error:") != 2 {
-		t.Fatalf("dry=%+v real=%+v", dry, real)
+	applied := r.run("switch")
+	if dry.code != ExitError || applied.code != dry.code || strings.Count(applied.stderr, "error:") != 2 {
+		t.Fatalf("dry=%+v applied=%+v", dry, applied)
 	}
 	content, err := os.ReadFile(r.path(".env"))
 	if err != nil || string(content) != "keep real file" {

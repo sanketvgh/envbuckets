@@ -291,13 +291,14 @@ func Execute(repo *fsx.Repo, p Plan, dry, hook bool, stdout, stderr io.Writer) i
 			}
 		}
 		if !dry && code == 0 {
-			if hook {
+			switch {
+			case hook:
 				if p.Current != p.Bucket {
 					fmt.Fprintf(stderr, "%sSwitched to bucket '%s' (%s)\n", prefix, p.Bucket, p.Reason)
 				}
-			} else if p.Current == p.Bucket {
+			case p.Current == p.Bucket:
 				fmt.Fprintf(stdout, "Already on bucket '%s'\n", p.Bucket)
-			} else {
+			default:
 				fmt.Fprintf(stdout, "Switched to bucket '%s'\n", p.Bucket)
 			}
 		}

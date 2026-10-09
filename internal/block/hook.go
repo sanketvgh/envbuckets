@@ -2,7 +2,7 @@ package block
 
 import (
 	"bytes"
-	"fmt"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,7 +27,7 @@ func InstallRepoHook(repoPath string) (HookResult, error) {
 		}
 		rel, err = filepath.Rel(common, hooks)
 		if err != nil || !filepath.IsLocal(rel) {
-			return HookUnchanged, fmt.Errorf("hooks directory is outside the repository; use a core.hooksPath inside the repository")
+			return HookUnchanged, errors.New("hooks directory is outside the repository; use a core.hooksPath inside the repository")
 		}
 		base = common
 	}
@@ -36,7 +36,7 @@ func InstallRepoHook(repoPath string) (HookResult, error) {
 		return HookUnchanged, err
 	}
 	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-		return HookUnchanged, fmt.Errorf("unsafe repository hooks root")
+		return HookUnchanged, errors.New("unsafe repository hooks root")
 	}
 	root, err := os.OpenRoot(base)
 	if err != nil {
@@ -45,7 +45,7 @@ func InstallRepoHook(repoPath string) (HookResult, error) {
 	defer root.Close()
 	name := filepath.ToSlash(filepath.Join(rel, "post-checkout"))
 	if bucketPath(name) {
-		return HookUnchanged, fmt.Errorf("hooks directory is inside a bucket tree")
+		return HookUnchanged, errors.New("hooks directory is inside a bucket tree")
 	}
 	if err := fsx.ValidateInternalPath(root, name); err != nil {
 		return HookUnchanged, err
@@ -70,7 +70,7 @@ func installHookRoot(root *os.Root, name string) (HookResult, error) {
 		return HookUnchanged, err
 	}
 	if info, err := root.Lstat(name); err == nil && !info.Mode().IsRegular() {
-		return HookUnchanged, fmt.Errorf("hook is not a regular file")
+		return HookUnchanged, errors.New("hook is not a regular file")
 	} else if err != nil && !os.IsNotExist(err) {
 		return HookUnchanged, err
 	}
@@ -89,7 +89,7 @@ func installHookRoot(root *os.Root, name string) (HookResult, error) {
 	// Do not append a second block when a truncated marker cannot be replaced.
 	for _, line := range strings.Split(string(content), "\n") {
 		if strings.HasPrefix(line, beginPrefix) || strings.HasPrefix(line, endPrefix) {
-			return HookUnchanged, fmt.Errorf("incomplete envbuckets hook block; repair its markers before reinstalling")
+			return HookUnchanged, errors.New("incomplete envbuckets hook block; repair its markers before reinstalling")
 		}
 	}
 	if len(content) == 0 {
@@ -102,7 +102,7 @@ func installHookRoot(root *os.Root, name string) (HookResult, error) {
 			return HookUnchanged, err
 		}
 		defer file.Close()
-		return HookUnchanged, file.Chmod(0o755) //nolint:gosec // git hooks must be executable
+		return HookUnchanged, file.Chmod(0o755)
 	}
 	if err := fsx.WriteFileAtomicRoot(root, name, out, 0o755); err != nil {
 		return HookUnchanged, err
