@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/sanketvgh/envbuckets/internal/pattern"
 )
@@ -71,13 +72,13 @@ func Parse(data []byte) (Config, error) {
 func describeJSONError(err error) string {
 	if errors.Is(err, jsontext.ErrDuplicateName) {
 		if syntax, ok := errors.AsType[*jsontext.SyntacticError](err); ok && syntax.JSONPointer.LastToken() != "" {
-			return fmt.Sprintf("duplicate key %q", syntax.JSONPointer.LastToken())
+			return fmt.Sprintf("duplicate key %s", singleQuoted(syntax.JSONPointer.LastToken()))
 		}
 		return "duplicate key"
 	}
 	if errors.Is(err, jsonv2.ErrUnknownName) {
 		if semantic, ok := errors.AsType[*jsonv2.SemanticError](err); ok {
-			return fmt.Sprintf("unknown key %q", semantic.JSONPointer.LastToken())
+			return fmt.Sprintf("unknown key %s", singleQuoted(semantic.JSONPointer.LastToken()))
 		}
 		return "unknown key"
 	}
@@ -88,6 +89,10 @@ func describeJSONError(err error) string {
 		return "invalid JSON at " + pointerName(syntax.JSONPointer)
 	}
 	return "invalid JSON"
+}
+
+func singleQuoted(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "\\'") + "'"
 }
 
 func pointerName(pointer jsontext.Pointer) string {

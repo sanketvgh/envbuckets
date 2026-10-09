@@ -45,9 +45,10 @@ func TestParseStrictV2Cases(t *testing.T) {
 		data []byte
 		want string
 	}{
-		{"duplicate key", []byte(`{"default":"dev","default":"prod"}`), "duplicate key"},
-		{"nested unknown key", []byte(`{"default":"dev","rules":[{"branch":"main","bucket":"prod","typo":true}]}`), `unknown key "typo"`},
-		{"wrong case", []byte(`{"Default":"dev"}`), `unknown key "Default"`},
+		{"duplicate key", []byte(`{"default":"dev","default":"prod"}`), `duplicate key 'default'`},
+		{"nested unknown key", []byte(`{"default":"dev","rules":[{"branch":"main","bucket":"prod","typo":true}]}`), `unknown key 'typo'`},
+		{"wrong case", []byte(`{"Default":"dev"}`), `unknown key 'Default'`},
+		{"key with quote", []byte(`{"default":"dev","we'ird":true}`), `unknown key 'we\'ird'`},
 		{"invalid UTF-8", []byte{'{', '"', 'd', 'e', 'f', 'a', 'u', 'l', 't', '"', ':', '"', 0xff, '"', '}'}, "invalid json"},
 		{"trailing data", []byte(`{"default":"dev"} {}`), "invalid json"},
 		{"trailing comma", []byte(`{"default":"dev",}`), "invalid json"},
