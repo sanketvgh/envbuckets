@@ -4,7 +4,7 @@
 
 **Why first:** the alpha is built around scopes, `.git/config` branch pins, TOML rule editing, a `*` catch-all, and `--json`. None of that survives, and it already gets in the way: EB-01's Git-style matcher breaks the alpha's `*` catch-all and `testdata/script/branch_link.txtar`.
 
-**Status:** committed on `feat/docs-demo` as `1bf4fae` ("clear pre-rebuild implementation"). The exit checklist below has not been re-run against it.
+**Status:** passed. GitHub Actions run [37812978741](https://github.com/sanketvgh/envbuckets/actions/runs/37812978741) succeeded on commit `7bc84033fb7112b96cdf1ecba89b60d1f5196a47`, including CI and Linux, macOS, and Windows integration jobs.
 
 ## Delete
 

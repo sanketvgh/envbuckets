@@ -4,7 +4,7 @@ These tickets split [`../PRODUCT.md`](../PRODUCT.md) into reviewable pieces. Eac
 
 | ID    | Ticket                                                  | Depends on     | Status                                              |
 | ----- | ------------------------------------------------------- | -------------- | --------------------------------------------------- |
-| EB-00 | [Clear the alpha code (pre-work)](EB-00-clear-alpha.md) | none           | Committed (`1bf4fae`); exit checklist not re-run    |
+| EB-00 | [Clear the alpha code (pre-work)](EB-00-clear-alpha.md) | none           | Passed (Actions run `37812978741` on `7bc8403`)    |
 | EB-01 | [Paths, buckets, and config](EB-01-paths-config.md)     | EB-00          | In progress: code in the working tree, uncommitted  |
 | EB-02 | [Switch engine and hook](EB-02-switch-hook.md)          | EB-01          | Not started                                         |
 | EB-03 | [init, add, and switch -c](EB-03-init-add.md)           | EB-01, EB-02   | Not started                                         |
