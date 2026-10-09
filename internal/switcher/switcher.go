@@ -2,6 +2,7 @@
 package switcher
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -231,7 +232,7 @@ func inspectDestination(repo *fsx.Repo, name, previous string) error {
 	info, err := repo.Root.Lstat(name)
 	if os.IsNotExist(err) {
 		if previous != "" {
-			return fmt.Errorf("path changed after planning")
+			return errors.New("path changed after planning")
 		}
 		return nil
 	}
@@ -239,14 +240,14 @@ func inspectDestination(repo *fsx.Repo, name, previous string) error {
 		return err
 	}
 	if info.Mode()&os.ModeSymlink == 0 {
-		return fmt.Errorf("real file or directory is in the way")
+		return errors.New("real file or directory is in the way")
 	}
 	target, err := repo.Root.Readlink(name)
 	if err != nil {
 		return err
 	}
 	if previous == "" || filepath.ToSlash(target) != previous {
-		return fmt.Errorf("foreign symlink or changed path is in the way")
+		return errors.New("foreign symlink or changed path is in the way")
 	}
 	resolved := filepath.Join(filepath.Dir(filepath.FromSlash(name)), filepath.FromSlash(target))
 	if err := fsx.ValidateInternalPath(repo.Root, resolved); err != nil {
@@ -331,7 +332,7 @@ func apply(repo *fsx.Repo, a Action) error {
 		return err
 	}
 	if !info.Mode().IsRegular() {
-		return fmt.Errorf("target bucket entry is not a regular file")
+		return errors.New("target bucket entry is not a regular file")
 	}
 	if err := repo.Root.MkdirAll(filepath.ToSlash(filepath.Dir(filepath.FromSlash(a.Path))), 0o755); err != nil {
 		return err
