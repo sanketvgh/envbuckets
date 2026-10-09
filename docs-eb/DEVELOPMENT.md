@@ -57,7 +57,7 @@ safeguards matrix and separate from `task check`. Existing gosec, build, lint,
 integration, and release gates remain blocking.
 
 The main Linux CI job also runs `go test -race -shuffle=on -count=1 ./...` as a
-required check. The initial trial found no races and added about nine seconds
+required check. The initial trial found no races and added about ten seconds
 relative to ordinary unit tests on that runner. Race detection requires cgo;
 it stays out of local `task check` and the macOS/Windows jobs. Enable it on
 additional platforms only with trial evidence.

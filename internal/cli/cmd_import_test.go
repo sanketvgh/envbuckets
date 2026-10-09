@@ -323,7 +323,18 @@ func TestInitAndAddRefuseUnsafeMetadata(t *testing.T) {
 			before := snapshotRepo(t, r)
 			for _, args := range [][]string{{"init", "-n"}, {"init"}, {"add", "-n", ".env"}, {"add", ".env"}} {
 				res := r.run(args...)
-				if res.code != ExitError || !reflect.DeepEqual(before, snapshotRepo(t, r)) {
+				after := snapshotRepo(t, r)
+				if res.code != ExitError || !reflect.DeepEqual(before, after) {
+					for path, value := range before {
+						if after[path] != value {
+							t.Logf("changed or removed path: %s", path)
+						}
+					}
+					for path := range after {
+						if _, exists := before[path]; !exists {
+							t.Logf("added path: %s", path)
+						}
+					}
 					t.Fatalf("unsafe %v: %+v", args, res)
 				}
 			}

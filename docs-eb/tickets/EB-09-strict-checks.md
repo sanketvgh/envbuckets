@@ -2,7 +2,7 @@
 
 **Goal:** catch real bugs earlier by adding only the checks that prove useful on this codebase. This ticket stays last. Each check is added only if a trial run shows findings that are mostly real.
 
-**Status:** Local implementation and Linux race trial verified; awaiting CI for the final blocking-race configuration. Work stays in the main worktree. The user authorized commits and pushes to complete verification and record Passed status.
+**Status:** Final CI exposed an intermittent Linux snapshot-test failure; investigating before Passed status. Work stays in the main worktree. The user authorized commits and pushes to complete verification and record Passed status.
 
 ## Implementation phases
 
@@ -67,7 +67,7 @@ Tick every box to close the project's ticket list.
 - [x] New tool versions are pinned with the EB-08 drift check.
 - [x] Runtime of `task check` before and after is recorded.
 - [ ] Checked on Linux, macOS, and Windows.
-- [ ] `task check` passes, and existing CI and security gates are unchanged.
+- [ ] Local lint/schema/unit checks and same-code cross-platform CI integration pass via the AGENTS.md Windows verification alternative; existing CI and security gates are unchanged.
 
 ## Trial setup and baseline
 
@@ -86,7 +86,7 @@ The first three linter trials used golangci-lint 2.13.2, Go 1.27.1, unlimited fi
 | Strict errcheck | 109 diagnostics: 12 actionable unchecked test reads/stat/directory listings; 31 closes, 42 output writes, 14 cleanup removals, 2 cleanup chmods, 7 deliberate assertions, 1 deliberately ignored symlink-probe outcome | Drop both stricter settings: 97/109 are low-value here. Fix the 12 test errors, retain default errcheck, and add no exclude-functions entries | 3.43 s |
 | Initial forbidigo scope | 17 diagnostics, 0 unsafe operations demonstrated: 6 hook-metadata operations and 11 release-packaging operations | Drop this noisy scope. Refine with packaging exclusions and six line-specific metadata explanations, then verify actual prohibited synthetic operations | 4.78 s |
 | Shuffle | All unit packages pass with seeds 1, 42, and 20261009; 0 order-dependent failures | Keep; enable in unit and integration commands locally and in CI | 43.95 / 21.79 / 21.69 s |
-| Race | Linux CI trial passes with 0 race reports, 0 false positives; local Windows has no cgo/gcc and its Linux Docker daemon is unavailable | Keep as a required step in the existing Linux job only; no race flag in local task check or macOS/Windows jobs | About 12 s vs 3 s plain (step timestamps); exact shell timings below |
+| Race | Linux CI trial passes with 0 race reports, 0 false positives; local Windows has no cgo/gcc and its Linux Docker daemon is unavailable | Keep as a required step in the existing Linux job only; no race flag in local task check or macOS/Windows jobs | 12.441 s race vs 2.372 s plain; +10.069 s |
 | govulncheck v1.8.0 | 1 reachable standard-library vulnerability, 1 real: GO-2026-6604 in Go 1.27.1. The 12 additional module-only vulnerabilities are unreachable and do not fail the scan; no false positive was identified | Keep advisory scans on all three CI platforms, because the real finding is Windows-specific. Add separate task security and pin checks | 6.54 s (scan only) |
 
 ### Vulnerability and tool compatibility
@@ -117,4 +117,5 @@ The first three linter trials used golangci-lint 2.13.2, Go 1.27.1, unlimited fi
 - Expanded govet rejects 3/3 planted bugs through unusedwrite, nilness, and sortslice. `nolintlint` rejects both a forbidigo suppression without an explanation and a suppression without a named linter.
 - Tool-pin checks reject scanner CI drift through both lint and security, scanner binary mismatch, linter CI drift, and linter binary mismatch with the intended messages. Matching CRLF Taskfile/CI pins pass lint and security. Probe edits are restored byte-for-byte.
 - Synthetic source is compiled for analysis only, never executed. Trial fixtures, logs, and binaries stay under ignored tmp/eb09; no helper is added to normal CI or project commands.
-- [Trial run 37963815199](https://github.com/sanketvgh/envbuckets/actions/runs/37963815199) on `d8db05e` passed the Linux CI job, including the advisory race trial, unit tests, release snapshot, and npm layout. All three integration jobs also passed. The race trial reported no failures and took about 12 seconds versus 3 seconds plain by step timestamps. Keep it as a blocking Linux-only check and re-run the final configuration before marking Passed. Cross-platform safeguards are still being reviewed.
+- [Trial run 37963815199](https://github.com/sanketvgh/envbuckets/actions/runs/37963815199) on `d8db05e` passed every job: Linux lint, unit tests, advisory race trial, release snapshot, and npm layout; integration and safeguards on Linux/macOS/Windows; and scanner installation and advisory vulnerability scans on all three platforms. The race trial reported no races or false positives. Its shell wall time was 12.441 seconds vs 2.372 seconds plain, an extra 10.069 seconds in this single run with mixed compiler-cache state. Keep it as a blocking Linux-only check and verify the final configuration before marking Passed.
+- [Run 37964253406](https://github.com/sanketvgh/envbuckets/actions/runs/37964253406) on `66479fa` exposed an intermittent Linux failure in TestInitAndAddRefuseUnsafeMetadata/.env.d/dev with shuffle seed `1791565784089812324`: the unsafe command returns the expected refusal, but its repository snapshot differs. Add path-only difference diagnostics and a temporary repeated Linux test to identify the mutation; retain the full snapshot assertion.
