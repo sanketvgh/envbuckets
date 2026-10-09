@@ -2,7 +2,7 @@
 
 **Goal:** catch simple Go mistakes (formatting, outdated idioms, avoidable `fmt.Errorf`) before CI, with the same results locally and in CI. This ticket stays last; do it after EB-07 ships.
 
-**Status:** implemented locally at the user's request ahead of EB-07; cross-platform CI verification pending. The user has authorized committing and pushing the EB-08 changes.
+**Status:** Done. Implemented ahead of EB-07 at the user's request. [CI run 37954669747](https://github.com/sanketvgh/envbuckets/actions/runs/37954669747) passed for implementation commit `fcdfa8c`.
 
 ## Implementation phases
 
@@ -10,7 +10,7 @@
 - [x] Add the pinned version guard, Go tasks, default modernize analyzers, and editor safeguard; fix all existing findings.
 - [x] Verify synthetic cases locally and add cross-platform CI safeguards without changing the existing gates.
 - [x] Verify local tooling and record the results and developer workflow.
-- [ ] Verify Linux/macOS/Windows CI and the integration suite for this exact code before closing the ticket.
+- [x] Verify Linux/macOS/Windows CI and the integration suite for this exact code before closing the ticket.
 
 **Scope:**
 
@@ -36,10 +36,10 @@ The implemented workflow is documented in [Developer checks](../DEVELOPMENT.md).
 
 **Gaps**
 
-- CI does not run the oxfmt check or `validate:schema`, so `task lint` covers more than CI does. Closing that needs Node and pnpm in the job and is decided here, not assumed.
-- CI lints on ubuntu only. `GOOS=windows golangci-lint run ./...` as a CI step is worth adding only if the repo has Windows-only files or build tags; check first.
+- The new safeguards matrix runs oxfmt and `validate:schema` through `task lint` on Linux, macOS, and Windows; the former local/CI coverage gap is closed.
+- No separate Windows-target lint step is needed: there are no Windows-only source files or platform build tags, and the safeguards matrix lints on Windows directly.
 - A `forbidigo` rule limiting raw `os.*` filesystem calls and printing outside `internal/fsx` and the CLI layer would back the safety constraints. The config loader legitimately reads files, so the exceptions need design. Deferred.
-- Linter runtime with `modernize` is not measured. Record it before and after.
+- Linter runtime before and after enabling `modernize` is recorded below.
 
 **Risks**
 
@@ -66,8 +66,8 @@ Tick every box to close the project's ticket list.
 - [x] The optional pre-commit hook is added and verified, or the decision to skip it is recorded here.
 - [x] The CI decisions are recorded here: oxfmt and schema steps, and the Windows-target lint step.
 - [x] Runtime of `task lint:go` before and after is recorded here.
-- [ ] Checked on Linux, macOS, and Windows.
-- [ ] `task check` passes, and existing CI and security gates are unchanged.
+- [x] Checked on Linux, macOS, and Windows.
+- [x] Local lint/schema/unit checks and cross-platform CI integration pass via the accepted verification alternative; existing CI and security gates are unchanged.
 
 ## Decisions and verification
 
@@ -77,4 +77,4 @@ Tick every box to close the project's ticket list.
 - Runtime: the original equivalent Go lint commands (`fmt --diff` plus `run`) took 13.29 seconds locally. After enabling modernize, `task lint:go` including the version guard took 16.53 seconds. These are single wall-clock measurements with differing cache state, not a benchmark.
 - Local Windows checks: `task fix`, `task lint:go`, oxfmt, schema validation, Go unit tests, and the standalone modernize run pass. All seven existing modernize findings were fixed without suppressions.
 - One-time synthetic checks rejected all six requested mistake classes, verified their repairs, preserved a dynamic formatting case and a file outside `./...`, and rejected Taskfile/binary and CI pin mismatches. CRLF pin checks also passed. The dedicated test script and task were removed at the user's request; they are not retained or run in CI.
-- `task check` reaches the real-Git integration scripts but fails solely because this Windows session lacks symlink privilege. Cross-platform safeguards and integration CI for this implementation are pending, so the final two exit boxes remain open.
+- `task check` reaches the real-Git integration scripts but fails solely because this Windows session lacks symlink privilege. The accepted local/CI alternative is satisfied by the local checks above plus [CI run 37954669747](https://github.com/sanketvgh/envbuckets/actions/runs/37954669747) on `fcdfa8c`: safeguards and integration passed on Linux, macOS, and Windows, and the original CI job passed lint, unit tests, the release snapshot, and npm package layout. All exit criteria are complete.
