@@ -15,6 +15,9 @@ import (
 func TestBucketOf(t *testing.T) {
 	for _, tc := range []struct{ name, target, want string }{
 		{".env", ".env.d/dev/.env", "dev"},
+		{".env", "./.env.d/dev/.env", ""},
+		{".env", ".env.d/dev/../dev/.env", ""},
+		{"apps/api/key", "../../.env.d/dev/apps/./api/key", ""},
 		{"apps/api/key", "../../.env.d/prod/apps/api/key", "prod"},
 		{".env", ".env.d/dev/other", ""},
 		{".env", "../.env.d/dev/.env", ""},

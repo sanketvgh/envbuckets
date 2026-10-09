@@ -30,6 +30,16 @@ readlink .env .env.d/old/.env
 stderr 'unsafe symlink target'
 readlink .env .env.d/old/.env
 
+# A noncanonical link into a bucket is foreign and is preserved in both modes.
+rm .env
+symlink .env -> ./.env.d/dev/.env
+! exec envbuckets switch -n
+stderr 'foreign symlink'
+readlink .env ./.env.d/dev/.env
+! exec envbuckets switch
+stderr 'foreign symlink'
+readlink .env ./.env.d/dev/.env
+
 # Do not follow a config symlink into a managed environment file.
 rm .envbuckets.json
 symlink .envbuckets.json -> .env.d/dev/.env

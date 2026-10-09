@@ -182,7 +182,7 @@ func Build(repo *fsx.Repo, cfg config.Config, branch, explicit string) Plan {
 	return p
 }
 
-// BucketOf recognizes only relative links to the same path inside a bucket.
+// BucketOf recognizes only canonical relative links to the same path inside a bucket.
 // It is lexical: dangling links remain recognizable without opening their targets.
 func BucketOf(name, target string) string {
 	target = filepath.FromSlash(target)
@@ -195,6 +195,10 @@ func BucketOf(name, target string) string {
 	}
 	parts := strings.SplitN(filepath.ToSlash(resolved), "/", 3)
 	if len(parts) != 3 || parts[0] != ".env.d" || !config.ValidBucket(parts[1]) || parts[2] != filepath.ToSlash(name) {
+		return ""
+	}
+	canonical, err := filepath.Rel(filepath.Dir(filepath.FromSlash(name)), resolved)
+	if err != nil || filepath.ToSlash(target) != filepath.ToSlash(canonical) {
 		return ""
 	}
 	return parts[1]
