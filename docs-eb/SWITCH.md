@@ -64,4 +64,6 @@ The txtar scripts cover real Git checkouts, fallback, blocked paths, hook confli
 Git LFS install orders, symlink safety, and linked worktrees. The LFS script skips
 when `git-lfs` is unavailable; the unreadable-file script uses Unix mode bits.
 The existing CI workflow runs unit tests on Linux and scripts on Linux, macOS,
-and Windows. EB-02 remains awaiting those results.
+and Windows. [Run `37951292646`](https://github.com/sanketvgh/envbuckets/actions/runs/37951292646)
+passed those jobs on `f1c2133`. EB-02's full `task check` item remains open because
+the existing workflow omits that task's separate formatting and pnpm schema checks.

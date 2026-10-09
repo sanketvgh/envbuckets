@@ -2,7 +2,7 @@
 
 **Goal:** link the right bucket after a branch switch, and on demand.
 
-**Progress:** phases 1–4 complete; phase 5 awaits CI. Phase 1 was confirmed complete by the user. Local test execution was stopped at the user's request; verification is delegated to the existing CI workflow. `task check`, platform verification, and runtime acceptance remain unchecked until results are available.
+**Progress:** phases 1–4 complete; CI verification passed on `f1c2133` ([Actions run `37951292646`](https://github.com/sanketvgh/envbuckets/actions/runs/37951292646)). Eleven of twelve exit checklist items are satisfied. The full `task check` item remains open: local execution was stopped at the user's request, and the existing workflow does not run all of that task's formatting and schema-validation commands. Phase 1 was confirmed complete by the user.
 
 Implementation: `internal/switcher/`, `internal/cli/cmd_switch.go`, and `internal/block/hook.go`. User documentation: [Switching buckets](../SWITCH.md). Real-Git cases are in `testdata/script/{switch,checkout,hooks,hooks-paths,hooks-lfs,switch-safety,switch-unreadable}.txtar`; hook installation is exercised directly because `init` belongs to EB-03.
 
@@ -60,11 +60,28 @@ Complete and review each phase checklist before starting the next. The final exi
 
 ### Phase 5: Verify and close EB-02
 
-- [ ] Run the integration scripts and inspect their results.
-- [ ] Verify on Linux, macOS, and Windows as available, including Git for Windows invoking the hook through `sh`.
+- [x] Run the integration scripts and inspect their results.
+- [x] Verify on Linux, macOS, and Windows as available, including Git for Windows invoking the hook through `sh`.
 - [ ] Run `task check` and complete every item in the exit checklist below.
 
 **Checkpoint:** all applicable exit checklist items are checked before starting EB-03, EB-04, or EB-05.
+
+## Verification evidence
+
+Reviewed with `gh run view` and `gh run watch`. Run `37951292646` passed the Linux lint/unit/build/package job and all three integration jobs on `f1c2133`.
+
+| Exit criteria | Evidence |
+| --- | --- |
+| Typed plan, preflight, dry-run parity | `TestPlanIsReadOnlyAndPreflightBlocksWrites`, `TestSwitchBlockedPathsAndDryRunParity`, `switch.txtar` |
+| Switch output, temporary override, fallback, detached HEAD | CLI unit tests and `switch.txtar` / `checkout.txtar` |
+| Real files, tracked paths, foreign/noncanonical links, unsafe symlinks | `switch-safety.txtar`, planner/CLI tests, and code review of destination revalidation |
+| Atomic Unix swaps and recovery | `fsx.LinkFile` stages beside the destination and uses `Root.Rename`; filesystem swap tests and `TestRerunConvergesAfterPartialApply` |
+| Hook markers, exit behavior, Git LFS, legacy hooks | Hook unit tests, `hooks.txtar`, `hooks-lfs.txtar`, and `checkout.txtar` |
+| Actual hooks directory, linked worktree, shared/symlinked path refusal | `hooks-paths.txtar` and `InstallRepoHook` review; installation is exercised directly until EB-03 adds `init` |
+| Linux, macOS, Windows | All integration matrix jobs passed; the Unix unreadable-file case passed on Linux/macOS and intentionally skips Windows |
+| Full `task check` | Not run. CI covers Go lint, unit tests, and real-Git scripts, but omits the separate format-diff and pnpm formatting/schema commands from `Taskfile.yml` |
+
+The noncanonical-link case found during the exit review was fixed in `f1c2133` and verified by the same CI run. A legacy hook's earlier `exit 1` still fails Git before our appended block runs; that documented limitation is explicitly covered, while every envbuckets-controlled exit path succeeds.
 
 ## Acceptance criteria
 
@@ -89,7 +106,7 @@ Complete and review each phase checklist before starting the next. The final exi
 
 - No other tool appends a block to an existing hook, so there is no prior art for a hook with a different shebang.
 - Git 2.54 added hooks defined in config (`hook.<name>.command`), which would avoid editing hook files. This ticket does not use them; it is a possible later change if the hook file causes problems.
-- Git for Windows running the hook through `sh` is assumed, not tested.
+- Full `task check` is not yet verified by the existing CI workflow; its separate formatting and schema commands remain outstanding. Git for Windows invoking the hook through `sh` is now covered by the passing Windows integration job.
 
 **Risks**
 
@@ -108,15 +125,15 @@ Complete and review each phase checklist before starting the next. The final exi
 
 Tick every box before starting EB-03, EB-04, or EB-05.
 
-- [ ] The plan is a typed action list; real runs and `-n` both use it and return the same exit code.
-- [ ] `switch`, `switch <bucket>`, and `switch -n` behave as written, including the one-line output and the `hint:` after a temporary switch.
-- [ ] Missing bucket falls back to the default bucket with a warning; nothing from the old bucket stays linked. A missing default leaves links alone with a warning.
-- [ ] Real files and foreign symlinks are never touched; other paths still switch; exit 1 with an `error:` per skipped path.
-- [ ] Each link swap is atomic on Unix; rerunning after an interruption converges.
-- [ ] Detached HEAD: `switch <bucket>` works, plain `switch` stops with `fatal:`.
-- [ ] The hook block is marker-guarded, appended after existing content, never duplicated, and replaces the alpha `v1` block.
-- [ ] The hook directory comes from `git rev-parse --git-path hooks`; a shared `core.hooksPath` outside the repo stops with `fatal:`.
-- [ ] The hook exits 0 on every path: missing binary, broken config, file checkout, detached HEAD.
-- [ ] Integration scripts pass for every case listed in the ticket, including Git LFS in both install orders, a legacy hook that exits early, a linked worktree, and an overwritten hook file.
-- [ ] Verified on Linux, macOS, and Windows (Git for Windows runs the hook through `sh`).
+- [x] The plan is a typed action list; real runs and `-n` both use it and return the same exit code.
+- [x] `switch`, `switch <bucket>`, and `switch -n` behave as written, including the one-line output and the `hint:` after a temporary switch.
+- [x] Missing bucket falls back to the default bucket with a warning; nothing from the old bucket stays linked. A missing default leaves links alone with a warning.
+- [x] Real files and foreign symlinks are never touched; other paths still switch; exit 1 with an `error:` per skipped path.
+- [x] Each link swap is atomic on Unix; rerunning after an interruption converges.
+- [x] Detached HEAD: `switch <bucket>` works, plain `switch` stops with `fatal:`.
+- [x] The hook block is marker-guarded, appended after existing content, never duplicated, and replaces the alpha `v1` block.
+- [x] The hook directory comes from `git rev-parse --git-path hooks`; a shared `core.hooksPath` outside the repo stops with `fatal:`.
+- [x] The hook exits 0 on every path: missing binary, broken config, file checkout, detached HEAD.
+- [x] Integration scripts pass for every case listed in the ticket, including Git LFS in both install orders, a legacy hook that exits early, a linked worktree, and an overwritten hook file.
+- [x] Verified on Linux, macOS, and Windows (Git for Windows runs the hook through `sh`).
 - [ ] `task check` passes.
