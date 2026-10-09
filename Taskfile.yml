@@ -2,7 +2,8 @@ version: "3"
 
 vars:
   SVU: svu
-  GOLANGCI_LINT_VERSION: v2.13.2
+  GOLANGCI_LINT_VERSION: v2.14.0
+  GOVULNCHECK_VERSION: v1.8.0
   EXE: '{{if eq OS "windows"}}envbuckets.exe{{else}}envbuckets{{end}}'
 
 tasks:
@@ -32,6 +33,14 @@ tasks:
           done < .github/workflows/ci.yml
           exit 1
         msg: 'ci.yml must pin GOLANGCI_LINT_VERSION to {{.GOLANGCI_LINT_VERSION}}, matching Taskfile.yml'
+      # Check the advisory scanner's CI pin without requiring its local binary.
+      - sh: |
+          cr=$(printf '\r')
+          while IFS= read -r line; do
+            test "${line%"$cr"}" != '  GOVULNCHECK_VERSION: {{.GOVULNCHECK_VERSION}}' || exit 0
+          done < .github/workflows/ci.yml
+          exit 1
+        msg: 'ci.yml must pin GOVULNCHECK_VERSION to {{.GOVULNCHECK_VERSION}}, matching Taskfile.yml'
     cmds:
       - 'true'
 
@@ -56,15 +65,49 @@ tasks:
       - pnpm --config.verifyDepsBeforeRun=false exec oxfmt --check schema/envbuckets.schema.json schema/testdata/invalid/*.json tools/validate-config-schema.mjs package.json
       - pnpm --config.verifyDepsBeforeRun=false run validate:schema
 
+  security:version:
+    internal: true
+    preconditions:
+      - sh: command -v govulncheck
+        msg: 'govulncheck is missing; run go install golang.org/x/vuln/cmd/govulncheck@{{.GOVULNCHECK_VERSION}}'
+      # Inspect the embedded module version without contacting the vulnerability DB.
+      - sh: |
+          go version -m "$(command -v govulncheck)" | {
+            while read -r kind module version rest; do
+              if test "$kind" = mod; then
+                test "$module" = golang.org/x/vuln && test "$version" = '{{.GOVULNCHECK_VERSION}}'
+                exit $?
+              fi
+            done
+            exit 1
+          }
+        msg: 'installed govulncheck differs from Taskfile.yml; install {{.GOVULNCHECK_VERSION}}'
+      # Match EB-08's LF/CRLF-safe CI pin guard.
+      - sh: |
+          cr=$(printf '\r')
+          while IFS= read -r line; do
+            test "${line%"$cr"}" != '  GOVULNCHECK_VERSION: {{.GOVULNCHECK_VERSION}}' || exit 0
+          done < .github/workflows/ci.yml
+          exit 1
+        msg: 'ci.yml must pin GOVULNCHECK_VERSION to {{.GOVULNCHECK_VERSION}}, matching Taskfile.yml'
+    cmds:
+      - 'true'
+
+  security:
+    desc: Check reachable Go vulnerabilities (advisory in CI, separate from check).
+    cmds:
+      - task: security:version
+      - govulncheck ./...
+
   test:
     desc: Run Go unit tests.
     cmds:
-      - go test ./...
+      - go test -shuffle=on ./...
 
   test:integration:
     desc: Run the txtar scripts against real git (needs symlink support; use WSL on Windows).
     cmds:
-      - go test -tags integration -run TestScript -count=1 .
+      - go test -tags integration -shuffle=on -run TestScript -count=1 .
 
   pattern:fixture:
     desc: Regenerate recorded Git branch-pattern answers.

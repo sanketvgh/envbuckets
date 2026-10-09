@@ -136,7 +136,10 @@ func TestInitAlphaCollisionAndFreshClone(t *testing.T) {
 			t.Fatalf("duplicate/legacy block in %s: %s %v", name, content, err)
 		}
 	}
-	content, _ := os.ReadFile(r.path(".env"))
+	content, err := os.ReadFile(r.path(".env"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if string(content) != "SYNTHETIC_COLLISION" {
 		t.Fatal("collision source changed")
 	}
@@ -145,14 +148,26 @@ func TestInitAlphaCollisionAndFreshClone(t *testing.T) {
 	requireRepoSymlinks(t, clone)
 	clone.write(".envbuckets.json", `{"default":"local","rules":[]}`)
 	clone.write(".gitignore", block.Begin+"\n.env.d/\n.env\n"+block.End+"\n")
-	beforeConfig, _ := os.ReadFile(clone.path(".envbuckets.json"))
-	beforeIgnore, _ := os.ReadFile(clone.path(".gitignore"))
+	beforeConfig, err := os.ReadFile(clone.path(".envbuckets.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	beforeIgnore, err := os.ReadFile(clone.path(".gitignore"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	res = clone.run("init")
 	if res.code != ExitOK || !strings.Contains(res.stderr, "No local files found") {
 		t.Fatalf("clone: %+v", res)
 	}
-	gotConfig, _ := os.ReadFile(clone.path(".envbuckets.json"))
-	gotIgnore, _ := os.ReadFile(clone.path(".gitignore"))
+	gotConfig, err := os.ReadFile(clone.path(".envbuckets.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotIgnore, err := os.ReadFile(clone.path(".gitignore"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if string(gotConfig) != string(beforeConfig) || string(gotIgnore) != string(beforeIgnore) {
 		t.Fatal("fresh clone metadata changed")
 	}

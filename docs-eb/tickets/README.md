@@ -13,5 +13,6 @@ These tickets split [`../PRODUCT.md`](../PRODUCT.md) into reviewable pieces. Eac
 | EB-06 | [Colored output with Lip Gloss](EB-06-colors.md)        | EB-01, EB-04   | Not started                                         |
 | EB-07 | [Release and acceptance](EB-07-release.md)              | EB-01 to EB-06 | Not started                                         |
 | EB-08 | [Earlier lint and format safeguards](EB-08-lint-safeguards.md) | EB-07   | Done (Actions run `37954669747` on `fcdfa8c`) |
+| EB-09 | [Stricter bug-catching checks](EB-09-strict-checks.md) | EB-08 | Local checks verified; awaiting CI and Linux race trial |
 
 Each ticket ends with an exit checklist. Move to the next ticket only when every box in the previous one is ticked.

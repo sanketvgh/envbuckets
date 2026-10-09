@@ -80,12 +80,18 @@ func TestInstallAndRemoveHook(t *testing.T) {
 	if err != nil || res != HookWritten {
 		t.Fatalf("install: %v %v", res, err)
 	}
-	data, _ := os.ReadFile(hook)
+	data, err := os.ReadFile(hook)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !strings.HasPrefix(string(data), "#!/bin/sh\n"+Begin) {
 		t.Fatalf("fresh hook: %q", data)
 	}
 	if runtime.GOOS != "windows" {
-		info, _ := os.Stat(hook)
+		info, err := os.Stat(hook)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if info.Mode()&0o111 == 0 {
 			t.Fatal("hook not executable")
 		}
@@ -124,7 +130,10 @@ func TestRemoveHookPreservesCustomContent(t *testing.T) {
 	if err != nil || res != HookWritten {
 		t.Fatalf("remove: %v %v", res, err)
 	}
-	data, _ := os.ReadFile(hook)
+	data, err := os.ReadFile(hook)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if string(data) != custom {
 		t.Fatalf("custom hook not byte-identical: %q", data)
 	}

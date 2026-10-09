@@ -9,7 +9,8 @@ permissions:
 
 env:
   GORELEASER_VERSION: v2.18.1
-  GOLANGCI_LINT_VERSION: v2.13.2
+  GOLANGCI_LINT_VERSION: v2.14.0
+  GOVULNCHECK_VERSION: v1.8.0
 
 jobs:
   ci:
@@ -25,7 +26,12 @@ jobs:
       - uses: golangci/golangci-lint-action@v9
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
-      - run: go test ./...
+      - name: Run shuffled unit tests
+        run: time go test -shuffle=on -count=1 ./...
+      # Temporary advisory trial; decide whether to keep it from this run's evidence.
+      - name: Trial Linux race detector
+        continue-on-error: true
+        run: time go test -race -shuffle=on -count=1 ./...
       - uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
@@ -47,8 +53,8 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Run filesystem helper tests
-        run: go test ./internal/fsx/...
-      - run: go test -tags integration -run TestScript -v .
+        run: go test -shuffle=on ./internal/fsx/...
+      - run: go test -tags integration -shuffle=on -run TestScript -count=1 -v .
 
   safeguards:
     strategy:
@@ -77,3 +83,9 @@ jobs:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
           install-only: true
       - run: task lint
+      - name: Install govulncheck
+        continue-on-error: true
+        run: go install golang.org/x/vuln/cmd/govulncheck@${{ env.GOVULNCHECK_VERSION }}
+      - name: Check Go vulnerabilities (advisory)
+        continue-on-error: true
+        run: task security

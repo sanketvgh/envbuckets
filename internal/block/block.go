@@ -103,7 +103,7 @@ func InstallHook(path string) (HookResult, error) {
 	if bucketPath(path) {
 		return HookUnchanged, errors.New("hooks directory is inside a bucket tree")
 	}
-	root, err := os.OpenRoot(filepath.Dir(path))
+	root, err := os.OpenRoot(filepath.Dir(path)) //nolint:forbidigo // Open only the hook metadata directory after rejecting bucket paths.
 	if err != nil {
 		return HookUnchanged, err
 	}
@@ -114,7 +114,7 @@ func InstallHook(path string) (HookResult, error) {
 // RemoveHook strips the block, deleting the file when only a shebang and
 // blank lines remain and otherwise writing the rest back unchanged.
 func RemoveHook(path string) (HookResult, error) {
-	existing, err := os.ReadFile(path)
+	existing, err := os.ReadFile(path) //nolint:forbidigo // Read the hook script for marker removal, never a managed environment file.
 	if errors.Is(err, os.ErrNotExist) {
 		return HookUnchanged, nil
 	}
@@ -126,7 +126,7 @@ func RemoveHook(path string) (HookResult, error) {
 		return HookUnchanged, nil
 	}
 	if onlyShebang(out) {
-		if err := os.Remove(path); err != nil {
+		if err := os.Remove(path); err != nil { //nolint:forbidigo // Delete only the hook that contains no custom content.
 			return HookUnchanged, err
 		}
 		return HookDeleted, nil
@@ -134,7 +134,7 @@ func RemoveHook(path string) (HookResult, error) {
 	if err := fsx.WriteFileAtomic(path, out, 0o755); err != nil {
 		return HookUnchanged, err
 	}
-	return HookWritten, os.Chmod(path, 0o755) //nolint:gosec // git hooks must be executable
+	return HookWritten, os.Chmod(path, 0o755) //nolint:gosec,forbidigo // Only hook metadata is made executable; git hooks require 0755.
 }
 
 func onlyShebang(content []byte) bool {

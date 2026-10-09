@@ -43,14 +43,14 @@ func repoHook(repoPath string, dry bool) (string, HookResult, error) {
 		}
 		base = common
 	}
-	info, err := os.Lstat(base)
+	info, err := os.Lstat(base) //nolint:forbidigo // Inspect the Git-approved metadata root without following a symlink.
 	if err != nil {
 		return "", HookUnchanged, err
 	}
 	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
 		return "", HookUnchanged, errors.New("unsafe repository hooks root")
 	}
-	root, err := os.OpenRoot(base)
+	root, err := os.OpenRoot(base) //nolint:forbidigo // Open the validated Git metadata root for contained hook operations.
 	if err != nil {
 		return "", HookUnchanged, err
 	}
