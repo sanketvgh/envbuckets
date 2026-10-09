@@ -1,39 +1,43 @@
 # Working on envbuckets
 
-envbuckets is being rebuilt. Read [docs-eb/PRODUCT.md](docs-eb/PRODUCT.md) and
-the relevant implementation ticket in [docs-eb/tickets/](docs-eb/tickets/README.md).
+## Workflow
 
-- After editing Go files, run `task fix`, review the diff, then run
-  `task lint:go`. It includes `modernize`; apply suggestions compatible with
-  `go.mod`.
-- Use the golangci-lint version pinned in `Taskfile.yml`. Keep that pin and
-  `.github/workflows/ci.yml` in sync when upgrading.
-- Keep automatic fixes local. CI runs `task lint` without rewriting the
-  checkout. See [Developer checks](docs-eb/DEVELOPMENT.md) for the workflow.
-- Commit and push only when explicitly requested by the user. Include only
-  changes belonging to the task.
-- Run `task check` before submitting changes when the environment supports
-  symlinks. It runs formatting/lint, schema validation, unit tests, and real-Git
-  integration scripts. If Windows fails solely because symlink privilege is
-  unavailable, run the available local lint/schema/unit checks and use passing
-  cross-platform CI integration results for the same code as the accepted
-  alternative. Record the limitation and CI run in the ticket; it does not block
-  ticket completion. Actual code, lint, schema, or test failures still block.
-- Local environment recorded on 2026-10-09: Windows cannot create symlinks;
-  WSL has only `docker-desktop`, and Docker's Linux engine was not running.
-  The user deferred Developer Mode, Linux/WSL, and devcontainer setup. Use the
-  CI alternative above instead of repeatedly discussing or requesting that
-  setup in every session. Revisit setup when the user asks or the environment
-  changes.
-- Keep the product value-blind: never add code that reads, parses, logs, or
-  prints real environment-file contents. Tests may use synthetic values.
-- Keep filesystem operations inside the repository and refuse unsafe symlink
-  paths.
-- Keep the checkout hook nonblocking. It exits 0 and leaves unsafe or missing
-  links alone.
-- Preserve main-branch CI and security gates.
-- Use `<gitmoji> <type>(<scope>): <summary>` for commits and PR titles, such as
-  `✨ feat(cli): add readiness checks`. Keep the type and scope meaningful for
-  the final change.
-- Release publishing is handled by `.github/workflows/release.yml`. `task
-  snapshot` builds release artifacts locally without publishing.
+1. Read [PRODUCT.md](docs-eb/PRODUCT.md) and the relevant
+   [ticket](docs-eb/tickets/README.md). Continue from its first unfinished phase.
+2. Add or review the ticket's phase checklist. Update it after each phase.
+3. Research with current Go docs, grep MCP, or DeepWiki when needed. Use APIs
+   compatible with `go.mod`.
+4. Implement and add unit/integration tests. Follow the user's instructions
+   about local test runs versus CI.
+5. For Go changes, run `task fix`, review the diff, then `task lint:go`
+   (includes `modernize`). Run `task check` when local testing is authorized.
+6. Inspect CI with `gh`. Fix failures, review all exit criteria, and record
+   evidence or deferred work in the ticket. Update the ticket and index status.
+7. Commit and push only when explicitly requested. Include only task changes.
+
+## Safety and quality
+
+- Never read, parse, log, or print real environment-file contents. Tests may
+  use synthetic values.
+- Keep filesystem operations inside the repository; reject unsafe symlinks.
+- Checkout hooks must exit 0 and leave unsafe or missing links alone.
+- Fix formatting/lint findings. Suppress only with a nearby explanation.
+- Prefer clear standard-library APIs, including `errors.New` and `errors.AsType`
+  where supported by `go.mod`.
+- Preserve CI and security gates. Keep the golangci-lint pins in `Taskfile.yml`
+  and `.github/workflows/ci.yml` aligned. Automatic fixes stay local.
+- See [DEVELOPMENT.md](docs-eb/DEVELOPMENT.md) for check details.
+
+## Windows verification
+
+If symlink privilege alone blocks integration tests, local lint/schema/unit
+checks plus passing cross-platform CI for the same code are accepted. Record
+the limitation and CI link in the ticket. Actual check failures still block.
+Symlink setup is deferred; revisit only when requested or the environment changes.
+
+## Commits and releases
+
+- Commit/PR titles: `<gitmoji> <type>(<scope>): <summary>`, for example
+  `✨ feat(cli): add readiness checks`.
+- `.github/workflows/release.yml` publishes releases; `task snapshot` builds
+  artifacts locally without publishing.
