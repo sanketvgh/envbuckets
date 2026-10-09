@@ -57,7 +57,7 @@ func InstallRepoHook(repoPath string) (HookResult, error) {
 }
 
 func bucketPath(name string) bool {
-	for _, part := range strings.Split(filepath.ToSlash(filepath.Clean(name)), "/") {
+	for part := range strings.SplitSeq(filepath.ToSlash(filepath.Clean(name)), "/") {
 		if strings.EqualFold(part, ".env.d") {
 			return true
 		}
@@ -87,7 +87,7 @@ func installHookRoot(root *os.Root, name string) (HookResult, error) {
 		}
 	}
 	// Do not append a second block when a truncated marker cannot be replaced.
-	for _, line := range strings.Split(string(content), "\n") {
+	for line := range strings.SplitSeq(string(content), "\n") {
 		if strings.HasPrefix(line, beginPrefix) || strings.HasPrefix(line, endPrefix) {
 			return HookUnchanged, errors.New("incomplete envbuckets hook block; repair its markers before reinstalling")
 		}

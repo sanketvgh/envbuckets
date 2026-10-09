@@ -2,6 +2,7 @@ version: "3"
 
 vars:
   SVU: svu
+  GOLANGCI_LINT_VERSION: v2.13.2
   EXE: '{{if eq OS "windows"}}envbuckets.exe{{else}}envbuckets{{end}}'
 
 tasks:
@@ -13,13 +14,45 @@ tasks:
   fmt:
     desc: Format Go code (gofumpt + goimports via golangci-lint).
     cmds:
+      - task: lint:version
       - golangci-lint fmt ./...
 
-  lint:
+  lint:version:
+    internal: true
+    preconditions:
+      - sh: command -v golangci-lint
+        msg: 'golangci-lint is missing; install {{.GOLANGCI_LINT_VERSION}}'
+      - sh: 'test "v$(golangci-lint version --short)" = "{{.GOLANGCI_LINT_VERSION}}"'
+        msg: 'installed golangci-lint differs from Taskfile.yml; install {{.GOLANGCI_LINT_VERSION}}'
+      # Use shell builtins so this also works on Windows without grep on PATH.
+      - sh: |
+          cr=$(printf '\r')
+          while IFS= read -r line; do
+            test "${line%"$cr"}" != '  GOLANGCI_LINT_VERSION: {{.GOLANGCI_LINT_VERSION}}' || exit 0
+          done < .github/workflows/ci.yml
+          exit 1
+        msg: 'ci.yml must pin GOLANGCI_LINT_VERSION to {{.GOLANGCI_LINT_VERSION}}, matching Taskfile.yml'
+    cmds:
+      - 'true'
+
+  fix:
+    desc: Format Go code and apply automatic lint fixes; review the diff afterwards.
+    cmds:
+      - task: lint:version
+      - golangci-lint fmt ./...
+      - golangci-lint run --fix ./...
+
+  lint:go:
     desc: Lint Go code and fail if formatting differs.
     cmds:
+      - task: lint:version
       - golangci-lint fmt --diff ./...
       - golangci-lint run ./...
+
+  lint:
+    desc: Check Go lint and formatting, JSON formatting, and config schema validation.
+    cmds:
+      - task: lint:go
       - pnpm --config.verifyDepsBeforeRun=false exec oxfmt --check schema/envbuckets.schema.json schema/testdata/invalid/*.json tools/validate-config-schema.mjs package.json
       - pnpm --config.verifyDepsBeforeRun=false run validate:schema
 

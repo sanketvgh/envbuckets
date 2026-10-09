@@ -3,6 +3,15 @@
 envbuckets is being rebuilt. Read [docs-eb/PRODUCT.md](docs-eb/PRODUCT.md) and
 the relevant implementation ticket in [docs-eb/tickets/](docs-eb/tickets/README.md).
 
+- After editing Go files, run `task fix`, review the diff, then run
+  `task lint:go`. It includes `modernize`; apply suggestions compatible with
+  `go.mod`.
+- Use the golangci-lint version pinned in `Taskfile.yml`. Keep that pin and
+  `.github/workflows/ci.yml` in sync when upgrading.
+- Keep automatic fixes local. CI runs `task lint` without rewriting the
+  checkout. See [Developer checks](docs-eb/DEVELOPMENT.md) for the workflow.
+- Commit and push only when explicitly requested by the user. Include only
+  changes belonging to the task.
 - Run `task check` before submitting changes when the environment supports
   symlinks. It runs formatting/lint, schema validation, unit tests, and real-Git
   integration scripts. If Windows fails solely because symlink privilege is

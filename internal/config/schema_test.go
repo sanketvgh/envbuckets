@@ -21,11 +21,11 @@ func TestSchemaMatchesConfigTags(t *testing.T) {
 	if err := json.Unmarshal(data, &schema); err != nil {
 		t.Fatal(err)
 	}
-	checkObjectTags(t, schema, reflect.TypeOf(Config{}), []string{"default"})
+	checkObjectTags(t, schema, reflect.TypeFor[Config](), []string{"default"})
 	props := schema["properties"].(map[string]any)
 	rules := props["rules"].(map[string]any)
 	item := rules["items"].(map[string]any)
-	checkObjectTags(t, item, reflect.TypeOf(Rule{}), []string{"branch", "bucket"})
+	checkObjectTags(t, item, reflect.TypeFor[Rule](), []string{"branch", "bucket"})
 	for _, field := range []string{"default", "bucket"} {
 		obj := schema
 		if field == "bucket" {
@@ -51,8 +51,8 @@ func checkObjectTags(t *testing.T, schema map[string]any, typ reflect.Type, requ
 		t.Fatalf("%s has no properties", typ)
 	}
 	want := map[string]bool{}
-	for i := 0; i < typ.NumField(); i++ {
-		name := strings.Split(typ.Field(i).Tag.Get("json"), ",")[0]
+	for field := range typ.Fields() {
+		name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
 		if name != "-" && name != "" {
 			want[name] = true
 		}

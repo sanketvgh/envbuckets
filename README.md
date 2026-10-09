@@ -11,6 +11,7 @@ envbuckets is being rebuilt. See the [product plan](docs-eb/PRODUCT.md) and
 [implementation tickets](docs-eb/tickets/README.md).
 
 The rebuild's switch commands are documented in [Switching buckets](docs-eb/SWITCH.md).
+Contributor checks are documented in [Developer checks](docs-eb/DEVELOPMENT.md).
 
 To install the last alpha release from npm, run:
 
