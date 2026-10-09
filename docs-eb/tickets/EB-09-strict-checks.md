@@ -2,7 +2,7 @@
 
 **Goal:** catch real bugs earlier by adding only the checks that prove useful on this codebase. This ticket stays last. Each check is added only if a trial run shows findings that are mostly real.
 
-**Status:** Implementation and fixture-stability verification complete; awaiting CI on the final configuration before Passed status. Work stays in the main worktree. The user authorized commits and pushes to complete verification and record Passed status.
+**Status:** Passed. [Final CI run 37966549169](https://github.com/sanketvgh/envbuckets/actions/runs/37966549169) passed on `8d49af3`, including all Linux/macOS/Windows checks. Local/CI verification is accepted under the AGENTS.md Windows alternative. Work stayed in the main worktree; the user authorized commits and pushes.
 
 ## Implementation phases
 
@@ -10,7 +10,7 @@
 - [x] Trial each candidate without automatic fixes; classify findings and choose checks.
 - [x] Configure retained checks and fix actionable findings; document narrow exclusions.
 - [x] Verify synthetic violations, repeated shuffle seeds, local checks, and tool-pin drift.
-- [ ] Verify the same code in Linux/macOS/Windows CI and record final evidence.
+- [x] Verify the same code in Linux/macOS/Windows CI and record final evidence.
 
 **Scope:**
 
@@ -66,8 +66,8 @@ Tick every box to close the project's ticket list.
 - [x] `-shuffle` is on in `task test` and CI. `-race` and `govulncheck` decisions are recorded.
 - [x] New tool versions are pinned with the EB-08 drift check.
 - [x] Runtime of `task check` before and after is recorded.
-- [ ] Checked on Linux, macOS, and Windows.
-- [ ] Local lint/schema/unit checks and same-code cross-platform CI integration pass via the AGENTS.md Windows verification alternative; existing CI and security gates are unchanged.
+- [x] Checked on Linux, macOS, and Windows.
+- [x] Local lint/schema/unit checks and same-code cross-platform CI integration pass via the AGENTS.md Windows verification alternative; existing CI and security gates are unchanged.
 
 ## Trial setup and baseline
 
@@ -122,3 +122,4 @@ The first three linter trials used golangci-lint 2.13.2, Go 1.27.1, unlimited fi
 - The diagnostic run on `db8e991` passed 100 repetitions, ordinary tests, and the required race test. This does not explain away the original failure. [Git's maintenance documentation](https://git-scm.com/docs/git-maintenance) and [Git 2.55 source](https://github.com/git/git/blob/v2.55.0/builtin/gc.c) show that maintenance acquires `.git/objects/maintenance.lock`, detaches, checks task thresholds, and then removes the lock. Thus a fixture commit can return with a lock still present even when no maintenance task is needed. This is a likely source of the transient snapshot mismatch. Set `maintenance.autoDetach=false` only in synthetic fixture repos before their first commit, retaining all snapshot entries and safety assertions. Verify with 1,000 repetitions before removing the temporary stress step.
 - Concurrent EB-04 work is present in this worktree. Keep EB-09 commits scoped. The fixture-maintenance hunk is staged independently of EB-04's testing.TB harness conversion; no unrelated change is included. Full local lint may temporarily see EB-04's unfinished code; CI tests the committed EB-09 code independently.
 - [Stability run 37966039031](https://github.com/sanketvgh/envbuckets/actions/runs/37966039031) on `5c6154e` passed all seven jobs and every step, including advisory scanner installation and scans on all three platforms. The unsafe-metadata test passed 1,000 repetitions with the original failing shuffle seed in 103 seconds. Required shuffled unit/race tests, cross-platform integration/safeguards, release snapshot, and npm layout also passed. Remove the temporary stress step; keep foreground fixture maintenance and path-only failure diagnostics, then verify final CI configuration. The original snapshot diff was not captured, so the maintenance explanation remains an inference supported by source and the stability test.
+- [Final run 37966549169](https://github.com/sanketvgh/envbuckets/actions/runs/37966549169) on `8d49af3` passed all seven jobs and every step with the temporary stress step removed. This verifies the final Go code and CI configuration: Linux lint, shuffled unit tests, required race tests, release snapshot and npm layout; Linux/macOS/Windows integration and safeguards; advisory scanner installation and vulnerability scans on all three platforms. No existing gate was weakened. Local Windows integration remains deferred solely for symlink privilege, as permitted by AGENTS.md; local fix/lint/schema/unit results and this same-code CI provide the accepted verification. EB-04's uncommitted changes remain outside EB-09 commits.
