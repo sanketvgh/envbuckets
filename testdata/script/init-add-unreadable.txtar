@@ -2,7 +2,8 @@
 exec git init -q
 exec git add README
 exec git commit -qm initial
-chmod 000 .env key.json
+chmod 000 .env
+chmod 000 key.json
 exec envbuckets init
 ! stdout SYNTHETIC
 ! stderr SYNTHETIC
@@ -14,7 +15,8 @@ readlink key.json .env.d/dev/key.json
 exec envbuckets switch -c prod
 cmp .env.d/prod/.env empty
 cmp .env.d/prod/key.json empty
-chmod 600 .env.d/dev/.env .env.d/dev/key.json
+chmod 600 .env.d/dev/.env
+chmod 600 .env.d/dev/key.json
 cmp .env.d/dev/.env original-env
 cmp .env.d/dev/key.json original-key
 

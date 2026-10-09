@@ -74,6 +74,7 @@
 - The `init`/`init -n` privilege test verifies that no metadata or source changes on failure; it also exercises valid `add`/`add -n` failure before imports. Wrapped LinkError classification specifically distinguishes 1314 from other errors and mentions Developer Mode only for that Windows privilege error.
 - Inspected CI with `gh run list` and `gh run view`: [run 37956688010](https://github.com/sanketvgh/envbuckets/actions/runs/37956688010) passed all Linux/macOS/Windows integration and safeguard jobs on baseline `316ed53`. **That run does not verify these uncommitted changes.**
 - At initial handoff, no commit or push had been performed. The user subsequently authorized commit and push to check these changes in CI. Symlink setup remains deferred as instructed. Successful import/link behavior, mode-000 behavior, and the full exit checklist require CI for the same code. Implementation and test coverage are present; symlink-dependent exit boxes remain open pending execution.
+- First pushed implementation: `a8feb93`, [CI run 37960018643](https://github.com/sanketvgh/envbuckets/actions/runs/37960018643). Windows integration and the main lint/unit/build/snapshot job passed. Linux/macOS integration exposed a script error: this pinned testscript version rejects multiple paths in one `chmod` command, despite its package documentation describing `path...`. Split both permission changes into one call per file; application code did not change. Awaiting verification of the corrected script.
 
 ## Exit checklist
 
