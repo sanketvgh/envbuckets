@@ -28,9 +28,8 @@ jobs:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
       - name: Run shuffled unit tests
         run: time go test -shuffle=on -count=1 ./...
-      # Temporary advisory trial; decide whether to keep it from this run's evidence.
-      - name: Trial Linux race detector
-        continue-on-error: true
+      # Keep race detection in this Linux job only; its trial cost is in EB-09.
+      - name: Run Linux race tests
         run: time go test -race -shuffle=on -count=1 ./...
       - uses: goreleaser/goreleaser-action@v7
         with:

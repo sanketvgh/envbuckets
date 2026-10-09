@@ -56,5 +56,8 @@ does not read managed environment files. It is advisory in the three-platform
 safeguards matrix and separate from `task check`. Existing gosec, build, lint,
 integration, and release gates remain blocking.
 
-The race detector is deferred until a Linux trial with cgo establishes its
-findings and runtime. Enable it on additional platforms only with trial evidence.
+The main Linux CI job also runs `go test -race -shuffle=on -count=1 ./...` as a
+required check. The initial trial found no races and added about nine seconds
+relative to ordinary unit tests on that runner. Race detection requires cgo;
+it stays out of local `task check` and the macOS/Windows jobs. Enable it on
+additional platforms only with trial evidence.
