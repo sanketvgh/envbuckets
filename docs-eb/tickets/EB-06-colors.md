@@ -2,7 +2,7 @@
 
 **Goal:** make output easier to scan in a terminal without changing what it says.
 
-**Status:** implemented; awaiting same-code cross-platform CI and Windows Terminal visual confirmation. Local lint/schema/unit/security checks and the portable color integration script pass. The full local integration stage is blocked only by the deferred Windows symlink privilege limitation.
+**Status:** implemented and verified by [passing cross-platform CI on `a50e2cf`](https://github.com/sanketvgh/envbuckets/actions/runs/38024972163); Windows Terminal visual confirmation remains open. Local lint/schema/unit/security checks pass. The local integration symlink limitation is accepted under AGENTS.md with same-code Linux/macOS/Windows integration evidence.
 
 ## Phase checklist
 
@@ -10,7 +10,7 @@
 - [x] Phase 2: implement stream styling, diagnostic routing, report padding, and Windows mode restoration.
 - [x] Phase 3: add unit/integration coverage and user documentation.
 - [x] Phase 4: run formatting, lint, security, and authorized local checks; review the diff (Windows integration limitation recorded below).
-- [ ] Phase 5: inspect same-code CI and record exit-criterion evidence and remaining limitations.
+- [x] Phase 5: inspect same-code CI and record exit-criterion evidence and remaining limitations.
 
 **Scope:**
 
@@ -64,7 +64,7 @@ Tick every box before starting EB-07's release work.
 - [x] Git Bash behavior is decided and tested (real terminal-shaped MSYS named pipe handles; live-shell limitation noted above).
 - [x] Hook output is colored only when Git runs it in a terminal.
 - [x] `task security` passes after the new dependency.
-- [ ] `task check` passes.
+- [x] `task check` verification accepted: local lint/schema/unit checks plus passing same-code cross-platform CI, under AGENTS.md's Windows symlink exception.
 
 ## Implementation notes
 
@@ -83,9 +83,9 @@ Tick every box before starting EB-07's release work.
 - Final `task check` passed Go lint, JSON formatting, config schema validation, and all shuffled unit packages. Schema validation accepted eight PRODUCT.md examples and rejected nine invalid fixtures. This includes the real hidden-console test, MSYS pipe/colored CLI checks, and whitespace-preservation tests. Log: `tmp/eb06-check-final.log`; focused output/CLI evidence is also in `tmp/eb06-focused.log`.
 - Full integration failed only at Windows symlink creation (`ERROR_PRIVILEGE_NOT_HELD`, 1314). Audited all ten failing scripts: `switch-safety`, `hooks-paths`, `hooks-lfs`, `hooks`, `reports`, `checkout`, `switch`, `uninstall`, `init-add-safety`, and `init-add`. Each failure is the documented privilege limitation; symlink-dependent unit cases skip. Test temporary directories were under `tmp/eb06-tests`. Symlink setup remains deferred under AGENTS.md.
 - The new `go test -tags integration -shuffle=on -run '^TestScript/colors$' -count=1 -v .` passed independently. It verified the built executable against real Git and exact output fixtures. Log: `tmp/eb06-colors-integration.log`.
-- Inspected CI with `gh run list` and `gh run view`. Latest [run 38022743989](https://github.com/sanketvgh/envbuckets/actions/runs/38022743989) on `393864e` passed all seven jobs, but predates these changes and does **not** verify EB-06. Phase 5 and the `task check` exit box remain open until passing same-code cross-platform CI verifies the locally skipped cases.
+- Initial CI inspection found [run 38022743989](https://github.com/sanketvgh/envbuckets/actions/runs/38022743989) on `393864e` passed all seven jobs, but predates these changes and does **not** verify EB-06. The CI continuation below records the subsequent same-code verification.
 - The hidden classic-console test verifies real mode enable/restore, one visible cell for a styled character, and attribute reset, without opening a visible console or modifying the user's terminal. Windows Terminal visual confirmation remains open; live Git Bash/mintty and very old consoles were not available. Named-pipe and injected failure tests cover their intended detection/fallback paths.
-- `git diff --check` passed. No files were staged, committed, or pushed. Only EB-06 implementation, dependencies, tests, documentation, required output routing, and CI test coverage are changed.
+- `git diff --check` passed. At the initial implementation review, no files were staged, committed, or pushed; the user subsequently authorized commit/push as recorded below. Only EB-06 implementation, dependencies, tests, documentation, required output routing, and CI test coverage are changed.
 
 ## Upstream README and examples review (2026-10-10)
 
@@ -97,5 +97,7 @@ Tick every box before starting EB-07's release work.
 
 - Committed EB-06 as `dfe3732` (`✨ feat(output): add per-stream terminal colors`) and pushed it to `feat/docs-demo` at the user's request. Local and remote commit IDs matched.
 - [Run 38024526850](https://github.com/sanketvgh/envbuckets/actions/runs/38024526850) passed six of seven jobs: Linux lint/unit/race/build/snapshot checks, Linux/Windows integration, and safeguards on all three platforms. The new macOS output/CLI unit step exposed an existing Unicode fixture assumption: Git precomposed the decomposed `café` ref into `café`, causing two exact-text expectations in `TestBranchesVariants` to fail. Output unit tests passed; the macOS integration scripts were skipped after that unit-step failure. Log: `tmp/eb06-ci-macos-failed.log`.
-- The Unicode test now sets `core.precomposeUnicode=false` in its private repository before creating branches. This retains the combining-character fixture on macOS and preserves its exact-text/width assertions on all platforms. [Git documents this macOS setting](https://git-scm.com/docs/git-config#Documentation/git-config.txt-coreprecomposeUnicode). No production code or CI gate changed. Passing CI for this correction remains required.
+- The Unicode test now sets `core.precomposeUnicode=false` in its private repository before creating branches. This retains the combining-character fixture on macOS and preserves its exact-text/width assertions on all platforms. [Git documents this macOS setting](https://git-scm.com/docs/git-config#Documentation/git-config.txt-coreprecomposeUnicode). No production code or CI gate changed. Committed and pushed as `a50e2cf` (`✅ test(reports): preserve Unicode fixture on macOS`).
 - Correction validation: `task fix`, reviewed diff, `task lint:go`, and focused `TestBranchesVariants` passed. `task check` again passed lint, JSON/schema checks, and all unit packages; only the same ten integration scripts failed for unavailable Windows symlink privilege. Logs: `tmp/eb06-ci-fix.log`, `tmp/eb06-ci-lint-go.log`, `tmp/eb06-ci-unicode.log`, and `tmp/eb06-ci-check.log`.
+- [Run 38024972163](https://github.com/sanketvgh/envbuckets/actions/runs/38024972163) on `a50e2cf` passed all seven jobs: Linux lint/unit/race/build/snapshot, integration on Linux/macOS/Windows, and safeguards on Linux/macOS/Windows. Inspected successful macOS and Windows job logs: output/CLI unit packages and `TestScript/colors` passed, as did the complete integration suite. This verifies the Unicode correction and the locally privilege-blocked scripts. Windows output tests include the real hidden classic console and MSYS pipe tests without skip paths. Logs: `tmp/eb06-ci-macos-passed.log`, `tmp/eb06-ci-windows-passed.log`, and `tmp/eb06-ci-correction-watch.log`.
+- CI safeguards also passed lint and schema validation; the Linux vulnerability scan reported **No vulnerabilities found** (`tmp/eb06-ci-linux-safeguards.log`). Phase 5 and check verification are complete. The Windows Terminal visual criterion remains unticked; EB-07's release work remains blocked until that check is recorded. Classic-console ANSI interpretation/restoration is verified locally and in CI; live Git Bash/mintty and very old consoles retain the limitations recorded above.
