@@ -1,0 +1,28 @@
+# No managed file is readable; only metadata and symlink targets may be used.
+[windows] skip 'Unix mode bits required'
+exec git init -q
+exec git add README .envbuckets.json
+exec git commit -qm initial
+chmod 000 .env.d/dev/.env
+chmod 000 .env.d/prod/.env
+exec envbuckets switch
+readlink .env .env.d/dev/.env
+exec envbuckets switch -n prod
+readlink .env .env.d/dev/.env
+exec envbuckets switch prod
+readlink .env .env.d/prod/.env
+exec envbuckets hook old new 1
+readlink .env .env.d/dev/.env
+! stdout SYNTHETIC_SECRET
+! stderr SYNTHETIC_SECRET
+chmod 600 .env.d/dev/.env
+chmod 600 .env.d/prod/.env
+
+-- README --
+fixture
+-- .envbuckets.json --
+{"default":"dev"}
+-- .env.d/dev/.env --
+SYNTHETIC_SECRET_DEV
+-- .env.d/prod/.env --
+SYNTHETIC_SECRET_PROD

@@ -1,0 +1,46 @@
+# Read-only commands also work before links exist, without symlink privileges.
+exec git init -q
+exec git add README
+exec git commit -qm initial
+! exec envbuckets status
+cmp stderr missing-config
+! stdout .
+cp config .envbuckets.json
+exec envbuckets status
+cmp stdout status-empty
+! stderr .
+exec envbuckets branches future main
+cmp stdout branches-names
+! stderr .
+! exists .git/hooks/post-checkout
+cmp .envbuckets.json config
+cp invalid .envbuckets.json
+! exec envbuckets status
+cmp stderr invalid-config
+! stdout .
+cmp .envbuckets.json invalid
+
+-- README --
+fixture
+-- config --
+{"default":"dev"}
+-- invalid --
+{"default":"dev","bukcet":"prod"}
+-- .env.d/dev/.DS_Store --
+SYNTHETIC_CLUTTER
+-- missing-config --
+fatal: .envbuckets.json is missing
+hint: Run "envbuckets init" to set up this repository.
+-- invalid-config --
+fatal: invalid .envbuckets.json: unknown key 'bukcet'
+-- status-empty --
+On branch main
+Using bucket 'dev' (default)
+
+Hook not installed:
+  (use "envbuckets init" to install it)
+
+all 0 files linked
+-- branches-names --
+  future  dev  (default)
+* main    dev  (default)

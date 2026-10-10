@@ -8,9 +8,11 @@ linters:
   enable:
     - copyloopvar
     - errorlint
+    - forbidigo
     - gocritic
     - gosec
     - misspell
+    - modernize
     - nolintlint
     - perfsprint
     - prealloc
@@ -21,6 +23,21 @@ linters:
     - wastedassign
     - whitespace
   settings:
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment # Layout tuning is outside this bug-catching check.
+        - shadow # Common short-lived error variables would be noisy.
+    forbidigo:
+      analyze-types: true
+      forbid:
+        - pattern: '^os\.(ReadFile|WriteFile|Open|OpenFile|OpenRoot|OpenInRoot|Create|CreateTemp|Mkdir|MkdirAll|MkdirTemp|ReadDir|Stat|Lstat|Readlink|Symlink|Link|Remove|RemoveAll|Rename|Chmod|Chown|Lchown|Chtimes|Truncate)$'
+          msg: Use internal/fsx for filesystem access.
+        - pattern: '^fmt\.Print(f|ln)?$'
+          msg: Route user-facing output through the CLI.
+    nolintlint:
+      require-explanation: true
+      require-specific: true
     misspell:
       locale: US
     gosec:
@@ -32,6 +49,20 @@ linters:
     generated: lax
     presets:
       - std-error-handling
+    rules:
+      # Filesystem helpers implement the guarded operations; CLI owns output.
+      - path: ^internal/(fsx|cli)/
+        linters: [forbidigo]
+      # The loader reads only .envbuckets.json, never managed file contents.
+      - path: ^internal/config/config\.go$
+        linters: [forbidigo]
+      # Tests create and inspect synthetic fixtures in their private directories.
+      - path: _test\.go$
+        linters: [forbidigo]
+      # Release packaging is a separate executable that reads build metadata
+      # and copies published artifacts; it does not access managed files.
+      - path: ^tools/npmpkg/
+        linters: [forbidigo]
 
 formatters:
   enable:

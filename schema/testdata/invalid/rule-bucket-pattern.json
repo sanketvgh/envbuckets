@@ -1,0 +1,1 @@
+{ "default": "dev", "rules": [{ "branch": "main", "bucket": "x/y" }] }

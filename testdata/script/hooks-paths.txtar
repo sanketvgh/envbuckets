@@ -1,0 +1,58 @@
+# In-repository core.hooksPath is honored; unrelated shared paths are refused.
+mkdir repo
+cd repo
+exec git init -q
+cp ../README README
+cp ../config .envbuckets.json
+exec git add README .envbuckets.json
+exec git commit -qm initial
+exec git config core.hooksPath custom/hooks
+install-hook
+exists custom/hooks/post-checkout
+! exists .git/hooks/post-checkout
+
+# Absolute custom hooks outside the repository must not be touched.
+exec git config core.hooksPath $WORK/shared
+! install-hook
+! exists ../shared
+exec git config --unset core.hooksPath
+
+# Hooks metadata must never be read from a bucket, even with a custom path.
+mkdir .env.d/dev
+cp ../README .env.d/dev/post-checkout
+exec git config core.hooksPath .env.d/dev
+! install-hook
+cmp .env.d/dev/post-checkout ../README
+exec git config --unset core.hooksPath
+
+# Symlinked hooks directories and hook files are refused without modification.
+mkdir real-hooks
+symlink linked-hooks -> real-hooks
+exec git config core.hooksPath linked-hooks
+! install-hook
+! exists real-hooks/post-checkout
+exec git config --unset core.hooksPath
+symlink .git/hooks/post-checkout -> ../../README
+! install-hook
+cmp README ../README
+rm .git/hooks/post-checkout
+
+# A linked worktree uses the common hooks directory, even outside its own root.
+install-hook
+exec git worktree add -qb linked ../linked
+cd ../linked
+cp ../config .envbuckets.json
+mkdir .env.d/dev
+cp ../README .env.d/dev/.env
+exec envbuckets switch
+install-hook
+regular .git
+exists ../repo/.git/hooks/post-checkout
+exec git switch -qc feature/linked
+! stderr envbuckets
+readlink .env .env.d/dev/.env
+
+-- README --
+synthetic fixture
+-- config --
+{"default":"dev"}

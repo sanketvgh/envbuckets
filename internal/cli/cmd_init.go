@@ -1,244 +1,181 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/sanketvgh/envbuckets/internal/block"
 	"github.com/sanketvgh/envbuckets/internal/config"
 	"github.com/sanketvgh/envbuckets/internal/fsx"
 	"github.com/sanketvgh/envbuckets/internal/gitx"
+	"github.com/sanketvgh/envbuckets/internal/switcher"
 )
 
-func runInit(args []string, env Env) error {
-	flags := newFlags("init")
-	into := flags.String("into", "", "bucket to move an existing real .env into (skips the prompt)")
-	scaffold := flags.Bool("scaffold", false, "create empty files for every bucket the shared rules reference")
-	rest, err := parseFlags(flags, args)
-	if err != nil {
-		return err
-	}
-	if len(rest) != 0 {
-		return usage("init: takes no arguments").then("envbuckets init [--into <bucket>] [--scaffold]")
-	}
-	if *into != "" {
-		if err := config.ValidateName(*into); err != nil {
-			return usage("--into: %v", err).then("envbuckets init --into <bucket-name>")
+const initialConfig = "{\n  \"$schema\": \"https://raw.githubusercontent.com/sanketvgh/envbuckets/main/schema/envbuckets.schema.json\",\n  \"default\": \"dev\",\n  \"rules\": []\n}\n"
+
+type initPlan struct {
+	bucket       string
+	createConfig bool
+	createBucket bool
+	files        []importFile
+	warnings     []string
+	ignore       block.IgnorePlan
+	hookPath     string
+	hookChange   bool
+}
+
+func planInit(repo *fsx.Repo) (initPlan, error) {
+	p := initPlan{bucket: "dev"}
+	if _, err := repo.Root.Lstat(".envbuckets.json"); os.IsNotExist(err) {
+		p.createConfig = true
+	} else {
+		cfg, err := config.Load(repo.Root)
+		if err != nil {
+			return p, fmt.Errorf("invalid %w", err)
 		}
+		p.bucket = cfg.Default
 	}
-
-	root, err := repoRoot(env)
+	exists, err := bucketDirectory(repo, p.bucket)
 	if err != nil {
-		return err
+		return p, err
 	}
-	cfg, err := config.Load(root)
-	missing := errors.Is(err, config.ErrMissing)
-	if err != nil && !missing {
-		return configError(err)
+	p.createBucket = !exists
+	if _, err := repo.Root.Lstat(".envbuckets.toml"); err == nil {
+		p.warnings = append(p.warnings, ".envbuckets.toml is unused and can be deleted")
+	} else if !os.IsNotExist(err) {
+		return p, err
 	}
-	if err := probeSymlinks(root); err != nil {
-		return err
-	}
-	hooksDir, err := gitx.HooksDir(root)
+	candidates, err := gitx.LocalFiles(repo.Path)
 	if err != nil {
-		return envErr("cannot use the git hooks directory: %v", err)
+		return p, err
 	}
-	if _, err := readGitignore(root); err != nil {
-		return envErr("cannot use .gitignore: %v", err)
-	}
-	step := stepPrinter(env)
-	fmt.Fprintln(env.Stdout, "Initializing envbuckets in this project")
-	if missing {
-		cfg = config.New()
-	}
-	if err := initSetup(root, hooksDir, cfg, missing, step); err != nil {
-		return recoverable(err)
-	}
-	p := newProject(root, cfg)
-
-	var blockedErr error
-	bootstrapped := map[string]bool{}
-	for _, s := range p.scopes {
-		if err := bootstrapScope(env, s, *into, step); err != nil {
-			var ee *exitError
-			if errors.As(err, &ee) && ee.code == ExitBlocked {
-				step("blocked", "%s: %s", s.Name, ee.msg)
-				blockedErr = err
-				continue
+	slices.Sort(candidates)
+	candidates = slices.Compact(candidates)
+	var names []string
+	for _, name := range candidates {
+		reserved := false
+		for part := range strings.SplitSeq(name, "/") {
+			if strings.EqualFold(part, ".git") || strings.EqualFold(part, ".env.d") || strings.EqualFold(part, "GIT~1") {
+				reserved = true
+				break
 			}
-			return recoverable(err)
 		}
-		bootstrapped[s.Name] = true
-	}
-	if *scaffold {
-		if err := scaffoldScopes(env, p, bootstrapped, step); err != nil {
-			blockedErr = err
+		if reserved {
+			continue
 		}
+		base := filepath.Base(filepath.FromSlash(name))
+		envFile := base == ".env" || strings.HasPrefix(base, ".env.")
+		// Git may list existing managed links when their ignore block is absent.
+		// Rerunning init must leave all links, including foreign ones, untouched.
+		if info, err := repo.Root.Lstat(name); err == nil && info.Mode()&os.ModeSymlink != 0 {
+			target, linkErr := repo.Root.Readlink(name)
+			if linkErr == nil && switcher.BucketOf(name, filepath.ToSlash(target)) != "" {
+				if err := repo.ValidatePath(filepath.FromSlash(name)); err == nil {
+					names = append(names, name)
+				}
+			} else if envFile {
+				p.warnings = append(p.warnings, fmt.Sprintf("cannot import '%s': it is a foreign symlink", name))
+			}
+			continue
+		}
+		if !envFile {
+			continue
+		}
+		f, err := planImport(repo, p.bucket, name)
+		if err != nil {
+			p.warnings = append(p.warnings, fmt.Sprintf("cannot import '%s': %s", name, err))
+			continue
+		}
+		p.files, names = append(p.files, f), append(names, name)
 	}
-	return blockedErr
+	p.ignore, err = block.PlanIgnore(repo, names)
+	if err != nil {
+		return p, err
+	}
+	var hook block.HookResult
+	p.hookPath, hook, err = block.PreviewRepoHook(repo.Path)
+	if err != nil {
+		return p, err
+	}
+	p.hookChange = hook == block.HookWritten
+	return p, fsx.ProbeSymlinks(repo.Root)
 }
 
-func initSetup(root, hooksDir string, cfg *config.Config, missing bool, step func(string, string, ...any)) error {
-	if missing {
-		if err := cfg.Save(root); err != nil {
-			return err
+func runInit(args []string, env Env) int {
+	dry, paths, err := parseDryArgs(args)
+	if err != nil || len(paths) != 0 {
+		return commandUsage(env, "init [-n]", err)
+	}
+	repo, err := openCommandRepo(env)
+	if err != nil {
+		return switchFailure(env, false, err)
+	}
+	defer repo.Close()
+	p, err := planInit(repo)
+	for _, warning := range p.warnings {
+		env.output(false).Warning("%s", warning)
+	}
+	if err != nil {
+		return switchFailure(env, false, err)
+	}
+	if dry {
+		if p.createConfig {
+			env.output(false).Would("create .envbuckets.json")
 		}
-		step("created", config.FileName)
-	} else {
-		step("ok", config.FileName)
-	}
-	if err := os.MkdirAll(hooksDir, 0o755); err != nil {
-		return err
-	}
-	hookPath := filepath.Join(hooksDir, "post-checkout")
-	res, err := block.InstallHook(hookPath)
-	if err != nil {
-		return err
-	}
-	if res == block.HookWritten {
-		step("created", "hook block (%s)", relOrAbs(root, hookPath))
-	} else {
-		step("ok", "hook block (%s)", relOrAbs(root, hookPath))
-	}
-	changed, err := ensureIgnored(root, ignoreLines(newProject(root, cfg).scopes))
-	if err != nil {
-		return err
-	}
-	if changed {
-		step("created", ".gitignore block")
-	} else {
-		step("ok", ".gitignore block")
-	}
-	return nil
-}
-
-func recoverable(err error) error {
-	var ee *exitError
-	if !errors.As(err, &ee) {
-		ee = envErr("%v", err)
-	}
-	if ee.next == "" {
-		ee.next = "steps marked [created] above are kept and nothing was rolled back; fix the cause and re-run envbuckets init, it skips finished steps (to deactivate instead: envbuckets uninstall, which keeps the config and .env.d/)"
-	}
-	return ee
-}
-
-var removeProbe = os.Remove
-
-func probeSymlinks(root string) error {
-	f, err := os.CreateTemp(root, ".envbuckets-probe-*")
-	if err != nil {
-		return envErr("cannot write in %s: %v", root, err).then("check the directory permissions, nothing was changed")
-	}
-	name := f.Name()
-	closeErr := f.Close()
-	if err := removeProbe(name); err != nil {
-		return probeLeft(name, err)
-	}
-	if closeErr != nil {
-		return envErr("cannot write in %s: %v", root, closeErr).then("check the disk and directory permissions, nothing was changed")
-	}
-	err = os.Symlink(bucketsDir+"/probe", name)
-	if rmErr := removeProbe(name); rmErr != nil && !errors.Is(rmErr, os.ErrNotExist) {
-		return probeLeft(name, rmErr)
-	}
-	if err != nil {
-		return envErr("this filesystem does not allow symlinks here: %v", err).
-			then("on Windows enable Developer Mode or use WSL, then re-run envbuckets init; nothing was changed")
-	}
-	return nil
-}
-
-func probeLeft(name string, err error) error {
-	return envErr("cannot remove the symlink probe %s: %v", filepath.Base(name), err).
-		then("delete %s from the repo root by hand, then re-run envbuckets init; nothing else was changed", filepath.Base(name))
-}
-
-func relOrAbs(root, p string) string {
-	if rel, err := filepath.Rel(root, p); err == nil {
-		return filepath.ToSlash(rel)
-	}
-	return p
-}
-
-func bootstrapScope(env Env, s scope, into string, step func(string, string, ...any)) error {
-	if !s.exists() {
-		step("skipped", "%s: scope directory missing", s.Name)
-		return nil
-	}
-	ls, err := s.linkState()
-	if err != nil {
-		return err
-	}
-	envDisplay := s.display(envFile)
-	switch ls.kind {
-	case linkMissing:
-		step("skipped", "%s: no %s yet (envbuckets bucket add <name>, then envbuckets use <name>)", s.Name, envDisplay)
-		return nil
-	case linkBucket:
-		if ls.dangling {
-			step("skipped", "%s: %s -> %s is BROKEN (create the file, or envbuckets use <bucket>)", s.Name, envDisplay, ls.target)
-			return nil
+		if p.createBucket {
+			env.output(false).List("Would create bucket '%s'\n", p.bucket)
 		}
-		step("ok", "%s: %s -> %s", s.Name, envDisplay, ls.target)
-		return nil
-	case linkForeign:
-		step("skipped", "%s: %s is a symlink outside %s/ (%s), left untouched", s.Name, envDisplay, bucketsDir, ls.target)
-		return nil
-	case linkReal:
-	}
-
-	bucket := into
-	if bucket == "" {
-		fmt.Fprintf(env.Stdout, "%s: %s is a real file. Move it into which bucket? (empty to skip): ", s.Name, envDisplay)
-		line, ok := readLine(env)
-		if !ok || line == "" {
-			step("skipped", "%s: %s left as a real file (re-run with --into <bucket>)", s.Name, envDisplay)
-			return nil
+		for _, f := range p.files {
+			env.output(false).List("Would add %s to bucket '%s'\n", f.path, p.bucket)
 		}
-		if err := config.ValidateName(line); err != nil {
-			return blocked("%v", err)
+		if p.ignore.Changed {
+			env.output(false).Would("update .gitignore")
 		}
-		bucket = line
+		if p.hookChange {
+			env.output(false).List("Would install %s\n", p.hookPath)
+		}
+		return ExitOK
 	}
-	if s.bucketFileExists(bucket) {
-		return blocked("%s already exists, refusing to clobber it", s.display(linkTarget(bucket))).then("envbuckets init --into <another-bucket>")
+	if p.createConfig {
+		// O_EXCL avoids replacing a config that appeared after planning.
+		f, err := repo.Root.OpenFile(".envbuckets.json", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		if err != nil {
+			return switchFailure(env, false, err)
+		}
+		_, writeErr := f.WriteString(initialConfig)
+		closeErr := f.Close()
+		if writeErr != nil {
+			return switchFailure(env, false, writeErr)
+		}
+		if closeErr != nil {
+			return switchFailure(env, false, closeErr)
+		}
 	}
-	if err := s.checkBucketParents(bucket); err != nil {
-		return err
+	if _, err := bucketDirectory(repo, p.bucket); err != nil {
+		return switchFailure(env, false, err)
 	}
-	root, err := os.OpenRoot(s.Root)
-	if err != nil {
-		return err
+	if err := repo.Root.MkdirAll(".env.d/"+p.bucket, 0o755); err != nil {
+		return switchFailure(env, false, err)
 	}
-	defer root.Close()
-	if err := root.MkdirAll(s.bucketRel(bucket), 0o755); err != nil {
-		return err
+	if err := p.ignore.Apply(repo); err != nil {
+		return switchFailure(env, false, err)
 	}
-	if err := s.checkBucketParents(bucket); err != nil {
-		return err
+	if _, err := block.InstallRepoHook(repo.Path); err != nil {
+		return switchFailure(env, false, err)
 	}
-	bucketFile := filepath.Join(s.bucketRel(bucket), envFile)
-	if _, err := root.Lstat(bucketFile); err == nil {
-		return blocked("%s already exists, refusing to clobber it", s.display(linkTarget(bucket))).then("envbuckets init --into <another-bucket>")
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return err
+	for _, f := range p.files {
+		if err := f.apply(repo); err != nil {
+			env.output(false).Warning("cannot import '%s': %s", f.path, err)
+			continue
+		}
+		env.output(false).List("Adding %s to bucket '%s'\n", f.path, p.bucket)
 	}
-	tmpName, err := fsx.StageSymlinkRoot(root, linkTarget(bucket), s.bucketRel(""))
-	if err != nil {
-		return err
+	env.output(false).List("Initialized envbuckets in %s/.env.d/\n", filepath.ToSlash(repo.Path))
+	if len(p.files) == 0 {
+		env.output(false).Hint("No local files found. Create them, then run \"envbuckets add <file>\".")
 	}
-	if err := root.Rename(filepath.Join(filepath.FromSlash(s.Path), envFile), bucketFile); err != nil {
-		_ = root.Remove(tmpName)
-		return fmt.Errorf("move %s: %w", envDisplay, err)
-	}
-	if err := root.Rename(tmpName, filepath.Join(filepath.FromSlash(s.Path), envFile)); err != nil {
-		_ = root.Remove(tmpName)
-		return envErr("link %s: %v (values are safe in %s)", envDisplay, err, s.display(linkTarget(bucket))).
-			then("envbuckets use %s --scope %s creates the link", bucket, s.Name)
-	}
-	step("created", "%s: %s moved to %s, %s -> %s", s.Name, envDisplay, s.display(linkTarget(bucket)), envDisplay, linkTarget(bucket))
-	return nil
+	return ExitOK
 }

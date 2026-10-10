@@ -1,0 +1,46 @@
+# Hook-only and never-installed repositories require no symlink privilege.
+exec git init -q
+exec git add README
+exec git commit -qm initial
+exec envbuckets uninstall -n
+! stdout .
+! stderr .
+exec envbuckets uninstall
+! stdout .
+! stderr .
+cp broken-config .envbuckets.json
+exec git config core.hooksPath .hooks
+mkdir .hooks
+cp legacy-hook .hooks/post-checkout
+exec envbuckets uninstall -n
+stdout '^Would remove the envbuckets hook from .hooks/post-checkout$'
+! stderr .
+cmp .hooks/post-checkout legacy-hook
+exec envbuckets uninstall
+stdout '^Removing the envbuckets hook from .hooks/post-checkout$'
+! exists .hooks/post-checkout
+cmp .envbuckets.json broken-config
+exec envbuckets uninstall
+! stdout .
+! stderr .
+
+cp truncated-hook .hooks/post-checkout
+! exec envbuckets uninstall -n
+stderr 'incomplete envbuckets hook block'
+! exec envbuckets uninstall
+stderr 'incomplete envbuckets hook block'
+cmp .hooks/post-checkout truncated-hook
+
+-- README --
+synthetic fixture
+-- broken-config --
+{"default": broken
+-- legacy-hook --
+#!/bin/sh
+# >>> envbuckets v1 >>>
+old legacy command
+# <<< envbuckets v1 <<<
+-- truncated-hook --
+#!/bin/sh
+# >>> envbuckets >>>
+truncated

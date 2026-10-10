@@ -1,0 +1,89 @@
+# Legacy blocks and duplicate blocks are replaced, leaving one block at the end.
+exec git init -q
+exec git add README .envbuckets.json
+exec git commit -qm initial
+cp legacy .git/hooks/post-checkout
+install-hook
+cmp .git/hooks/post-checkout expected-hook
+install-hook
+cmp .git/hooks/post-checkout expected-hook
+exec envbuckets switch
+exec git switch -qc release/1
+stderr legacy-before
+stderr legacy-after
+stderr 'envbuckets: Switched to bucket ''prod'''
+readlink .env .env.d/prod/.env
+
+# Missing binary must silently succeed; use absolute Git so PATH can be empty.
+env SAVED_PATH=$PATH
+env PATH=$WORK/empty-bin
+exec $GIT_EXE switch -qc no-binary
+! stderr envbuckets
+readlink .env .env.d/prod/.env
+env PATH=$SAVED_PATH
+
+# A successful early exit in a legacy hook prevents our block running.
+cp early-exit .git/hooks/post-checkout
+install-hook
+exec git switch -q main
+! stderr envbuckets
+readlink .env .env.d/prod/.env
+
+# A failing legacy hook remains the user's responsibility: our appended block
+# cannot run after exit 1. Git changes branch but reports the legacy failure.
+cp failing-legacy .git/hooks/post-checkout
+install-hook
+! exec git switch -q release/1
+stderr legacy-failure
+! stderr envbuckets
+readlink .env .env.d/prod/.env
+
+# A legacy nonzero last command without exit cannot make our block fail.
+cp nonzero .git/hooks/post-checkout
+install-hook
+exec git switch -q main
+stderr 'envbuckets: Switched to bucket ''dev'''
+readlink .env .env.d/dev/.env
+
+# A malformed direct hook call is also a silent success.
+exec envbuckets hook
+! stdout .
+! stderr .
+
+-- README --
+fixture
+-- .envbuckets.json --
+{"default":"dev","rules":[{"branch":"release/**","bucket":"prod"}]}
+-- .env.d/dev/.env --
+synthetic dev
+-- .env.d/prod/.env --
+synthetic prod
+-- legacy --
+#!/bin/sh
+echo legacy-before >&2
+# >>> envbuckets v1 >>>
+echo obsolete >&2
+# <<< envbuckets v1 <<<
+echo legacy-after >&2
+# >>> envbuckets >>>
+echo duplicate >&2
+# <<< envbuckets <<<
+-- expected-hook --
+#!/bin/sh
+echo legacy-before >&2
+echo legacy-after >&2
+# >>> envbuckets >>>
+command -v envbuckets >/dev/null 2>&1 || exit 0
+envbuckets hook "$@" || true
+exit 0
+# <<< envbuckets <<<
+-- early-exit --
+#!/bin/sh
+exit 0
+-- failing-legacy --
+#!/bin/sh
+echo legacy-failure >&2
+exit 1
+-- nonzero --
+#!/bin/sh
+false

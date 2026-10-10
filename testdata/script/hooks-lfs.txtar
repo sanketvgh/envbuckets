@@ -1,0 +1,61 @@
+# Real Git LFS is optional on a runner; all available runners exercise both orders.
+[!exec:git-lfs] skip 'Git LFS is not installed'
+exec git init -q
+exec git add README .envbuckets.json
+exec git commit -qm initial
+
+# LFS first: preserve its hook, append ours, and run both.
+exec git lfs install --local
+install-hook
+exec envbuckets switch
+exec git switch -qc release/1
+stderr 'envbuckets: Switched to bucket ''prod'''
+readlink .env .env.d/prod/.env
+
+# LFS after envbuckets: ordinary install reports a conflict and preserves ours.
+! exec git lfs install --local
+exists .git/hooks/post-checkout
+exec git switch -q main
+stderr 'envbuckets: Switched to bucket ''dev'''
+readlink .env .env.d/dev/.env
+
+# Force overwrites our hook block; checkout no longer switches envbuckets links.
+exec git lfs install --local --force
+exec git switch -q release/1
+! stderr envbuckets
+readlink .env .env.d/dev/.env
+
+# Rerunning the installer restores one block alongside LFS.
+install-hook
+exec git switch -q main
+exec git switch -q release/1
+stderr 'envbuckets: Switched to bucket ''prod'''
+readlink .env .env.d/prod/.env
+
+# envbuckets first, in a fresh repo: LFS reports a conflict rather than deleting
+# our block. The hook remains usable after that failed LFS installation.
+mkdir second
+cd second
+exec git init -q
+cp ../README README
+cp ../.envbuckets.json .envbuckets.json
+mkdir .env.d/dev .env.d/prod
+cp ../README .env.d/dev/.env
+cp ../README .env.d/prod/.env
+exec git add README .envbuckets.json
+exec git commit -qm initial
+install-hook
+exec envbuckets switch
+! exec git lfs install --local
+exec git switch -qc release/first
+stderr 'envbuckets: Switched to bucket ''prod'''
+readlink .env .env.d/prod/.env
+
+-- README --
+fixture
+-- .envbuckets.json --
+{"default":"dev","rules":[{"branch":"release/**","bucket":"prod"}]}
+-- .env.d/dev/.env --
+synthetic dev
+-- .env.d/prod/.env --
+synthetic prod

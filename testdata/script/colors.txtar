@@ -1,0 +1,58 @@
+# Captured output is always plain, even with force-color environment variables.
+exec git init -q -b main
+exec git config user.name Test
+exec git config user.email test@example.com
+exec git add README
+exec git -c commit.gpgsign=false commit -qm initial
+mkdir .env.d/dev
+env FORCE_COLOR=1
+env CLICOLOR_FORCE=1
+env TERM=xterm-256color
+exec envbuckets branches main future
+cmp stdout branches.want
+exec envbuckets status
+cmp stdout status.want
+! exec envbuckets switch -x
+cmp stderr usage.want
+
+env NO_COLOR=yes
+! exec envbuckets switch -x
+cmp stderr usage.want
+env NO_COLOR=false
+! exec envbuckets switch -x
+cmp stderr usage.want
+env NO_COLOR=0
+! exec envbuckets switch -x
+cmp stderr usage.want
+env NO_COLOR=' '
+! exec envbuckets switch -x
+cmp stderr usage.want
+
+# A config warning from a Git checkout hook also stays plain in captured stderr.
+cp broken-config .envbuckets.json
+env NO_COLOR=
+exec envbuckets hook old new 1
+cmp stderr hook.want
+
+-- README --
+Synthetic fixture
+-- .envbuckets.json --
+{"default":"dev"}
+-- branches.want --
+* main    dev  (default)
+  future  dev  (default)
+-- status.want --
+On branch main
+Using bucket 'dev' (default)
+
+Hook not installed:
+  (use "envbuckets init" to install it)
+
+all 0 files linked
+-- usage.want --
+error: unknown option '-x'
+usage: envbuckets switch [-n] [-c] [<bucket>]
+-- hook.want --
+envbuckets: warning: invalid .envbuckets.json: unknown key 'bukcet'; links not changed
+-- broken-config --
+{"default":"dev","bukcet":"prod"}

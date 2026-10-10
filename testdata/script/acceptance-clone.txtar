@@ -1,0 +1,35 @@
+# A teammate's fresh clone has committed config/ignore and no private files.
+exec git init -q
+exec git add README .envbuckets.json .gitignore .env.example
+exec git commit -qm initial
+exec envbuckets init
+sample 'A teammate''s fresh clone' 1
+cp .env.example .env
+exec envbuckets add .env
+sample 'A teammate''s fresh clone' 2
+exec git branch release/1.2
+exec git switch release/1.2
+sample 'A branch whose bucket is missing' 1
+exec envbuckets status
+sample 'A branch whose bucket is missing' 2
+exec envbuckets branches
+sample 'A branch whose bucket is missing' 3
+exec envbuckets switch -c prod
+sample 'A branch whose bucket is missing' 4
+cp team .envbuckets.json
+exec git switch main
+sample 'A branch whose bucket is missing' 5
+
+-- README --
+synthetic fixture
+-- .envbuckets.json --
+{"default":"dev","rules":[{"branch":"release/**","bucket":"prod"}]}
+-- .gitignore --
+# >>> envbuckets >>>
+.env.d/
+.env
+# <<< envbuckets <<<
+-- .env.example --
+SYNTHETIC_EXAMPLE
+-- team --
+{"default":"dev","rules":[{"branch":"main","bucket":"staging"},{"branch":"release/*-rc*","bucket":"staging"},{"branch":"release/**","bucket":"prod"},{"branch":"hotfix/[0-9]*","bucket":"prod"}]}

@@ -19,13 +19,14 @@ func main() {
 	cwd, err := os.Getwd()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "envbuckets: %v\n", err)
-		os.Exit(cli.ExitEnv)
+		os.Exit(cli.ExitError)
 	}
 	os.Exit(cli.Run(os.Args[1:], cli.Env{
 		Cwd:     cwd,
 		Stdin:   os.Stdin,
 		Stdout:  os.Stdout,
 		Stderr:  os.Stderr,
+		Getenv:  os.Getenv,
 		Version: fmt.Sprintf("%s (%s, %s)", version, commit, date),
 	}))
 }

@@ -1,0 +1,122 @@
+# The main PRODUCT.md walkthrough, including stdout/stderr text and silence.
+exec git init -q
+exec git add README .env.example
+exec git commit -qm initial
+exec envbuckets init -n
+sample 'First setup' 1
+exec envbuckets init
+sample 'First setup' 2
+cmp .env.d/dev/.env original-env
+cmp .env.d/dev/apps/web/.env.local original-local
+cmp .env.example original-example
+exec envbuckets switch -c prod
+sample 'Create a prod bucket' 1
+exec envbuckets switch
+sample 'Create a prod bucket' 2
+cp rule-star .envbuckets.json
+exec git add .envbuckets.json .gitignore
+exec git commit -qm rules
+exec git switch -c release/1.2
+sample 'Map branches to buckets' 1
+exec git switch main
+sample 'Map branches to buckets' 2
+exec git switch -c feature/login
+! stderr envbuckets
+exec envbuckets branches
+sample 'See which branch uses which bucket' 1
+exec envbuckets branches release/2.0 release/2.0/rc1
+sample 'See which branch uses which bucket' 2
+cp rule-deep .envbuckets.json
+exec envbuckets branches release/2.0/rc1
+sample 'See which branch uses which bucket' 3
+exec envbuckets branches --bucket dev
+sample 'See which branch uses which bucket' 4
+exec envbuckets branches 'release/**'
+sample 'See which branch uses which bucket' 5
+exec envbuckets switch prod
+sample 'Try another bucket, then go back' 1
+exec envbuckets status
+sample 'Try another bucket, then go back' 2
+exec envbuckets branches
+sample 'Try another bucket, then go back' 3
+exec envbuckets switch
+sample 'Try another bucket, then go back' 4
+exec envbuckets add apps/api/service-account.json
+sample 'Manage a file that is not `.env`' 1
+exec envbuckets switch -n prod
+sample 'Manage a file that is not `.env`' 2
+exec envbuckets switch prod
+sample 'Manage a file that is not `.env`' 3
+cp prod-key apps/api/service-account.json
+exec envbuckets add apps/api/service-account.json
+sample 'Manage a file that is not `.env`' 4
+exec envbuckets switch
+sample 'Manage a file that is not `.env`' 5
+exec git switch -q main
+
+# Model a tool replacing the symlink, using only synthetic fixture data.
+rm .env
+cp edited-env .env
+exec envbuckets status
+sample 'A file in the way' 1
+mv .env .env.d/dev/.env
+exec envbuckets switch
+sample 'A file in the way' 2
+exec envbuckets status
+sample 'A file in the way' 3
+exec git tag v1.4.0
+exec git checkout -q v1.4.0
+! stderr envbuckets
+exec envbuckets status
+sample 'A detached HEAD' 1
+! exec envbuckets switch
+sample 'A detached HEAD' 2
+exec envbuckets switch prod
+sample 'A detached HEAD' 3
+exec git switch -q main
+cp broken .envbuckets.json
+exec git switch release/1.2
+sample 'A broken config' 1
+! exec envbuckets status
+sample 'A broken config' 2
+cp rule-deep .envbuckets.json
+! exec envbuckets add .env.example
+sample 'Mistakes' 1
+! exec envbuckets switch -c prod
+sample 'Mistakes' 2
+! exec envbuckets switch staging
+sample 'Mistakes' 3
+! exec envbuckets switch -x
+sample 'Mistakes' 4
+exec git switch -q main
+exec envbuckets uninstall -n
+sample 'Leave envbuckets' 1
+exec envbuckets uninstall
+sample 'Leave envbuckets' 2
+
+-- README --
+synthetic fixture
+-- .env --
+SYNTHETIC_DEV
+-- original-env --
+SYNTHETIC_DEV
+-- apps/web/.env.local --
+SYNTHETIC_LOCAL
+-- original-local --
+SYNTHETIC_LOCAL
+-- .env.example --
+SYNTHETIC_EXAMPLE
+-- original-example --
+SYNTHETIC_EXAMPLE
+-- apps/api/service-account.json --
+SYNTHETIC_DEV_KEY
+-- prod-key --
+SYNTHETIC_PROD_KEY
+-- edited-env --
+SYNTHETIC_EDITED
+-- rule-star --
+{"default":"dev","rules":[{"branch":"release/*","bucket":"prod"}]}
+-- rule-deep --
+{"default":"dev","rules":[{"branch":"release/**","bucket":"prod"}]}
+-- broken --
+{"default":"dev","bukcet":"prod"}

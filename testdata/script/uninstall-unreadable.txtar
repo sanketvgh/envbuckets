@@ -1,0 +1,31 @@
+[windows] skip 'Unix mode bits required'
+exec git init -q
+exec git add README
+exec git commit -qm initial
+exec envbuckets init
+cp broken-config .envbuckets.json
+chmod 000 .envbuckets.json
+chmod 000 .env.d/dev/.env
+# A blocked unrelated directory proves uninstall does not walk the repo.
+mkdir unrelated
+chmod 000 unrelated
+exec envbuckets uninstall -n
+stdout '^Would move .env.d/dev/.env to .env$'
+exec envbuckets uninstall
+stdout '^Moving .env.d/dev/.env to .env$'
+regular .env
+! exists .env.d/dev/.env
+chmod 600 .env
+chmod 600 .envbuckets.json
+chmod 755 unrelated
+cmp .env original-env
+cmp .envbuckets.json broken-config
+
+-- README --
+synthetic fixture
+-- .env --
+SYNTHETIC_UNREADABLE
+-- original-env --
+SYNTHETIC_UNREADABLE
+-- broken-config --
+invalid config that must never be opened

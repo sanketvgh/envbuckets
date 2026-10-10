@@ -1,98 +1,120 @@
 package config
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
 
-func TestSaveLoadRoundTripAndOrder(t *testing.T) {
-	root := t.TempDir()
-	cfg := New()
-	cfg.Rules = []Rule{{Pattern: "main", Bucket: "staging"}, {Pattern: "*", Bucket: "dev"}}
-	cfg.Scopes = []Scope{{Name: "root", Path: "."}, {Name: "api", Path: "apps/api"}}
-	if err := cfg.Save(root); err != nil {
-		t.Fatal(err)
-	}
-	data, err := os.ReadFile(Path(root))
+func TestParseStrictAndRuleOrder(t *testing.T) {
+	c, err := Parse([]byte(`{"default":"dev","rules":[{"branch":"release/**","bucket":"prod"},{"branch":"release/1.*","bucket":"stage"}]}`))
 	if err != nil {
 		t.Fatal(err)
 	}
-	text := string(data)
-	iHeader := strings.Index(text, "# .envbuckets.toml")
-	iSchema := strings.Index(text, "schema = 1")
-	iRules := strings.Index(text, "[[rules]]")
-	iScopes := strings.Index(text, "[[scopes]]")
-	if iHeader != 0 || iSchema < iHeader || iRules < iSchema || iScopes < iRules {
-		t.Fatalf("unexpected order:\n%s", text)
+	got, rule := c.BucketFor("release/1.2")
+	if got != "prod" || rule != "release/**" {
+		t.Fatalf("got %q via %q", got, rule)
 	}
-	got, err := Load(root)
+}
+
+func TestParseErrorsNameFileAndProblem(t *testing.T) {
+	for _, tc := range []struct{ input, part string }{
+		{`{"default":"dev","bad":true}`, "bad"},
+		{`{"rules":[]}`, "default"},
+		{`{"default":""}`, "default"},
+		{`{"default":"bad/name"}`, "bucket"},
+		{`{"default":"-x"}`, "bucket"},
+		{`{"default":"_x"}`, "bucket"},
+		{`{"default":"dev","rules":[{"branch":"main","bucket":"-x"}]}`, "bucket"},
+		{`{"default":"dev","rules":null}`, "array"},
+		{`{"default":"dev","rules":[{"branch":"","bucket":"prod"}]}`, "branch"},
+		{`{"default":"dev"} {}`, "invalid json"},
+		{`{"default":"dev","rules":[{"branch":"[","bucket":"prod"}]}`, "pattern"},
+	} {
+		_, err := Parse([]byte(tc.input))
+		if err == nil || !strings.Contains(err.Error(), ".envbuckets.json:") || !strings.Contains(strings.ToLower(err.Error()), tc.part) {
+			t.Errorf("Parse(%s) error = %v, want %q", tc.input, err, tc.part)
+		}
+	}
+}
+
+func TestParseStrictV2Cases(t *testing.T) {
+	cases := []struct {
+		name string
+		data []byte
+		want string
+	}{
+		{"duplicate key", []byte(`{"default":"dev","default":"prod"}`), `duplicate key 'default'`},
+		{"nested unknown key", []byte(`{"default":"dev","rules":[{"branch":"main","bucket":"prod","typo":true}]}`), `unknown key 'typo'`},
+		{"wrong case", []byte(`{"Default":"dev"}`), `unknown key 'Default'`},
+		{"key with quote", []byte(`{"default":"dev","we'ird":true}`), `unknown key 'we\'ird'`},
+		{"invalid UTF-8", []byte{'{', '"', 'd', 'e', 'f', 'a', 'u', 'l', 't', '"', ':', '"', 0xff, '"', '}'}, "invalid json"},
+		{"trailing data", []byte(`{"default":"dev"} {}`), "invalid json"},
+		{"trailing comma", []byte(`{"default":"dev",}`), "invalid json"},
+		{"wrong type", []byte(`{"default":42}`), "invalid value at /default"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Parse(tc.data)
+			if err == nil || !strings.Contains(strings.ToLower(err.Error()), strings.ToLower(tc.want)) {
+				t.Errorf("Parse error = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestValidBucketBoundaries(t *testing.T) {
+	for _, name := range []string{"dev", "x-", "x_y", "9-prod"} {
+		if !ValidBucket(name) {
+			t.Errorf("ValidBucket(%q) = false", name)
+		}
+	}
+	for _, name := range []string{"", "-x", "_x"} {
+		if ValidBucket(name) {
+			t.Errorf("ValidBucket(%q) = true", name)
+		}
+	}
+}
+
+func TestLoadIgnoresLegacyTOML(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".envbuckets.toml"), []byte("invalid = ["), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".envbuckets.json"), []byte(`{"default":"dev"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	root, err := os.OpenRoot(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Rules) != 2 || got.Rules[1].Pattern != "*" || len(got.Scopes) != 2 || got.Scopes[1].Path != "apps/api" {
-		t.Fatalf("round trip mismatch: %+v", got)
-	}
-}
+	defer root.Close()
 
-func TestLoadMissing(t *testing.T) {
-	_, err := Load(t.TempDir())
-	if !errors.Is(err, ErrMissing) {
-		t.Fatalf("want ErrMissing, got %v", err)
-	}
-}
-
-func TestLoadRefusesSymlinkWithoutReadingTarget(t *testing.T) {
-	root := t.TempDir()
-	secret := filepath.Join(root, ".env")
-	if err := os.WriteFile(secret, []byte("SYNTHETIC_SECRET=1\n"), 0o600); err != nil {
+	c, err := Load(root)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(secret, Path(root)); err != nil {
+	if c.Default != "dev" {
+		t.Fatalf("default = %q, want dev", c.Default)
+	}
+}
+
+func TestLoadRefusesConfigSymlink(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte("SYNTHETIC_SECRET"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(".env", filepath.Join(dir, ".envbuckets.json")); err != nil {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
-	_, err := Load(root)
-	if !errors.Is(err, ErrCorrupt) || strings.Contains(err.Error(), "SYNTHETIC_SECRET") {
-		t.Fatalf("symlinked config was read: %v", err)
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
 	}
-}
-
-func TestLoadCorruptVariants(t *testing.T) {
-	cases := map[string]string{
-		"truncated":       "schema = 1\n[[rules]]\npattern = \"ma",
-		"schema too new":  "schema = 2\n",
-		"schema missing":  "[[rules]]\npattern = \"main\"\nbucket = \"dev\"\n",
-		"catch-all first": "schema = 1\n[[rules]]\npattern = \"*\"\nbucket = \"dev\"\n[[rules]]\npattern = \"main\"\nbucket = \"dev\"\n",
-		"duplicate":       "schema = 1\n[[rules]]\npattern = \"main\"\nbucket = \"dev\"\n[[rules]]\npattern = \"main\"\nbucket = \"x\"\n",
-		"bad scope name":  "schema = 1\n[[scopes]]\nname = \"-bad\"\npath = \"apps\"\n",
-		"escaping scope":  "schema = 1\n[[scopes]]\nname = \"x\"\npath = \"../x\"\n",
-	}
-	for name, body := range cases {
-		root := t.TempDir()
-		if err := os.WriteFile(Path(root), []byte(body), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		_, err := Load(root)
-		if !errors.Is(err, ErrCorrupt) {
-			t.Errorf("%s: want ErrCorrupt, got %v", name, err)
-		}
-	}
-}
-
-func TestEffectiveScopesImplicitRoot(t *testing.T) {
-	scopes := New().EffectiveScopes()
-	if len(scopes) != 1 || scopes[0].Name != "root" || scopes[0].Path != "." {
-		t.Fatalf("got %+v", scopes)
-	}
-}
-
-func TestValidatePattern(t *testing.T) {
-	if ValidatePattern("") == nil || ValidatePattern("a b") == nil || ValidatePattern(strings.Repeat("x", 129)) == nil {
-		t.Fatal("invalid patterns accepted")
-	}
-	if ValidatePattern("release/*") != nil {
-		t.Fatal("valid pattern rejected")
+	defer root.Close()
+	_, err = Load(root)
+	if err == nil || !strings.Contains(err.Error(), "config must be a regular file") || strings.Contains(err.Error(), "SYNTHETIC_SECRET") {
+		t.Fatalf("unsafe config: %v", err)
 	}
 }

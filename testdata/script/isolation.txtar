@@ -1,0 +1,21 @@
+# Shared setup overrides even a conflicting XDG config, and fixes commit identity.
+exec git init -q
+exec git add README
+exec git commit -qm initial
+exec git branch --show-current
+stdout '^main$'
+exec git config user.name
+stdout '^envbuckets test$'
+exec git log -1 '--format=%an|%ae|%cn|%ce|%at|%ct'
+cmp stdout commit.want
+
+-- README --
+synthetic fixture
+-- xdg/git/config --
+[user]
+    name = unexpected XDG identity
+    email = unexpected@example.com
+[core]
+    hooksPath = missing-hooks
+-- commit.want --
+envbuckets test|test@example.com|envbuckets test|test@example.com|946684800|946684800

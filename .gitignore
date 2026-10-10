@@ -1,5 +1,6 @@
 dist/
 npm/dist/
+node_modules/
 /tmp/
 /envbuckets
 /envbuckets.exe

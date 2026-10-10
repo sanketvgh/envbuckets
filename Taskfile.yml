@@ -2,12 +2,9 @@ version: "3"
 
 vars:
   SVU: svu
-  EXE: '{{if eq OS "windows"}}envbuckets.exe{{else}}envbuckets{{end}}'
-  BENCH_DIR: '{{.ROOT_DIR}}/tmp/bench'
-  BASE_DIR: '{{.ROOT_DIR}}/tmp/base'
-  WARMUP: '{{.WARMUP | default 20}}'
-  RUNS: '{{.RUNS | default 200}}'
+  GOLANGCI_LINT_VERSION: v2.14.0
   GOVULNCHECK_VERSION: v1.8.0
+  EXE: '{{if eq OS "windows"}}envbuckets.exe{{else}}envbuckets{{end}}'
 
 tasks:
   build:
@@ -16,45 +13,152 @@ tasks:
       - go build -trimpath -o {{.EXE}} .
 
   fmt:
-    desc: Format Go code (gofumpt + goimports) and Markdown (oxfmt; needs pnpm and `pnpm install`).
+    desc: Format Go code and Markdown.
     cmds:
+      - task: lint:version
       - golangci-lint fmt ./...
-      - pnpm run --silent fmt
+      - pnpm --config.verifyDepsBeforeRun=false run fmt
+
+  lint:version:
+    internal: true
+    preconditions:
+      - sh: command -v golangci-lint
+        msg: 'golangci-lint is missing; install {{.GOLANGCI_LINT_VERSION}}'
+      - sh: 'test "v$(golangci-lint version --short)" = "{{.GOLANGCI_LINT_VERSION}}"'
+        msg: 'installed golangci-lint differs from Taskfile.yml; install {{.GOLANGCI_LINT_VERSION}}'
+      # Use shell builtins so this also works on Windows without grep on PATH.
+      - sh: |
+          cr=$(printf '\r')
+          for workflow in .github/workflows/ci.yml .github/workflows/release.yml; do
+            matched=false
+            while IFS= read -r line; do
+              if test "${line%"$cr"}" = '  GOLANGCI_LINT_VERSION: {{.GOLANGCI_LINT_VERSION}}'; then
+                matched=true
+                break
+              fi
+            done < "$workflow"
+            test "$matched" = true || exit 1
+          done
+        msg: 'ci.yml and release.yml must pin GOLANGCI_LINT_VERSION to {{.GOLANGCI_LINT_VERSION}}, matching Taskfile.yml'
+      # Check the advisory scanner's CI pin without requiring its local binary.
+      - sh: |
+          cr=$(printf '\r')
+          for workflow in .github/workflows/ci.yml .github/workflows/release.yml; do
+            matched=false
+            while IFS= read -r line; do
+              if test "${line%"$cr"}" = '  GOVULNCHECK_VERSION: {{.GOVULNCHECK_VERSION}}'; then
+                matched=true
+                break
+              fi
+            done < "$workflow"
+            test "$matched" = true || exit 1
+          done
+        msg: 'ci.yml and release.yml must pin GOVULNCHECK_VERSION to {{.GOVULNCHECK_VERSION}}, matching Taskfile.yml'
+    cmds:
+      - 'true'
+
+  fix:
+    desc: Format Go code and apply automatic lint fixes; review the diff afterwards.
+    cmds:
+      - task: lint:version
+      - golangci-lint fmt ./...
+      - golangci-lint run --fix --build-tags integration ./...
+
+  lint:go:
+    desc: Lint Go code and fail if formatting differs.
+    cmds:
+      - task: lint:version
+      - golangci-lint fmt --diff ./...
+      - golangci-lint run --build-tags integration ./...
 
   lint:
-    desc: Lint Go code and fail if Go or Markdown formatting differs (Markdown needs pnpm and `pnpm install`).
+    desc: Check Go/Markdown/JSON formatting, lint, and config schema validation.
     cmds:
-      - golangci-lint fmt --diff ./...
-      - golangci-lint run ./...
-      - pnpm run --silent fmt:check
+      - task: lint:go
+      - pnpm --config.verifyDepsBeforeRun=false run fmt:check
+      - pnpm --config.verifyDepsBeforeRun=false exec oxfmt --check schema/envbuckets.schema.json schema/testdata/invalid/*.json tools/validate-config-schema.mjs tools/npm-smoke.mjs package.json
+      - pnpm --config.verifyDepsBeforeRun=false run validate:schema
+
+  security:version:
+    internal: true
+    preconditions:
+      - sh: command -v govulncheck
+        msg: 'govulncheck is missing; run go install golang.org/x/vuln/cmd/govulncheck@{{.GOVULNCHECK_VERSION}}'
+      # Inspect the embedded module version without contacting the vulnerability DB.
+      - sh: |
+          go version -m "$(command -v govulncheck)" | {
+            while read -r kind module version rest; do
+              if test "$kind" = mod; then
+                test "$module" = golang.org/x/vuln && test "$version" = '{{.GOVULNCHECK_VERSION}}'
+                exit $?
+              fi
+            done
+            exit 1
+          }
+        msg: 'installed govulncheck differs from Taskfile.yml; install {{.GOVULNCHECK_VERSION}}'
+      # Match EB-08's LF/CRLF-safe CI pin guard.
+      - sh: |
+          cr=$(printf '\r')
+          while IFS= read -r line; do
+            test "${line%"$cr"}" != '  GOVULNCHECK_VERSION: {{.GOVULNCHECK_VERSION}}' || exit 0
+          done < .github/workflows/ci.yml
+          exit 1
+        msg: 'ci.yml must pin GOVULNCHECK_VERSION to {{.GOVULNCHECK_VERSION}}, matching Taskfile.yml'
+    cmds:
+      - 'true'
+
+  security:
+    desc: Check reachable Go vulnerabilities and scan workflows with zizmor.
+    cmds:
+      - task: security:version
+      - govulncheck ./...
+      - uvx zizmor --offline .github
+
+  hooks:
+    desc: Install the pre-push hook for lint, unit tests, and security.
+    cmds:
+      - git config core.hooksPath .githooks
 
   test:
     desc: Run Go unit tests.
     cmds:
-      - go test ./...
+      - go test -shuffle=on ./...
 
   test:integration:
-    desc: Run the txtar scripts against real git (needs symlink support; use WSL on Windows).
+    desc: Run the txtar scripts against real git (Windows needs symlink privilege).
     cmds:
-      - go test -tags integration -run TestScript -count=1 .
+      - go test -tags integration -shuffle=on -run 'TestScript|TestAcceptanceSampleCoverage' -count=1 .
+
+  test:integration:update:
+    desc: Explicitly update txtar golden files; review the diff afterwards.
+    env:
+      TESTSCRIPT_UPDATE: "1"
+    cmds:
+      - task: test:integration
+
+  bench:
+    desc: Benchmark branches and checkout hooks with 1 and 1000 local branches.
+    env:
+      GOCACHE: '{{.ROOT_DIR}}/tmp/gocache'
+    cmds:
+      - go test -run '^$' -bench BenchmarkReports -benchmem ./internal/cli
+
+  pattern:fixture:
+    desc: Regenerate recorded Git branch-pattern answers.
+    env:
+      UPDATE_GIT_FIXTURE: "1"
+      GOCACHE: '{{.ROOT_DIR}}/tmp/gocache'
+    cmds:
+      - go test -run TestGitFixture ./internal/pattern
 
   check:
     desc: Run lint, unit tests, and real-git integration tests.
+    env:
+      GOCACHE: '{{.ROOT_DIR}}/tmp/gocache'
     cmds:
       - task: lint
       - task: test
       - task: test:integration
-
-  security:
-    desc: Scan Go dependencies with govulncheck and workflows with zizmor (needs uv).
-    cmds:
-      - go run golang.org/x/vuln/cmd/govulncheck@{{.GOVULNCHECK_VERSION}} ./...
-      - uvx zizmor --offline .github
-
-  hooks:
-    desc: Install the pre-push hook (lint, test, security) for this clone.
-    cmds:
-      - git config core.hooksPath .githooks
 
   snapshot:
     desc: Validate config, cross-compile all targets, lay out npm packages. No tag, no publish.
@@ -64,16 +168,15 @@ tasks:
       - go run ./tools/npmpkg
 
   playground:
-    desc: Build a snapshot and install its npm packages in ./playground (gitignored).
+    desc: Build a snapshot and smoke-test packed npm packages in a private playground Git repo.
     deps: [snapshot]
     cmds:
-      - rm -rf playground/.packs playground/node_modules playground/package-lock.json
-      - mkdir -p playground/.packs
-      - cd npm/dist/envbuckets && npm pack --silent --pack-destination ../../../playground/.packs
-      - cd npm/dist/@envbuckets/$(node -p "process.platform+'-'+process.arch") && npm pack --silent --pack-destination ../../../../playground/.packs
-      - cd playground && (test -f package.json || npm init -y >/dev/null)
-      - cd playground && npm install --no-audit --no-fund ./.packs/*.tgz
-      - cd playground && npx envbuckets --version
+      - task: test:npm
+
+  test:npm:
+    desc: Pack and exercise the existing snapshot through npm in a new playground Git repo.
+    cmds:
+      - node tools/npm-smoke.mjs
 
   next-version:
     desc: Show what the next release would be tagged. PRE=alpha|beta|rc for a prerelease.
@@ -89,42 +192,6 @@ tasks:
     cmds:
       - gh workflow run release.yml --ref main -f prerelease={{.PRE | default "none"}} -f version={{.VERSION}}
       - gh run watch --exit-status $(gh run list --workflow release.yml --event workflow_dispatch --limit 1 --json databaseId --jq '.[0].databaseId')
-
-  bench:fixture:
-    internal: true
-    deps: [build]
-    cmds:
-      - rm -rf {{.BENCH_DIR}}
-      - mkdir -p {{.BENCH_DIR}}
-      - cd {{.BENCH_DIR}} && git init -q -b main && git config user.email bench@example.com && git config user.name bench && git config commit.gpgsign false
-      - cd {{.BENCH_DIR}} && echo x > README && git add README && git commit -q -m init
-      - cd {{.BENCH_DIR}} && echo A=1 > .env && {{.ROOT_DIR}}/{{.EXE}} init --into dev && {{.ROOT_DIR}}/{{.EXE}} bucket add prod
-      - cd {{.BENCH_DIR}} && {{.ROOT_DIR}}/{{.EXE}} map add 'release/*' prod && {{.ROOT_DIR}}/{{.EXE}} map add '*' dev
-
-  bench:
-    desc: Time the hook's no-op path (branch already on its bucket) with hyperfine. Run on Linux or WSL.
-    deps: [bench:fixture]
-    preconditions:
-      - sh: command -v hyperfine
-        msg: hyperfine is not on PATH (https://github.com/sharkdp/hyperfine)
-    dir: '{{.BENCH_DIR}}'
-    cmds:
-      - hyperfine -N -w {{.WARMUP}} -r {{.RUNS}} -n head '{{.ROOT_DIR}}/{{.EXE}} hook x y 1'
-
-  bench:compare:
-    desc: Time BASE=<sha|ref> against the working tree in one hyperfine run. Builds BASE from a throwaway worktree.
-    deps: [bench:fixture]
-    requires:
-      vars: [BASE]
-    preconditions:
-      - sh: command -v hyperfine
-        msg: hyperfine is not on PATH (https://github.com/sharkdp/hyperfine)
-    cmds:
-      - rm -rf {{.BASE_DIR}} && git worktree prune
-      - git worktree add -q --detach {{.BASE_DIR}} {{.BASE}}
-      - defer: git worktree remove --force {{.BASE_DIR}}
-      - cd {{.BASE_DIR}} && go build -trimpath -o {{.ROOT_DIR}}/tmp/envbuckets-base .
-      - cd {{.BENCH_DIR}} && hyperfine -N -w {{.WARMUP}} -r {{.RUNS}} -n base -n head '{{.ROOT_DIR}}/tmp/envbuckets-base hook x y 1' '{{.ROOT_DIR}}/{{.EXE}} hook x y 1'
 
   clean:
     desc: Remove local build, release, and benchmark outputs.

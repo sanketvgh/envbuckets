@@ -1,0 +1,8 @@
+exec envbuckets version
+stdout 'envbuckets '
+exec envbuckets hook
+! stdout .
+! stderr .
+
+-- README --
+fixture

@@ -32,6 +32,7 @@ func main() {
 	dist := flag.String("dist", "dist", "GoReleaser dist directory")
 	umbrella := flag.String("umbrella", "npm/envbuckets", "umbrella package source directory")
 	readme := flag.String("readme", "README.md", "README copied into the umbrella package")
+	license := flag.String("license", "LICENSE", "LICENSE copied into every npm package")
 	out := flag.String("out", "npm/dist", "output directory")
 	flag.Parse()
 
@@ -59,7 +60,7 @@ func main() {
 			fail(fmt.Sprintf("no npm mapping for %s/%s", a.Goos, a.Goarch))
 		}
 		name := fmt.Sprintf("@envbuckets/%s-%s", osName, arch)
-		if err := writePlatformPackage(filepath.Join(*out, name), name, *version, osName, arch, a); err != nil {
+		if err := writePlatformPackage(filepath.Join(*out, name), name, *version, osName, arch, *license, a); err != nil {
 			fail(err.Error())
 		}
 		optional[name] = *version
@@ -68,7 +69,7 @@ func main() {
 		fail("no Binary artifacts found in " + *dist)
 	}
 
-	if err := writeUmbrella(*umbrella, *readme, filepath.Join(*out, "envbuckets"), *version, optional); err != nil {
+	if err := writeUmbrella(*umbrella, *readme, *license, filepath.Join(*out, "envbuckets"), *version, optional); err != nil {
 		fail(err.Error())
 	}
 
@@ -112,11 +113,14 @@ func readArtifacts(path string) ([]artifact, error) {
 	return out, nil
 }
 
-func writePlatformPackage(dir, name, version, osName, arch string, a artifact) error {
+func writePlatformPackage(dir, name, version, osName, arch, license string, a artifact) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
 	if err := copyFile(a.Path, filepath.Join(dir, a.Name), 0o755); err != nil {
+		return err
+	}
+	if err := copyFile(license, filepath.Join(dir, "LICENSE"), 0o644); err != nil {
 		return err
 	}
 	pkg := map[string]any{
@@ -142,7 +146,7 @@ func writePlatformPackage(dir, name, version, osName, arch string, a artifact) e
 	return os.WriteFile(filepath.Join(dir, "README.md"), []byte(readme), 0o644)
 }
 
-func writeUmbrella(src, readme, dir, version string, optional map[string]string) error {
+func writeUmbrella(src, readme, license, dir, version string, optional map[string]string) error {
 	b, err := os.ReadFile(filepath.Join(src, "package.json"))
 	if err != nil {
 		return err
@@ -161,6 +165,9 @@ func writeUmbrella(src, readme, dir, version string, optional map[string]string)
 		return err
 	}
 	if err := copyFile(readme, filepath.Join(dir, "README.md"), 0o644); err != nil {
+		return err
+	}
+	if err := copyFile(license, filepath.Join(dir, "LICENSE"), 0o644); err != nil {
 		return err
 	}
 	return writeJSON(filepath.Join(dir, "package.json"), pkg)

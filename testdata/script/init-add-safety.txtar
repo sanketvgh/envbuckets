@@ -1,0 +1,74 @@
+exec git init -q
+exec git add README .envbuckets.json
+exec git commit -qm initial
+
+# Legacy blocks are replaced once; collisions warn and the safe import succeeds.
+exec envbuckets init
+stderr '.envbuckets.toml is unused'
+stderr 'warning: cannot import ''.env'''
+stdout 'Adding .env.local to bucket ''dev'''
+! stdout SYNTHETIC
+cmp .env real-source
+cmp .env.d/dev/.env bucket-source
+readlink .env.local .env.d/dev/.env.local
+grep -count=1 '# >>> envbuckets >>>' .gitignore
+grep -count=1 '# >>> envbuckets >>>' .git/hooks/post-checkout
+! grep 'envbuckets v1' .gitignore
+! grep 'envbuckets v1' .git/hooks/post-checkout
+! exec envbuckets add .env
+stderr 'fatal: cannot add ''.env'''
+
+# A symlinked .gitignore must not be read or changed, even in dry runs.
+rm .gitignore
+symlink .gitignore -> protected
+! exec envbuckets init -n
+stderr 'fatal: path ".gitignore" is a symlink'
+! exec envbuckets init
+! exec envbuckets add -n file.json
+! exec envbuckets add file.json
+cmp protected protected-before
+regular file.json
+! exists .env.d/dev/file.json
+rm .gitignore
+
+# The source stays real when the bucket directory is a symlink.
+mv .env.d/dev .env.d/old
+symlink .env.d/dev -> old
+! exec envbuckets init -n
+! exec envbuckets init
+regular .env
+cmp .env real-source
+cmp .env.d/old/.env bucket-source
+
+-- README --
+synthetic fixture
+-- .envbuckets.json --
+{"default":"dev","rules":[]}
+-- .envbuckets.toml --
+unused synthetic legacy config
+-- .gitignore --
+# user rule
+# >>> envbuckets v1 >>>
+old.env
+# <<< envbuckets v1 <<<
+-- .git/hooks/post-checkout --
+#!/bin/sh
+# >>> envbuckets v1 >>>
+echo old
+# <<< envbuckets v1 <<<
+-- .env --
+SYNTHETIC_REAL
+-- real-source --
+SYNTHETIC_REAL
+-- .env.d/dev/.env --
+SYNTHETIC_BUCKET
+-- bucket-source --
+SYNTHETIC_BUCKET
+-- .env.local --
+SYNTHETIC_LOCAL
+-- file.json --
+SYNTHETIC_ADD
+-- protected --
+SYNTHETIC_PROTECTED
+-- protected-before --
+SYNTHETIC_PROTECTED

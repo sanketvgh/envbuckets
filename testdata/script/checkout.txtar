@@ -1,0 +1,88 @@
+# Real Git checkouts run the installed hook and follow glob rules.
+exec git init -q
+exec git add README .envbuckets.json
+exec git commit -qm initial
+exec envbuckets switch
+install-hook
+exec git switch -qc release/1.2/rc1
+stderr 'envbuckets: Switched to bucket ''prod'''
+stderr 'rule ''release/\*\*'''
+readlink .env .env.d/prod/.env
+! exists dev-only
+exec git switch -qc release/2.0
+! stdout .
+! stderr .
+
+# Branch checkout resets a manual override, even when both branches use dev.
+exec git switch -q main
+stderr 'envbuckets: Switched to bucket ''dev'''
+exec envbuckets switch prod
+exec git switch -qc feature/test
+stderr 'envbuckets: Switched to bucket ''dev'''
+readlink .env .env.d/dev/.env
+
+# File checkout ignores branch mappings and leaves a manual override alone.
+exec envbuckets switch prod
+exec git checkout -- README
+! stderr envbuckets
+readlink .env .env.d/prod/.env
+
+# Missing branch bucket falls back from prod, rather than keeping prod linked.
+exec git switch -qc staging
+stderr 'bucket ''staging'' does not exist; using ''dev'''
+stderr 'envbuckets: Switched to bucket ''dev'''
+readlink .env .env.d/dev/.env
+! exists prod-only
+
+# Broken config warns once and does not block checkout or change links.
+cp bad-config .envbuckets.json
+exec git switch -qc broken
+stderr 'envbuckets: warning: invalid .envbuckets.json: unknown key ''bukcet''; links not changed'
+readlink .env .env.d/dev/.env
+cp good-config .envbuckets.json
+
+# Detached HEAD is silent; explicit switching still works.
+exec git checkout -q --detach
+! stderr envbuckets
+! exec envbuckets switch
+stderr 'HEAD is detached'
+exec envbuckets switch prod
+readlink .env .env.d/prod/.env
+! stderr 'This branch uses'
+exec git switch -q main
+stderr 'envbuckets: Switched to bucket ''dev'''
+
+# Blocked paths are reported without failing Git; other links still switch.
+rm .env
+cp real .env
+exec git switch -q release/2.0
+stderr 'envbuckets: error: cannot switch ''.env'''
+cmp .env real
+readlink prod-only .env.d/prod/prod-only
+! exists dev-only
+
+# A missing default does not change the remaining prod links or block checkout.
+mv .env.d/dev .env.d/old-dev
+exec git switch -q staging
+stderr 'default bucket ''dev'' does not exist; links not changed'
+readlink prod-only .env.d/prod/prod-only
+cmp .env real
+
+-- README --
+fixture
+-- .envbuckets.json --
+{"default":"dev","rules":[{"branch":"release/**","bucket":"prod"},{"branch":"staging","bucket":"staging"}]}
+-- good-config --
+{"default":"dev","rules":[{"branch":"release/**","bucket":"prod"},{"branch":"staging","bucket":"staging"}]}
+-- bad-config --
+{"default":"dev","bukcet":"prod"}
+-- .env.d/dev/.env --
+SYNTHETIC_SECRET_DEV
+-- .env.d/dev/dev-only --
+synthetic dev file
+-- .env.d/prod/.env --
+SYNTHETIC_SECRET_PROD
+-- .env.d/prod/prod-only --
+synthetic prod file
+-- real --
+keep this real file

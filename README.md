@@ -1,257 +1,242 @@
 # envbuckets
 
-**Stop copy-pasting `.env` files every time you switch branches.**
-
 [![ci](https://github.com/sanketvgh/envbuckets/actions/workflows/ci.yml/badge.svg)](https://github.com/sanketvgh/envbuckets/actions/workflows/ci.yml)
 [![codeql](https://github.com/sanketvgh/envbuckets/actions/workflows/codeql.yml/badge.svg)](https://github.com/sanketvgh/envbuckets/actions/workflows/codeql.yml)
 [![dependency review](https://github.com/sanketvgh/envbuckets/actions/workflows/dependency-review.yml/badge.svg)](https://github.com/sanketvgh/envbuckets/actions/workflows/dependency-review.yml)
 [![npm](https://img.shields.io/npm/v/envbuckets?label=npm)](https://www.npmjs.com/package/envbuckets)
 [![release](https://img.shields.io/github/v/release/sanketvgh/envbuckets?include_prereleases&label=release)](https://github.com/sanketvgh/envbuckets/releases)
 [![downloads](https://img.shields.io/npm/dm/envbuckets)](https://www.npmjs.com/package/envbuckets)
-[![go](https://img.shields.io/github/go-mod/go-version/sanketvgh/envbuckets)](go.mod)
+[![go](https://img.shields.io/github/go-mod/go-version/sanketvgh/envbuckets)](https://github.com/sanketvgh/envbuckets/blob/main/go.mod)
 [![node](https://img.shields.io/node/v/envbuckets)](https://www.npmjs.com/package/envbuckets)
 [![platforms](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20windows-blue)](https://github.com/sanketvgh/envbuckets/releases)
-[![license](https://img.shields.io/github/license/sanketvgh/envbuckets)](LICENSE)
+[![license](https://img.shields.io/github/license/sanketvgh/envbuckets)](https://github.com/sanketvgh/envbuckets/blob/main/LICENSE)
 [![website](https://img.shields.io/badge/heysanket.com-333?logo=googlechrome&logoColor=white)](https://heysanket.com)
 [![x](https://img.shields.io/badge/x-@sanketvgh-000?logo=x&logoColor=white)](https://x.com/sanketvgh)
 [![linkedin](https://img.shields.io/badge/linkedin-sanketvgh-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/sanketvgh)
 
 > [!WARNING]
-> **Early alpha, under active development.**
-> Commands and config may change. Star or watch the repo to stay tuned.
+> Early alpha, under active development. Commands and config may change.
+> Star or watch the repo to stay tuned.
 
-envbuckets keeps one `.env` file per bucket (`dev`, `staging`, `prod`) and
-points `.env` at the right one for the branch you are on. A git hook does
-the switch every time you check out a branch. It never inspects or prints
-the values in your env files.
+Keep one set of local files per environment. envbuckets links the right set into
+your project when you switch Git branches. It works with `.env` files, service
+accounts, and other local settings without reading or printing their contents.
 
-```text
-.env -> .env.d/staging/.env      # on main
-.env -> .env.d/prod/.env         # on release/*
-```
+## Guarantees
+
+- **Your values stay private.** envbuckets never reads, parses, copies, or prints
+  the contents of managed files.
+- **Switching protects your files.** It leaves ordinary files, tracked paths,
+  and links it doesn't manage alone. It reports the problem so you can fix it.
+- **Bucket files stay in their buckets when you switch.** Only working links
+  change. Imports refuse to overwrite a file already in a bucket.
+- **The CLI works offline.** It never fetches the editor schema or uploads your
+  files. File operations stay inside the repository and unsafe paths are refused.
+- **envbuckets' hook never blocks checkout.** Its hook block exits 0, even when
+  config is broken or a file can't be switched.
+- **A dry run changes nothing.** `-n` shows the plan and known problems without
+  moving files or changing links.
 
 ## Install
 
 ```sh
 npm install -g envbuckets
+envbuckets --version
 ```
 
-Windows, macOS, Linux. Node 18+. No Go required.
-
-On Windows, you need Developer Mode (search for it in Windows Settings) or an
-administrator shell so the tool can create symlinks. `init` checks this before
-installing the hook or writing project configuration.
-
-If `init` reports `this filesystem does not allow symlinks here` or
-`A required privilege is not held by the client`, enable Developer Mode,
-reopen your terminal, and retry. If Developer Mode is unavailable, run
-PowerShell as Administrator and retry. This preflight failure leaves the
-project unchanged.
-
-## Quick start
+The npm package selects a prebuilt binary for Linux, macOS, or Windows on x64 or
+arm64. Node.js 18 or newer and Git are required. You can also download a binary
+from [GitHub releases](https://github.com/sanketvgh/envbuckets/releases), or build
+with the Go version in `go.mod`:
 
 ```sh
-envbuckets init --into dev          # moves your .env into .env.d/dev/ and installs the hook
-envbuckets bucket add prod          # creates an empty .env.d/prod/.env for you to fill in
-envbuckets map add "*" dev          # catch-all, always kept last
-envbuckets map add "release/*" prod # goes in before the catch-all
-
-git checkout -b release/1.2
-# envbuckets: dev -> prod (release/*) - 1 scope switched
-
-envbuckets check                    # exit 0 only if every .env points where it should
+go install github.com/sanketvgh/envbuckets@latest
 ```
 
-Have a monorepo? `envbuckets scope add apps/api --name api` gives each app
-its own `.env.d/`. The branch rules are shared by all of them.
+On Windows, enable Developer Mode or use an account with symlink privilege.
+`init` checks support before moving files and explains what to enable if needed.
 
-For setup, every command and flag, monorepos, and recovery, see the
-[documentation guide](docs/README.md).
-For automation and coding agents, see [CLI JSON output](docs/agent-integration.md).
+## Start with your local files
 
-## Everyday workflows
-
-**Check before you start services.** `envbuckets check` looks at the
-current branch, works out the bucket it should use, and verifies every
-scope: the folder exists, `.env` is a working link, the bucket file exists,
-and the active bucket is the expected one. It exits 0 only when all of that
-holds, so it fits in a `predev` script:
+From a Git repository with an untracked `.env`:
 
 ```sh
-envbuckets check && npm run dev
+envbuckets init -n            # preview setup
+envbuckets init               # import .env and .env.* files; install the hook
+envbuckets switch -c prod     # create empty files at the same paths in prod
+# Fill in the new files using your editor.
+envbuckets switch            # return to this branch's bucket
+envbuckets add apps/api/service-account.json
 ```
 
-It checks structure, not values. A bucket file that exists can still hold
-wrong or empty values.
+`init` moves local environment files into `.env.d/dev/` and leaves relative
+symlinks at their working paths. It skips tracked files such as `.env.example`
+and ignored directories such as `node_modules/`. Editing a linked file edits
+the active bucket's file. `add` manages any other local file.
 
-**Apply after changing things.** Changed a rule, filled in a bucket that
-was missing, or deleted a broken `.env`? `envbuckets apply` points every
-scope at the current branch's bucket without another checkout. Preview first
-with `--dry-run`, which writes nothing and returns the same exit code. Limit
-either one with `--scope <name>`.
-
-**Clone a repo that already uses envbuckets.** The rules are committed, the
-values are not:
-
-```sh
-envbuckets init --scaffold          # hook + an empty file for every bucket the rules name
-# fill .env.d/<bucket>/.env in your editor
-envbuckets apply
-```
-
-`--scaffold` never overwrites a file, never creates missing app folders,
-and never switches to an empty file for you. Have a real `.env` already?
-`envbuckets init --scaffold --into dev` moves it into `dev` first and
-creates the rest empty.
-
-**Edit rules.** Rules are checked top to bottom and the first match wins.
-
-```sh
-envbuckets map update "release/*" staging           # new bucket, same position
-envbuckets map move "release/hotfix-*" --before "release/*"
-envbuckets map explain release/2.0                  # which rule wins, and is the file there?
-```
-
-`map explain` works for branches you have not created yet and changes
-nothing.
-
-**Pin one branch.** `envbuckets link prod` pins the current branch (or
-`--branch <name>`) to a bucket. A pin beats every rule, in `check`,
-`status`, `apply`, `map explain`, and the hook. It is stored in
-`.git/config`, so it stays on your machine. `envbuckets unlink` removes it.
-
-**Work across a monorepo.**
-
-```sh
-envbuckets bucket add qa --all      # empty .env.d/qa/.env in every existing app scope
-envbuckets bucket list --all        # which bucket exists in which app
-envbuckets use qa --all             # switch every app by hand until the next checkout
-```
+For an existing config, `init` imports into its `default` bucket. `add` uses
+the bucket your working links currently point to. Create the file at its normal
+project path before adding it. See [setup and adding files](https://github.com/sanketvgh/envbuckets/blob/main/docs/setup.md)
+for fresh clones, multiple files, and import problems.
 
 ```text
-bucket   root     api      web      used by
-dev      active   active   active   rule *
-prod     present  present  missing  rule release/*
-qa       present  present  present  pin feature/qa
+your-project/
+|-- .envbuckets.json            shared rules; commit this
+|-- .gitignore                  ignore rules; commit this
+|-- .env ----------------------> .env.d/dev/.env
+`-- .env.d/                     private files; ignored by Git
+    |-- dev/
+    |   `-- .env                real file; edited through .env
+    `-- prod/
+        `-- .env                a separate file for prod
 ```
 
-`present` means the file exists. Its contents are never checked.
+Commit `.envbuckets.json` and `.gitignore`. Keep `.env.d/` out of Git. Teammates
+run `envbuckets init` after cloning, create their own local files, then add them.
+Rerunning `init` preserves existing setup and imports new environment files.
 
-**Remove an app.** `envbuckets scope rm web` unregisters the app but keeps
-its `.env.d/` and the `.gitignore` lines that hide it. When you want the
-values gone, `envbuckets scope purge apps/web` deletes `apps/web/.env.d/`
-after you type `DELETE`. It only works on a folder that is no longer
-registered, refuses paths outside the repo or through symlinks, and leaves
-a real `.env` in place.
+In a monorepo, files keep their paths inside each bucket: `apps/api/.env` becomes
+`.env.d/dev/apps/api/.env`. One branch mapping chooses the bucket for the whole
+repository. See the [monorepo guide](https://github.com/sanketvgh/envbuckets/blob/main/docs/monorepos.md)
+for a complete layout and setup.
 
-## How it works
+Older `.envbuckets.toml` configs are unused. Remove that config and run `init`;
+resolve any reported path collisions before importing files. There is no
+automatic migration.
+
+## Map branches to buckets
+
+Edit `.envbuckets.json`:
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/sanketvgh/envbuckets/main/schema/envbuckets.schema.json",
+  "default": "dev",
+  "rules": [
+    { "branch": "main", "bucket": "staging" },
+    { "branch": "release/**", "bucket": "prod" },
+    { "branch": "hotfix/[0-9]*", "bucket": "prod" }
+  ]
+}
+```
+
+The first matching rule wins; otherwise `default` is used. Patterns match the
+whole branch name and are case-sensitive. `*` and `?` stop at `/`, `**` crosses
+it, and `release/` means `release/**`. Sets, character classes, and backslash
+escapes follow Git glob rules. List separate rules for separate names.
+
+When the mapped bucket exists, checking out a branch updates the working links:
 
 ```text
-your-repo/
-|-- .env -> .env.d/dev/.env      symlink, ignored by git
-|-- .env.d/                      ignored by git
-|   |-- dev/
-|   |   `-- .env                 a real file with your local values
-|   `-- prod/
-|       `-- .env
-|-- .envbuckets.toml             committed, maps branch patterns to buckets
-`-- .git/
-    `-- hooks/
-        `-- post-checkout        runs `envbuckets hook`
++-----------------------------+
+| git switch release/2.0      |
++--------------+--------------+
+               |
+               v
++-----------------------------+
+| Checkout hook reads rules   |
+| release/** -> prod          |
++--------------+--------------+
+               |
+               v
++-----------------------------+
+| .env -> .env.d/prod/.env    |
++-----------------------------+
 ```
 
-In a monorepo each scope has its own `.env.d/`, and there is one shared rule
-file:
+Your files stay in their buckets. The hook changes which files the working
+links point to.
 
-```text
-your-repo/
-|-- .envbuckets.toml             rules and scopes
-|-- apps/
-|   |-- api/
-|   |   |-- .env -> .env.d/dev/.env
-|   |   `-- .env.d/
-|   |       |-- dev/.env
-|   |       `-- prod/.env
-|   `-- web/
-|       |-- .env -> .env.d/dev/.env
-|       `-- .env.d/
-|           |-- dev/.env
-|           `-- prod/.env
-`-- .git/hooks/post-checkout
+Check a mapping before the branch exists:
+
+```sh
+envbuckets branches release/2.0/rc1
+envbuckets branches 'release/**'       # quote patterns to avoid shell expansion
+envbuckets branches --bucket prod
 ```
 
-- **Bucket**: a named set of values. It is just a folder `.env.d/<name>/`
-  with a real `.env` inside.
-- **Rule**: a branch pattern that points to a bucket. `*` matches anything,
-  including `/`. The first rule that matches wins. Rules are committed, so
-  the whole team shares them. The values are never committed.
-- **Link**: a pin from one branch to a bucket, set with `envbuckets link`.
-  It wins over the rules and lives in `.git/config`, so it is never
-  committed. Renaming or deleting the branch carries or drops it.
-- **Scope**: a folder that has its own `.env`. A normal repo has one scope,
-  the root. A monorepo adds one scope per app.
+`init` writes `$schema` into new configs. VS Code and other JSON Schema editors
+use that URL for descriptions, completion, and validation. If your editor does
+not automatically recognize it, associate `.envbuckets.json` with the same URL
+in its JSON Schema settings. The CLI validates config locally and never fetches
+the schema. The URL follows `main`, which remains the published schema branch.
 
 ## Commands
 
-| Command                                    | What it does                                                                                                         |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
-| `init [--into <bucket>] [--scaffold]`      | Move your `.env` into a bucket, install the hook, update `.gitignore`. `--scaffold` creates rule buckets             |
-| `status`                                   | Show the branch, the pin or rule that matched, and each scope's active and expected bucket                           |
-| `check [--scope <name>]`                   | Exit 0 only if every scope is on the expected bucket and its file exists                                             |
-| `apply [--scope <name>] [--dry-run]`       | Point scopes at the current branch's bucket now, repairing missing links                                             |
-| `use <bucket> [--scope <name> \| --all]`   | Switch by hand. The next checkout that matches a rule switches it back                                               |
-| `link <bucket>`                            | Pin the current branch (or `--branch <name>`) to a bucket. Overrides rules, stays local to your clone                |
-| `unlink`                                   | Remove the pin so the rules apply again                                                                              |
-| `bucket add\|rm\|list`                     | Add, remove, or list buckets in the current scope. `add` and `list` take `--all`                                     |
-| `map add\|update\|move\|rm\|list\|explain` | Edit, reorder, list, or explain branch rules                                                                         |
-| `scope add\|rm\|purge\|list`               | Add, remove, or list scopes (for monorepos). `purge` deletes data a removed scope left behind                        |
-| `uninstall [--purge]`                      | Move the active bucket file to a real `.env` and remove the hook. `--purge` also deletes `.env.d/` after you confirm |
+| Command                                               | Behavior                                                                                                  |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `init [-n]`                                           | Set up config, the default bucket, ignores, and the hook; import local environment files.                 |
+| `add [-n] <file>...`                                  | Move files into the current bucket and leave links; validate every path before changing any.              |
+| `switch [-n] [<bucket>]`                              | Use a bucket now, or return to the branch's bucket without a name.                                        |
+| `switch [-n] -c <bucket>`                             | Create empty files at the current bucket's paths, then switch.                                            |
+| `status`                                              | Show the active bucket, mapping, and paths needing attention.                                             |
+| `branches [--bucket <name>] [<branch or pattern>...]` | List current and rule-matched branches, check future names, or filter local branches. Use `'**'` for all. |
+| `uninstall [-n]`                                      | Move active files back to their working paths and remove the hook; keep other buckets.                    |
+| `help`, `--version`                                   | Show command help or the installed version.                                                               |
 
-The documented commands explain themselves with `--help`, for example
-`envbuckets map move --help`.
+`-n` / `--dry-run` lists planned changes without applying them. Reports write
+to stdout; warnings, hints, and errors use stderr. Output is plain when piped.
+Set `NO_COLOR` to any non-empty value to disable terminal color. Exit codes are
+0 for success, 1 for an operation error, and 2 for invalid usage.
 
-**Exit codes.** `0` ok, `1` blocked or incomplete, `2` config missing or
-unreadable, `3` usage error, `4` environment problem (not a git repo, no
-symlink support). `apply`, `use --all`, and `bucket add --all` keep going
-past a scope that fails and return `1` when any scope fails. `check` returns
-`1` when any selected scope is unready. `init --scaffold` skips missing scope
-directories and returns `1` if a bucket file could not be created. The scopes
-that succeeded keep their changes: each link swap is atomic, the set of
-them is not.
+## Switching and recovery
 
-## Guarantees
+The checkout hook follows branch rules automatically. A manual `switch prod`
+lasts until plain `switch` or the next branch checkout. Files absent from the
+target bucket lose their working links; their bucket files stay in place.
 
-- **It never reads your values.** No command reads, prints, or parses the
-  contents of an env file. Files are only moved, linked, or checked to see
-  if they exist.
-- **You never lose an env.** If the bucket file for the new branch is
-  missing, the scope keeps its current link and prints a warning. Each swap
-  is atomic, so `.env` never disappears, even if the process is killed
-  halfway.
-- **It never replaces your own files.** A real `.env`, or a `.env` symlink
-  pointing outside `.env.d/`, is reported and left alone by the hook,
-  `apply`, and `use`. No command writes over an existing bucket file.
-- **Bucket paths stay in the repo.** Symlinked scope and bucket directories are
-  refused, and a symlinked bucket `.env` is not counted as a bucket file.
-  `bucket rm` needs `--purge` and typed confirmation if the directory holds
-  anything beyond an empty `.env`.
-- **It never blocks a checkout.** The hook always exits 0 and never creates,
-  moves, or deletes files.
-- **It stays inside the repo and offline.** No `$HOME`, no temp folders, no
-  network. A Git hooks path outside the repo or through a symlink is refused.
-- **You can always remove it.** `uninstall` never reads the config, so a
-  broken config cannot lock you in.
+If a branch bucket is missing, the hook and plain `switch` use the default and
+warn. If the default is also missing, links stay as they are. A detached HEAD
+leaves links alone; choose a bucket explicitly if needed. The envbuckets hook
+never blocks checkout. Hooks configured outside the repository are refused.
 
-## Development
+Existing hooks are preserved, with envbuckets appended in a marked block. An
+earlier `exit` in another hook can prevent that block from running. If another
+tool replaces the hook, `status` reports it; rerun `init` to reinstall the block.
+
+Real files, foreign symlinks, tracked paths, and unsafe paths are preserved.
+`status` reports problems. Resolve the blocking path, then rerun `switch` to
+repair links and finish an interrupted switch. On Windows, Go uses one
+`MoveFileEx(MOVEFILE_REPLACE_EXISTING)` call for rename, without a delete step
+in envbuckets. Microsoft does not document it as atomic, so rerunning is the
+recovery mechanism. See [Go's implementation](https://go.dev/src/internal/syscall/windows/syscall_windows.go)
+and [Microsoft's API documentation](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexw).
+
+For common setup errors and blocked links, see the
+[troubleshooting guide](https://github.com/sanketvgh/envbuckets/blob/main/docs/troubleshooting.md).
+
+## Uninstall
+
+First, run these commands in each project where you use envbuckets:
 
 ```sh
-task check              # lint, unit tests, and real-Git integration tests
-task test:integration   # scripts need symlinks; use Linux or WSL if unavailable on Windows
-task playground         # build and install a local npm snapshot in ./playground
-task bench              # time the hook with hyperfine (Linux or WSL)
-task bench:compare BASE=main
+envbuckets uninstall -n       # preview
+envbuckets uninstall          # restore active files and remove the checkout hook
 ```
 
-## License
+The config, ignore rules, and other buckets are kept. Keep any bucket files you
+still need. See [leaving envbuckets](https://github.com/sanketvgh/envbuckets/blob/main/docs/uninstall.md)
+if a file could not be restored. Resolve any errors before removing the CLI.
 
-[MIT](LICENSE)
+Then remove the CLI. For a global npm install:
+
+```sh
+npm uninstall -g envbuckets
+```
+
+For a downloaded binary or `go install`, remove the installed `envbuckets`
+executable (`envbuckets.exe` on Windows) from the directory where you installed
+it. Removing the CLI does not restore project files or remove project hooks;
+run `envbuckets uninstall` in those projects first.
+
+## More detail
+
+- [All user guides](https://github.com/sanketvgh/envbuckets/blob/main/docs/index.md)
+- [Setup and adding files](https://github.com/sanketvgh/envbuckets/blob/main/docs/setup.md)
+- [Monorepos](https://github.com/sanketvgh/envbuckets/blob/main/docs/monorepos.md)
+- [Troubleshooting](https://github.com/sanketvgh/envbuckets/blob/main/docs/troubleshooting.md)
+- [Switching buckets](https://github.com/sanketvgh/envbuckets/blob/main/docs/switch.md)
+- [Status and branch mappings](https://github.com/sanketvgh/envbuckets/blob/main/docs/status.md)
+- [Leaving envbuckets](https://github.com/sanketvgh/envbuckets/blob/main/docs/uninstall.md)
+- [Contributor checks](https://github.com/sanketvgh/envbuckets/blob/main/docs-eb/DEVELOPMENT.md)
+- [Acceptance coverage](https://github.com/sanketvgh/envbuckets/blob/main/docs-eb/ACCEPTANCE.md)

@@ -1,13 +1,16 @@
 {
-  "name": "envbuckets-dev",
+  "name": "envbuckets",
   "private": true,
-  "packageManager": "pnpm@11.15.0",
-  "description": "Repo tooling only. The published package lives in npm/.",
+  "description": "Formatting and schema validation tools for envbuckets.",
+  "license": "MIT",
   "scripts": {
     "fmt": "oxfmt \"**/*.md\"",
-    "fmt:check": "oxfmt --check \"**/*.md\""
+    "fmt:check": "oxfmt --check \"**/*.md\"",
+    "validate:schema": "node tools/validate-config-schema.mjs"
   },
   "devDependencies": {
-    "oxfmt": "0.71.0"
-  }
+    "ajv": "8.20.0",
+    "oxfmt": "0.72.0"
+  },
+  "packageManager": "pnpm@12.9.1"
 }

@@ -1,0 +1,101 @@
+# Real-Git setup, ignored-file discovery, add, create, and checkout reset.
+exec git init -q
+exec git add README .env.example
+exec git commit -qm initial
+
+exec envbuckets init -n
+stdout 'Would create .envbuckets.json'
+stdout 'Would create bucket ''dev'''
+stdout 'Would add .env to bucket ''dev'''
+stdout 'Would add apps/web/.env.local to bucket ''dev'''
+! stdout node_modules
+! stdout .env.example
+regular .env
+regular apps/web/.env.local
+! exists .envbuckets.json
+! exists .env.d
+
+exec envbuckets init
+stdout 'Adding .env to bucket ''dev'''
+stdout 'Adding apps/web/.env.local to bucket ''dev'''
+stdout 'Initialized envbuckets in '
+! stdout SYNTHETIC
+! stderr SYNTHETIC
+readlink .env .env.d/dev/.env
+readlink apps/web/.env.local ../../.env.d/dev/apps/web/.env.local
+regular .env.example
+regular node_modules/deep/.env
+exec git check-ignore .env apps/web/.env.local .env.d/dev/.env
+
+cp .envbuckets.json config-before
+cp .gitignore ignore-before
+cp .git/hooks/post-checkout hook-before
+exec envbuckets init
+cmp .envbuckets.json config-before
+cmp .gitignore ignore-before
+cmp .git/hooks/post-checkout hook-before
+exec envbuckets init -n
+! stdout .
+
+# Check all add paths first; a bad path leaves the good file intact.
+! exec envbuckets add -n apps/api/key.json missing.json
+stderr 'fatal: cannot add ''missing.json'''
+! exec envbuckets add apps/api/key.json missing.json
+regular apps/api/key.json
+! exists .env.d/dev/apps/api/key.json
+cmp .gitignore ignore-before
+! exec envbuckets add .env.example
+stderr 'fatal: cannot add ''.env.example'': it is tracked by Git'
+! exec envbuckets add .env
+stderr 'fatal: cannot add ''.env'''
+! exec envbuckets add apps/api
+
+cd apps/api
+exec envbuckets add -n key.json
+stdout 'Would add apps/api/key.json to bucket ''dev'''
+regular key.json
+exec envbuckets add key.json
+! stdout .
+! stderr .
+readlink key.json ../../.env.d/dev/apps/api/key.json
+cd ../..
+exec git check-ignore apps/api/key.json
+
+exec envbuckets switch -n -c prod
+stdout 'Would create bucket ''prod'''
+stdout 'Would create empty .env.d/prod/apps/api/key.json'
+! exists .env.d/prod
+readlink .env .env.d/dev/.env
+exec envbuckets switch -c prod
+stdout '^Switched to a new bucket ''prod''$'
+stderr 'This branch uses ''dev'''
+cmp .env.d/prod/.env empty
+cmp .env.d/prod/apps/api/key.json empty
+cmp .env.d/prod/apps/web/.env.local empty
+cmp .env.d/dev/.env original-env
+readlink .env .env.d/prod/.env
+! exec envbuckets switch -c prod
+stderr 'fatal: a bucket named ''prod'' already exists'
+exec git switch -qc feature/test
+stderr 'envbuckets: Switched to bucket ''dev'''
+readlink .env .env.d/dev/.env
+
+-- README --
+synthetic fixture
+-- .gitignore --
+.env
+.env.local
+node_modules/
+-- .env --
+SYNTHETIC_ENV
+-- original-env --
+SYNTHETIC_ENV
+-- .env.example --
+SYNTHETIC_TRACKED
+-- apps/web/.env.local --
+SYNTHETIC_LOCAL
+-- apps/api/key.json --
+SYNTHETIC_KEY
+-- node_modules/deep/.env --
+SYNTHETIC_IGNORED
+-- empty --

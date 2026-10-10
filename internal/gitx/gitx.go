@@ -1,15 +1,13 @@
-// Package gitx shells out to git for the repo root, current branch, hooks
-// directory, and per-branch bucket links in the local git config.
+// Package gitx shells out to git for the repo root, current branch, and hooks
+// directory.
 package gitx
 
 import (
 	"bytes"
 	"errors"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 )
 
@@ -27,18 +25,37 @@ func Root(dir string) (string, error) {
 
 // Branch returns the checked-out branch name, or "" on detached HEAD.
 func Branch(root string) (string, error) {
-	out, err := run(root, "symbolic-ref", "--short", "-q", "HEAD")
+	out, err := run(root, "symbolic-ref", "-q", "HEAD")
 	if err != nil {
 		if exitCode(err) == 1 {
 			return "", nil
 		}
 		return "", err
 	}
-	return out, nil
+	return strings.TrimPrefix(out, "refs/heads/"), nil
 }
 
-// HooksDir returns the hooks directory only when the hook and all existing
-// parent components are ordinary paths inside the work tree.
+// Branches reads all short local branch names in sorted order with one Git call.
+func Branches(root string) ([]string, error) {
+	out, err := run(root, "for-each-ref", "--sort=refname", "--format=%(refname:strip=2)", "refs/heads/")
+	if err != nil {
+		return nil, err
+	}
+	if out == "" {
+		return nil, nil
+	}
+	return strings.Split(strings.ReplaceAll(out, "\r\n", "\n"), "\n"), nil
+}
+
+// DetachedName describes a detached HEAD using an exact tag or a short commit.
+func DetachedName(root string) (string, error) {
+	if tag, err := run(root, "describe", "--tags", "--exact-match", "HEAD"); err == nil {
+		return tag, nil
+	}
+	return run(root, "rev-parse", "--short", "HEAD")
+}
+
+// HooksDir returns the absolute hooks directory, honoring core.hooksPath.
 func HooksDir(root string) (string, error) {
 	out, err := run(root, "rev-parse", "--git-path", "hooks")
 	if err != nil {
@@ -48,99 +65,56 @@ func HooksDir(root string) (string, error) {
 	if !filepath.IsAbs(p) {
 		p = filepath.Join(root, p)
 	}
-	p = filepath.Clean(p)
-	if err := checkLocalHookPath(root, filepath.Join(p, "post-checkout")); err != nil {
+	return filepath.Clean(p), nil
+}
+
+// CommonDir returns Git's shared metadata directory, including in a linked worktree.
+func CommonDir(root string) (string, error) {
+	out, err := run(root, "rev-parse", "--git-common-dir")
+	if err != nil {
 		return "", err
 	}
-	return p, nil
+	p := filepath.FromSlash(out)
+	if !filepath.IsAbs(p) {
+		p = filepath.Join(root, p)
+	}
+	return filepath.Clean(p), nil
 }
 
-func checkLocalHookPath(root, hook string) error {
-	rel, err := filepath.Rel(root, hook)
-	if err != nil || rel == ".." || filepath.IsAbs(rel) || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return fmt.Errorf("git hooks path %s is outside the repository", hook)
-	}
-	current := root
-	for _, part := range strings.Split(rel, string(filepath.Separator)) {
-		current = filepath.Join(current, part)
-		info, err := os.Lstat(current)
-		if errors.Is(err, os.ErrNotExist) {
-			continue
-		}
+// LocalFiles lists untracked files, including ignored files but never descending
+// into wholly ignored directories. Directory entries and nested repositories
+// from Git's --directory output are intentionally omitted.
+func LocalFiles(root string) ([]string, error) {
+	var files []string
+	for _, extra := range [][]string{nil, {"--ignored", "--directory"}} {
+		args := append([]string{"ls-files", "--others", "--exclude-standard", "-z"}, extra...)
+		out, err := run(root, args...)
 		if err != nil {
-			return fmt.Errorf("inspect git hook path %s: %w", current, err)
+			return nil, err
 		}
-		if info.Mode()&os.ModeSymlink != 0 {
-			return fmt.Errorf("git hook path %s contains a symlink", current)
+		for name := range strings.SplitSeq(out, "\x00") {
+			if name != "" && !strings.HasSuffix(name, "/") {
+				files = append(files, name)
+			}
 		}
 	}
-	return nil
+	return files, nil
 }
 
-// BranchExists reports whether branch is a local branch.
-func BranchExists(root, branch string) bool {
-	_, err := run(root, "show-ref", "--verify", "--quiet", "refs/heads/"+branch)
-	return err == nil
-}
-
-// BranchLink is a branch pinned to a bucket in the local git config.
-type BranchLink struct {
-	Branch string
-	Bucket string
-}
-
-const linkVar = "envbuckets"
-
-func linkKey(branch string) string {
-	return "branch." + branch + "." + linkVar
-}
-
-// LinkedBucket returns the bucket linked to branch, or "" when none is.
-func LinkedBucket(root, branch string) (string, error) {
-	out, err := run(root, "config", "--local", "--get", linkKey(branch))
+// Ignored reports whether Git ignores a literal repository-relative path.
+func Ignored(root, name string) (bool, error) {
+	_, err := run(root, "check-ignore", "--no-index", "-q", "--", name)
+	if err == nil {
+		return true, nil
+	}
 	if exitCode(err) == 1 {
-		return "", nil
-	}
-	return out, err
-}
-
-// SetLink links branch to bucket in the local git config.
-func SetLink(root, branch, bucket string) error {
-	_, err := run(root, "config", "--local", linkKey(branch), bucket)
-	return err
-}
-
-// Unlink removes the link of branch and reports whether one existed.
-func Unlink(root, branch string) (bool, error) {
-	_, err := run(root, "config", "--local", "--unset-all", linkKey(branch))
-	if exitCode(err) == 5 {
 		return false, nil
 	}
-	return err == nil, err
-}
-
-// Links returns every branch link in the local git config, sorted by branch.
-func Links(root string) ([]BranchLink, error) {
-	out, err := run(root, "config", "--local", "--get-regexp", `^branch\..*\.`+linkVar+`$`)
-	if exitCode(err) == 1 {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	var links []BranchLink
-	for _, line := range strings.Split(out, "\n") {
-		key, bucket, _ := strings.Cut(line, " ")
-		branch := strings.TrimSuffix(strings.TrimPrefix(key, "branch."), "."+linkVar)
-		links = append(links, BranchLink{Branch: branch, Bucket: bucket})
-	}
-	sort.Slice(links, func(i, j int) bool { return links[i].Branch < links[j].Branch })
-	return links, nil
+	return false, err
 }
 
 func exitCode(err error) int {
-	var exit *exec.ExitError
-	if errors.As(err, &exit) {
+	if exit, ok := errors.AsType[*exec.ExitError](err); ok {
 		return exit.ExitCode()
 	}
 	return 0
@@ -158,5 +132,8 @@ func run(dir string, args ...string) (string, error) {
 		}
 		return "", fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
 	}
-	return strings.TrimSpace(stdout.String()), nil
+	if len(args) > 0 && args[0] == "ls-files" {
+		return stdout.String(), nil // NUL-delimited filenames may contain whitespace.
+	}
+	return strings.TrimRight(stdout.String(), "\r\n"), nil
 }

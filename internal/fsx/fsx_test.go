@@ -1,7 +1,6 @@
 package fsx
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,11 +25,17 @@ func TestWriteFileAtomic(t *testing.T) {
 	if err := WriteFileAtomic(path, []byte("two"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	data, _ := os.ReadFile(path)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if string(data) != "two" {
 		t.Fatalf("got %q", data)
 	}
-	entries, _ := os.ReadDir(dir)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, e := range entries {
 		if strings.HasPrefix(e.Name(), ".envbuckets-") {
 			t.Fatalf("temp file left behind: %s", e.Name())
@@ -63,7 +68,10 @@ func TestSetSymlinkFastPathAndSwap(t *testing.T) {
 	if err != nil || !st.IsSymlink || st.Target != "b" || !st.Dangling {
 		t.Fatalf("inspect: %+v %v", st, err)
 	}
-	entries, _ := os.ReadDir(stage)
+	entries, err := os.ReadDir(stage)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(entries) != 0 {
 		t.Fatalf("stage dir not clean: %v", entries)
 	}
@@ -85,22 +93,21 @@ func TestInspectRealAndMissing(t *testing.T) {
 	}
 }
 
-func TestReadRegularFileRefusesSymlink(t *testing.T) {
+func TestCopyFileAtomic(t *testing.T) {
 	dir := t.TempDir()
-	requireSymlinks(t, dir)
-	secret := filepath.Join(dir, ".env")
-	if err := os.WriteFile(secret, []byte("SYNTHETIC_SECRET=1\n"), 0o600); err != nil {
+	src := filepath.Join(dir, "src")
+	dst := filepath.Join(dir, "dst")
+	if err := os.WriteFile(src, []byte("payload"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	link := filepath.Join(dir, ".gitignore")
-	if err := os.Symlink(".env", link); err != nil {
+	if err := CopyFileAtomic(src, dst, dir, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ReadRegularFile(link); !errors.Is(err, ErrNotRegular) {
-		t.Fatalf("symlinked file was accepted: %v", err)
+	data, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatal(err)
 	}
-	data, err := ReadRegularFile(secret)
-	if err != nil || string(data) != "SYNTHETIC_SECRET=1\n" {
-		t.Fatalf("ordinary file could not be read: %v", err)
+	if string(data) != "payload" {
+		t.Fatalf("got %q", data)
 	}
 }
