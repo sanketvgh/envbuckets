@@ -203,11 +203,11 @@ func TestAddCurrentBucketSubdirectoryAndDryRun(t *testing.T) {
 	r.write("apps/api/key.json", "SYNTHETIC_ADD")
 	r.write("literal[1].json", "SYNTHETIC_LITERAL")
 	before := snapshotRepo(t, r)
-	dry := r.runIn(r.path("apps/api"), "", "add", "-n", "key.json", "key.json")
+	dry := r.runIn(r.path("apps/api"), "add", "-n", "key.json", "key.json")
 	if dry.code != ExitOK || dry.stdout != "Would add apps/api/key.json to bucket 'prod'\nWould update .gitignore\n" || !reflect.DeepEqual(before, snapshotRepo(t, r)) {
 		t.Fatalf("dry: %+v", dry)
 	}
-	res := r.runIn(r.path("apps/api"), "", "add", "key.json")
+	res := r.runIn(r.path("apps/api"), "add", "key.json")
 	if res.code != ExitOK || res.all() != "" {
 		t.Fatalf("add: %+v", res)
 	}

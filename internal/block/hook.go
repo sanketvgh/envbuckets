@@ -15,24 +15,44 @@ import (
 // InstallRepoHook installs into Git's actual hooks directory. Linked worktrees
 // may use their shared Git metadata directory; unrelated shared hooks are refused.
 func InstallRepoHook(repoPath string) (HookResult, error) {
-	_, result, err := repoHook(repoPath, false, false)
+	_, result, err := repoHook(repoPath, hookInstall)
 	return result, err
 }
 
 // PreviewRepoHook performs installation preflight without writing anything.
 // The path is relative to the worktree when possible, for dry-run output.
 func PreviewRepoHook(repoPath string) (string, HookResult, error) {
-	return repoHook(repoPath, true, false)
+	return repoHook(repoPath, hookPreview)
 }
 
 // RepoHookInstalled checks the marker block using the installer's contained
 // metadata path checks. Missing or truncated blocks are reported as absent.
 func RepoHookInstalled(repoPath string) (bool, error) {
-	_, result, err := repoHook(repoPath, true, true)
+	_, result, err := repoHook(repoPath, hookInspect)
 	return result == HookUnchanged && err == nil, err
 }
 
-func repoHook(repoPath string, dry, inspect bool) (string, HookResult, error) {
+// RemoveRepoHook removes only complete, exactly matched current or alpha v1
+// blocks from Git's validated hook path. A dry run performs the same inspection.
+func RemoveRepoHook(repoPath string, dry bool) (string, HookResult, error) {
+	op := hookRemove
+	if dry {
+		op = hookPreviewRemove
+	}
+	return repoHook(repoPath, op)
+}
+
+type hookOperation int
+
+const (
+	hookInstall hookOperation = iota
+	hookPreview
+	hookInspect
+	hookRemove
+	hookPreviewRemove
+)
+
+func repoHook(repoPath string, op hookOperation) (string, HookResult, error) {
 	hooks, err := gitx.HooksDir(repoPath)
 	if err != nil {
 		return "", HookUnchanged, err
@@ -69,7 +89,7 @@ func repoHook(repoPath string, dry, inspect bool) (string, HookResult, error) {
 	if err := fsx.ValidateInternalPath(root, name); err != nil {
 		return "", HookUnchanged, err
 	}
-	if inspect {
+	if op == hookInspect {
 		info, err := root.Lstat(name)
 		if os.IsNotExist(err) {
 			return "", HookWritten, nil
@@ -93,7 +113,11 @@ func repoHook(repoPath string, dry, inspect bool) (string, HookResult, error) {
 	if err != nil {
 		return "", HookUnchanged, err
 	}
-	if dry {
+	if op == hookRemove || op == hookPreviewRemove {
+		result, err := removeHookRoot(root, name, op == hookPreviewRemove)
+		return filepath.ToSlash(path), result, err
+	}
+	if op == hookPreview {
 		existing, out, err := hookContent(root, name)
 		result := HookUnchanged
 		if !bytes.Equal(existing, out) {

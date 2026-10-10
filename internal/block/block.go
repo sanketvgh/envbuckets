@@ -8,8 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/sanketvgh/envbuckets/internal/fsx"
 )
 
 const (
@@ -114,27 +112,18 @@ func InstallHook(path string) (HookResult, error) {
 // RemoveHook strips the block, deleting the file when only a shebang and
 // blank lines remain and otherwise writing the rest back unchanged.
 func RemoveHook(path string) (HookResult, error) {
-	existing, err := os.ReadFile(path) //nolint:forbidigo // Read the hook script for marker removal, never a managed environment file.
-	if errors.Is(err, os.ErrNotExist) {
+	if bucketPath(path) {
+		return HookUnchanged, errors.New("hooks directory is inside a bucket tree")
+	}
+	root, err := os.OpenRoot(filepath.Dir(path)) //nolint:forbidigo // Open only the hook metadata directory after rejecting bucket paths.
+	if os.IsNotExist(err) {
 		return HookUnchanged, nil
 	}
 	if err != nil {
 		return HookUnchanged, err
 	}
-	out, found := Remove(existing)
-	if !found {
-		return HookUnchanged, nil
-	}
-	if onlyShebang(out) {
-		if err := os.Remove(path); err != nil { //nolint:forbidigo // Delete only the hook that contains no custom content.
-			return HookUnchanged, err
-		}
-		return HookDeleted, nil
-	}
-	if err := fsx.WriteFileAtomic(path, out, 0o755); err != nil {
-		return HookUnchanged, err
-	}
-	return HookWritten, os.Chmod(path, 0o755) //nolint:gosec,forbidigo // Only hook metadata is made executable; git hooks require 0755.
+	defer root.Close()
+	return removeHookRoot(root, filepath.Base(path), false)
 }
 
 func onlyShebang(content []byte) bool {

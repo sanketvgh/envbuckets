@@ -32,6 +32,7 @@ Usage:
   envbuckets switch [-n] [-c] [<bucket>]
   envbuckets status
   envbuckets branches [--bucket <name>] [<branch or pattern>...]
+  envbuckets uninstall [-n]
   envbuckets hook [post-checkout arguments]
 `
 
@@ -60,6 +61,8 @@ func Run(args []string, env Env) int {
 		return runStatus(args[1:], env)
 	case "branches":
 		return runBranches(args[1:], env)
+	case "uninstall":
+		return runUninstall(args[1:], env)
 	default:
 		fmt.Fprintln(env.Stderr, "usage: envbuckets <command>")
 		return ExitUsage

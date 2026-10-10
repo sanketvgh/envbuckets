@@ -12,6 +12,7 @@ envbuckets is being rebuilt. See the [product plan](docs-eb/PRODUCT.md) and
 
 The rebuild's switch commands are documented in [Switching buckets](docs-eb/SWITCH.md).
 Read-only reports are documented in [Status and branch mappings](docs-eb/STATUS.md).
+Restoring your local files is documented in [Leaving envbuckets](docs-eb/UNINSTALL.md).
 Contributor checks are documented in [Developer checks](docs-eb/DEVELOPMENT.md).
 
 To install the last alpha release from npm, run:

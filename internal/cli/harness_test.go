@@ -69,14 +69,14 @@ type result struct {
 
 func (res result) all() string { return res.stdout + res.stderr }
 
-func (r *repo) runIn(cwd, stdin string, args ...string) result {
+func (r *repo) runIn(cwd string, args ...string) result {
 	r.t.Helper()
 	var out, errb bytes.Buffer
-	code := Run(args, Env{Cwd: cwd, Stdin: strings.NewReader(stdin), Stdout: &out, Stderr: &errb, Version: "test"})
+	code := Run(args, Env{Cwd: cwd, Stdin: strings.NewReader(""), Stdout: &out, Stderr: &errb, Version: "test"})
 	return result{code: code, stdout: out.String(), stderr: errb.String()}
 }
 
 func (r *repo) run(args ...string) result {
 	r.t.Helper()
-	return r.runIn(r.root, "", args...)
+	return r.runIn(r.root, args...)
 }

@@ -1,0 +1,99 @@
+# Uninstall moves active files, keeps other buckets, and can be initialized again.
+exec git init -q
+exec git add README
+exec git commit -qm initial
+exec envbuckets init
+exec envbuckets add apps/api/key.json
+cp .envbuckets.json config-before
+cp .gitignore ignore-before
+cp other-env .env.d/prod/.env
+cp custom-hook .git/hooks/post-checkout
+chmod 755 .git/hooks/post-checkout
+
+exec envbuckets uninstall -n
+cmp stdout dry-output
+! stderr .
+readlink .env .env.d/dev/.env
+readlink apps/api/key.json ../../.env.d/dev/apps/api/key.json
+cmp .git/hooks/post-checkout custom-hook
+
+exec envbuckets uninstall
+cmp stdout real-output
+cmp stderr hint
+regular .env
+regular apps/api/key.json
+cmp .env original-env
+cmp apps/api/key.json original-key
+! exists .env.d/dev/.env
+! exists .env.d/dev/apps/api/key.json
+cmp .env.d/prod/.env other-env
+cmp .envbuckets.json config-before
+cmp .gitignore ignore-before
+cmp .git/hooks/post-checkout remaining-hook
+exec git switch -qc feature/after-uninstall
+! stderr envbuckets
+
+exec envbuckets uninstall
+! stdout .
+! stderr .
+exec envbuckets init
+exec envbuckets add apps/api/key.json
+readlink .env .env.d/dev/.env
+readlink apps/api/key.json ../../.env.d/dev/apps/api/key.json
+cmp .env.d/dev/.env original-env
+cmp .env.d/dev/apps/api/key.json original-key
+
+# Missing config and a broken link do not stop healthy files or hook removal.
+rm .envbuckets.json .env.d/dev/.env
+! exec envbuckets uninstall -n
+stderr '^error: cannot restore ''.env'': bucket target is missing \(broken link\)$'
+stdout 'Would move .env.d/dev/apps/api/key.json to apps/api/key.json'
+readlink .env .env.d/dev/.env
+readlink apps/api/key.json ../../.env.d/dev/apps/api/key.json
+! exec envbuckets uninstall
+stderr '^error: cannot restore ''.env'': bucket target is missing \(broken link\)$'
+regular apps/api/key.json
+readlink .env .env.d/dev/.env
+cmp .env.d/prod/.env other-env
+cmp .git/hooks/post-checkout remaining-hook
+
+-- README --
+synthetic fixture
+-- .env --
+SYNTHETIC_ENV
+-- original-env --
+SYNTHETIC_ENV
+-- apps/api/key.json --
+SYNTHETIC_KEY
+-- original-key --
+SYNTHETIC_KEY
+-- other-env --
+SYNTHETIC_OTHER
+-- .env.d/prod/unlinked --
+SYNTHETIC_UNLINKED
+-- custom-hook --
+#!/bin/sh
+# custom before
+# >>> envbuckets v1 >>>
+old alpha command
+# <<< envbuckets v1 <<<
+# custom between
+# >>> envbuckets >>>
+envbuckets hook "$@"
+# <<< envbuckets <<<
+# custom after
+-- remaining-hook --
+#!/bin/sh
+# custom before
+# custom between
+# custom after
+-- dry-output --
+Would move .env.d/dev/.env to .env
+Would move .env.d/dev/apps/api/key.json to apps/api/key.json
+Would remove the envbuckets hook from .git/hooks/post-checkout
+-- real-output --
+Moving .env.d/dev/.env to .env
+Moving .env.d/dev/apps/api/key.json to apps/api/key.json
+Removing the envbuckets hook from .git/hooks/post-checkout
+-- hint --
+hint: Your other buckets are still in .env.d/. Delete it when you no longer need them.
