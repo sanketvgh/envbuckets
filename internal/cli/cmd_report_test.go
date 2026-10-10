@@ -43,6 +43,9 @@ func reportRepo(t *testing.T) *repo {
 
 func TestBranchesVariants(t *testing.T) {
 	r := reportRepo(t)
+	// Keep the decomposed combining-character fixture intact on macOS too.
+	// Git otherwise precomposes ref names when reading its filesystem entries.
+	r.git("config", "core.precomposeUnicode", "false")
 	for _, name := range []string{"feature/login", "release/2.0", "release/1.0", "staging", "漢字", "café"} {
 		r.git("branch", name)
 	}
