@@ -45,7 +45,17 @@ commit IDs are outside the CLI contract. Silent branch checkouts are also assert
   while a whole multi-file switch is not a transaction.
 - Color tests need a real terminal. Automated Windows console checks and the
   Unix PTY tests cover terminal behavior; EB-06 tracks its remaining manual
-  Windows Terminal visual review.
+  Windows Terminal visual review, deferred by the user until after release.
 
 See [developer checks](DEVELOPMENT.md) for commands and EB-07 for measured
 benchmark budgets, local results, CI evidence, and release blockers.
+
+## Shipped documentation
+
+Public guides live in [`../docs/`](../docs/index.md) with lowercase slug
+filenames. `TestPackageDocumentation` checks the generated umbrella README
+and both package licenses using synthetic source files. Packed npm smoke
+checks both installed licenses and the installed README against repository
+sources before exercising the CLI. Binary snapshot archives include the
+README, license, and all user-guide files; EB-10 records archive inspection
+and final documentation-link evidence.

@@ -4,6 +4,13 @@ Written 2026-10-08 against `feat/docs-demo` at `1bf4fae` plus uncommitted EB-01 
 
 Research only. No code or docs outside this file were changed. `docs/adr/INDEX.md` does not exist, so there were no prior decisions to apply.
 
+**Status:** historical research, with final-review corrections below. The
+implementation now uses explicit command dispatch, command-specific plans, the
+Ajv library through `tools/validate-config-schema.mjs`, and tested marker-block
+hooks. Use [PRODUCT.md](PRODUCT.md), [DEVELOPMENT.md](DEVELOPMENT.md), and the
+[tickets](tickets/README.md) for the current contract and verification results.
+Recommendations and unresolved questions below describe the research stage.
+
 Method: `go doc` (Go 1.27.1) and a local `git` experiment; Grep MCP, GitHub MCP (for SHAs and files) and DeepWiki; five parallel Haiku subagents, one per aspect (hooks, dry-run and symlinks, output and color, testing, config and schema). Evidence labels used below:
 
 - **read**: file content was fetched and read.
@@ -113,7 +120,7 @@ Recommendations for EB-01:
 
 1. Keep the hand-written schema. Make the drift test structural: reflect over the config struct's json tags and compare key sets, `required`, `additionalProperties`, and the bucket-name pattern with the schema file.
 2. One Go constant for the bucket-name regex, in a subset that means the same in RE2 and ECMA (decided: `^[A-Za-z0-9][A-Za-z0-9_-]*$`, so a bucket name cannot start with `-` or `_`). Avoid lookarounds and `\p{}`.
-3. Validate every JSON example from `PRODUCT.md` and invalid fixtures against the schema in a Go test, and keep `ajv-cli` in `task lint`.
+3. Validate every JSON example from `PRODUCT.md` and invalid fixtures against the schema in a Go test, and run the Ajv validator in `task lint`.
 4. Wrap strict-parse errors as `.envbuckets.json: <problem>` built from `JSONPointer` and `ErrUnknownName` (section 9a, item 5), and test the error kind and key name, not Go's wording.
 5. Differential tests: done once by hand for 40 cases against `includeIf onbranch:` (section 9a, item 2). Keep them as a committed fixture with Git's answers; the working tree already has `internal/pattern/testdata/git-patterns.json`.
 
@@ -124,7 +131,7 @@ Source: output subagent (**summary**, symbols only).
 - `lipgloss` pulls in `colorprofile`, which decides TTY and `NO_COLOR`. A writer must expose `Fd()` to count as a TTY; wrapping `os.Stderr` in a struct without `Fd()` silently drops color.
 - `colorprofile` parses `NO_COLOR` with `strconv.ParseBool`, so `NO_COLOR=yes` is ignored, unlike the no-color.org rule (any non-empty value). PRODUCT.md says "when `NO_COLOR` is set". Check `os.Getenv("NO_COLOR") != ""` yourself before colorprofile.
 - `lipgloss.Writer` is bound to stdout at init, so `Sprint*` for stderr uses stdout's decision. Build one stream type per output (`NewStream(w, env)`) and pass the environment explicitly.
-- `lipgloss` and `colorprofile` do not enable Windows virtual terminal mode; do it with `golang.org/x/sys/windows` for stdout and stderr separately, restore on exit, fall back to plain text on failure. `cli/cli` adds `go-colorable` for old consoles.
+- Lip Gloss provides `EnableLegacyWindowsANSI`, but it returns no result and does not restore the console mode (verified during EB-06). Use `golang.org/x/sys/windows` for stdout and stderr separately so failures produce plain text and each original mode is restored on exit. `cli/cli` adds `go-colorable` for old consoles.
 - Git Bash and mintty ptys are not detected by `colorprofile`. `cli/cli` adds the fallback itself: `isTerminal(f)` is `ghTerm.IsTerminal(f) || isatty.IsCygwinTerminal(f.Fd())` (`cli/cli pkg/iostreams/iostreams.go`, **read** snippet near L603). Copy that if Git Bash users should get color. Decide if that is acceptable.
 - Tests: any `bytes.Buffer` is non-TTY, so uncolored by default. Add one color test per profile with injected env. `lipgloss.Width` (`charmbracelet/lipgloss@6a419c6 size.go`, **read**) takes the max `ansi.StringWidth` per line, so it ignores ANSI sequences; `Style.Render` padding (`pad`) appends fixed runes and does not measure. `alignTextHorizontal` (`lipgloss@main align.go`, **read** snippet) also measures each line with `ansi.StringWidth`, and `charmbracelet/x ansi/width.go` documents that "ANSI escape codes are ignored and wide characters ... are accounted for", so Lip Gloss column padding is safe with color. EB-06 still tests that colored columns match uncolored ones. `golang.org/x/term@6226200 term_windows.go` `isTerminal` is `GetConsoleMode` (**read**); mintty is not mentioned there, so Git Bash would likely report non-terminal (inference, test it).
 - Git prints advice to stderr and `advice.*` / `GIT_ADVICE=0` silence it. Optional: a similar switch for `hint:` lines. Not in PRODUCT.md, so only if wanted.
@@ -133,7 +140,7 @@ Source: output subagent (**summary**, symbols only).
 ## 8. What the sources disagree on
 
 - Hand-rolled vs library dispatch: direnv hand-rolls, chezmoi uses cobra. At eight commands the table is cheaper.
-- Existing hooks: refuse (git-lfs, lefthook force flags), move aside (lefthook, pre-commit), or append (our plan). Append is the least invasive but is untested ground.
+- Existing hooks: refuse (git-lfs, lefthook force flags), move aside (lefthook, pre-commit), or append (our plan). Appending had no prior implementation evidence during this research; EB-02 now tests coexistence, replacement, and removal, including Git LFS.
 - Schema: generate (lefthook) vs hand-write. With three object types, hand-write plus a structural test.
 
 ## 9. Recommendation per part

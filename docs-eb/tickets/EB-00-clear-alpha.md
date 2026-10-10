@@ -70,7 +70,12 @@ The scope and `bucket rm --purge` cases go with their features.
 
 ## Exit checklist
 
-Tick every box before starting EB-01.
+This is the original pre-work checklist. Its unchecked boxes were never
+reconciled with the passing status recorded above. EB-01 through EB-09 have
+since implemented and verified the finished CLI; do not repeat the temporary
+no-op-hook or placeholder-README work. EB-10 owns final-code verification and
+records this historical checklist discrepancy. TOML migration/refusal warnings
+and legacy-hook fixtures are intentional in the finished product.
 
 - [ ] `go build ./...`, `go vet ./...`, `task lint`, `go test ./...`, and `task test:integration` pass.
 - [ ] The smoke script runs on Linux, macOS, and Windows in CI.

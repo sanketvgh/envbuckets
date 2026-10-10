@@ -35,8 +35,7 @@ Windows console output enables virtual terminal processing for the command and
 restores the previous mode afterwards. Consoles that cannot enable it get plain
 text. Git Bash and mintty terminal pipes support color without console mode changes.
 
-`task bench` measures the real CLI's branch listing and checkout hook with 1 and
-1000 local branches. Setup uses one `git update-ref --stdin` call and is excluded
-from the timings. Hooks do not enumerate branches. Short Go test runs skip these
-benchmarks. EB-07 records the measured baseline and review budgets; timings are
-reviewed, not asserted in tests.
+The checkout hook checks only the current branch. `branches` lists local
+branches; use a pattern or `--bucket` to narrow the report.
+
+See [all user guides](index.md) for setup and troubleshooting.

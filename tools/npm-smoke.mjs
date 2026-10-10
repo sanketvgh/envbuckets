@@ -92,6 +92,7 @@ const tarballs = [platform, umbrella].map((cwd) => {
   const [packed] = JSON.parse(
     npm(["pack", "--json", "--ignore-scripts", "--pack-destination", packs], cwd).stdout,
   );
+  assert(packed.files.some((file) => file.path === "LICENSE"));
   if (cwd === umbrella) {
     assert(packed.files.some((file) => file.path === "bin/envbuckets.js"));
     assert(packed.files.some((file) => file.path === "README.md"));
@@ -115,6 +116,12 @@ assert.equal(
   fs.readFileSync(path.join(work, "node_modules", "envbuckets", "README.md"), "utf8"),
   fs.readFileSync(path.join(root, "README.md"), "utf8"),
 );
+for (const name of ["envbuckets", `@envbuckets/${process.platform}-${process.arch}`]) {
+  assert.equal(
+    fs.readFileSync(path.join(work, "node_modules", name, "LICENSE"), "utf8"),
+    fs.readFileSync(path.join(root, "LICENSE"), "utf8"),
+  );
+}
 const launcher = path.join(work, "node_modules", "envbuckets", "bin", "envbuckets.js");
 const cli = (...args) => run(process.execPath, [launcher, ...args]);
 const pathKey = Object.keys(env).find((key) => key.toUpperCase() === "PATH") || "PATH";

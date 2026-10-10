@@ -93,3 +93,15 @@ The release workflow runs checks, security, npm smoke, and a comparison with
 the published schema on `main` before creating a tag. The schema URL remains
 on `main`; changing its branch requires an explicit compatibility decision.
 Use the [acceptance map](ACCEPTANCE.md) and EB-07 exit checklist before release.
+
+Public user guides live in [`../docs/`](../docs/index.md). Keep their links
+usable from the repository, shipped binary archives, and the npm README. Binary
+archives include the README, license, and user guides; npm packages include the
+license, and the umbrella package also includes the README. Packed smoke checks
+compare the installed README and both package licenses with the source files.
+
+[EB-10](tickets/EB-10-pre-pr-gate.md) tracks the final documentation and pre-PR
+review. Include the schema and public guide targets in the PR. After merge,
+verify those URLs on `main` and complete EB-07's schema and release checklist.
+The user deferred the Windows Terminal visual review until after release;
+automated console/color checks remain required.

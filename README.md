@@ -2,7 +2,7 @@
 
 [![ci](https://github.com/sanketvgh/envbuckets/actions/workflows/ci.yml/badge.svg)](https://github.com/sanketvgh/envbuckets/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/envbuckets?label=npm)](https://www.npmjs.com/package/envbuckets)
-[![license](https://img.shields.io/github/license/sanketvgh/envbuckets)](LICENSE)
+[![license](https://img.shields.io/github/license/sanketvgh/envbuckets)](https://github.com/sanketvgh/envbuckets/blob/main/LICENSE)
 [![website](https://img.shields.io/badge/heysanket.com-333?logo=googlechrome&logoColor=white)](https://heysanket.com)
 [![x](https://img.shields.io/badge/x-@sanketvgh-000?logo=x&logoColor=white)](https://x.com/sanketvgh)
 [![linkedin](https://img.shields.io/badge/linkedin-sanketvgh-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/sanketvgh)
@@ -10,6 +10,21 @@
 Keep one set of local files per environment. envbuckets links the right set into
 your project when you switch Git branches. It works with `.env` files, service
 accounts, and other local settings without reading or printing their contents.
+
+## Guarantees
+
+- **Your values stay private.** envbuckets never reads, parses, copies, or prints
+  the contents of managed files.
+- **Switching protects your files.** It leaves ordinary files, tracked paths,
+  and links it doesn't manage alone. It reports the problem so you can fix it.
+- **Bucket files stay in their buckets when you switch.** Only working links
+  change. Imports refuse to overwrite a file already in a bucket.
+- **The CLI works offline.** It never fetches the editor schema or uploads your
+  files. File operations stay inside the repository and unsafe paths are refused.
+- **envbuckets' hook never blocks checkout.** Its hook block exits 0, even when
+  config is broken or a file can't be switched.
+- **A dry run changes nothing.** `-n` shows the plan and known problems without
+  moving files or changing links.
 
 ## Install
 
@@ -48,17 +63,31 @@ symlinks at their working paths. It skips tracked files such as `.env.example`
 and ignored directories such as `node_modules/`. Editing a linked file edits
 the active bucket's file. `add` manages any other local file.
 
+For an existing config, `init` imports into its `default` bucket. `add` uses
+the bucket your working links currently point to. Create the file at its normal
+project path before adding it. See [setup and adding files](https://github.com/sanketvgh/envbuckets/blob/main/docs/setup.md)
+for fresh clones, multiple files, and import problems.
+
 ```text
-.envbuckets.json       # commit this: shared branch rules
-.env -> .env.d/dev/.env
-.env.d/               # git-ignored: your real local files
-  dev/.env
-  prod/.env
+your-project/
+|-- .envbuckets.json            shared rules; commit this
+|-- .gitignore                  ignore rules; commit this
+|-- .env ----------------------> .env.d/dev/.env
+`-- .env.d/                     private files; ignored by Git
+    |-- dev/
+    |   `-- .env                real file; edited through .env
+    `-- prod/
+        `-- .env                a separate file for prod
 ```
 
 Commit `.envbuckets.json` and `.gitignore`. Keep `.env.d/` out of Git. Teammates
 run `envbuckets init` after cloning, create their own local files, then add them.
 Rerunning `init` preserves existing setup and imports new environment files.
+
+In a monorepo, files keep their paths inside each bucket: `apps/api/.env` becomes
+`.env.d/dev/apps/api/.env`. One branch mapping chooses the bucket for the whole
+repository. See the [monorepo guide](https://github.com/sanketvgh/envbuckets/blob/main/docs/monorepos.md)
+for a complete layout and setup.
 
 Older `.envbuckets.toml` configs are unused. Remove that config and run `init`;
 resolve any reported path collisions before importing files. There is no
@@ -84,6 +113,28 @@ The first matching rule wins; otherwise `default` is used. Patterns match the
 whole branch name and are case-sensitive. `*` and `?` stop at `/`, `**` crosses
 it, and `release/` means `release/**`. Sets, character classes, and backslash
 escapes follow Git glob rules. List separate rules for separate names.
+
+When the mapped bucket exists, checking out a branch updates the working links:
+
+```text
++-----------------------------+
+| git switch release/2.0      |
++--------------+--------------+
+               |
+               v
++-----------------------------+
+| Checkout hook reads rules   |
+| release/** -> prod          |
++--------------+--------------+
+               |
+               v
++-----------------------------+
+| .env -> .env.d/prod/.env    |
++-----------------------------+
+```
+
+Your files stay in their buckets. The hook changes which files the working
+links point to.
 
 Check a mapping before the branch exists:
 
@@ -128,6 +179,10 @@ warn. If the default is also missing, links stay as they are. A detached HEAD
 leaves links alone; choose a bucket explicitly if needed. The envbuckets hook
 never blocks checkout. Hooks configured outside the repository are refused.
 
+Existing hooks are preserved, with envbuckets appended in a marked block. An
+earlier `exit` in another hook can prevent that block from running. If another
+tool replaces the hook, `status` reports it; rerun `init` to reinstall the block.
+
 Real files, foreign symlinks, tracked paths, and unsafe paths are preserved.
 `status` reports problems. Resolve the blocking path, then rerun `switch` to
 repair links and finish an interrupted switch. On Windows, Go uses one
@@ -136,14 +191,41 @@ in envbuckets. Microsoft does not document it as atomic, so rerunning is the
 recovery mechanism. See [Go's implementation](https://go.dev/src/internal/syscall/windows/syscall_windows.go)
 and [Microsoft's API documentation](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexw).
 
-To leave envbuckets, preview with `uninstall -n`, then run `uninstall`. The config,
-ignore block, and other buckets remain. Buckets are ordinary folders; manage
-them with your usual tools.
+For common setup errors and blocked links, see the
+[troubleshooting guide](https://github.com/sanketvgh/envbuckets/blob/main/docs/troubleshooting.md).
+
+## Uninstall
+
+First, run these commands in each project where you use envbuckets:
+
+```sh
+envbuckets uninstall -n       # preview
+envbuckets uninstall          # restore active files and remove the checkout hook
+```
+
+The config, ignore rules, and other buckets are kept. Keep any bucket files you
+still need. See [leaving envbuckets](https://github.com/sanketvgh/envbuckets/blob/main/docs/uninstall.md)
+if a file could not be restored. Resolve any errors before removing the CLI.
+
+Then remove the CLI. For a global npm install:
+
+```sh
+npm uninstall -g envbuckets
+```
+
+For a downloaded binary or `go install`, remove the installed `envbuckets`
+executable (`envbuckets.exe` on Windows) from the directory where you installed
+it. Removing the CLI does not restore project files or remove project hooks;
+run `envbuckets uninstall` in those projects first.
 
 ## More detail
 
-- [Switching buckets](https://github.com/sanketvgh/envbuckets/blob/main/docs-eb/SWITCH.md)
-- [Status and branch mappings](https://github.com/sanketvgh/envbuckets/blob/main/docs-eb/STATUS.md)
-- [Leaving envbuckets](https://github.com/sanketvgh/envbuckets/blob/main/docs-eb/UNINSTALL.md)
+- [All user guides](https://github.com/sanketvgh/envbuckets/blob/main/docs/index.md)
+- [Setup and adding files](https://github.com/sanketvgh/envbuckets/blob/main/docs/setup.md)
+- [Monorepos](https://github.com/sanketvgh/envbuckets/blob/main/docs/monorepos.md)
+- [Troubleshooting](https://github.com/sanketvgh/envbuckets/blob/main/docs/troubleshooting.md)
+- [Switching buckets](https://github.com/sanketvgh/envbuckets/blob/main/docs/switch.md)
+- [Status and branch mappings](https://github.com/sanketvgh/envbuckets/blob/main/docs/status.md)
+- [Leaving envbuckets](https://github.com/sanketvgh/envbuckets/blob/main/docs/uninstall.md)
 - [Contributor checks](https://github.com/sanketvgh/envbuckets/blob/main/docs-eb/DEVELOPMENT.md)
 - [Acceptance coverage](https://github.com/sanketvgh/envbuckets/blob/main/docs-eb/ACCEPTANCE.md)

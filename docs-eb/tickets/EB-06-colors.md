@@ -2,7 +2,7 @@
 
 **Goal:** make output easier to scan in a terminal without changing what it says.
 
-**Status:** implemented and verified by [passing cross-platform CI on `a50e2cf`](https://github.com/sanketvgh/envbuckets/actions/runs/38024972163); Windows Terminal visual confirmation remains open. Local lint/schema/unit/security checks pass. The local integration symlink limitation is accepted under AGENTS.md with same-code Linux/macOS/Windows integration evidence.
+**Status:** implemented and verified by [passing cross-platform CI on `a50e2cf`](https://github.com/sanketvgh/envbuckets/actions/runs/38024972163); the user deferred Windows Terminal visual confirmation until after release on 2026-10-10. It is no longer a pre-PR or release blocker. Local lint/schema/unit/security checks pass. The local integration symlink limitation is accepted under AGENTS.md with same-code Linux/macOS/Windows integration evidence.
 
 ## Phase checklist
 
@@ -53,14 +53,15 @@
 
 ## Exit checklist
 
-Tick every box before starting EB-07's release work.
+Complete the automated checks before release. The user deferred the manual
+Windows Terminal review until after release; keep that item open until observed.
 
 - [x] Piped output, redirected output, and any non-empty `NO_COLOR` produce no escape codes.
 - [x] stdout and stderr are detected separately, through one stream type per output; commands never call Lip Gloss directly.
 - [x] Message text is identical with and without color; tests compare uncolored output.
 - [x] `branches` and `status` columns line up the same colored and uncolored.
 - [x] Windows virtual terminal mode is enabled per stream and restored on exit; with failure, output is plain.
-- [ ] Windows Terminal and the classic console show colors, not escape codes (checked by hand or in CI).
+- [ ] Windows Terminal shows colors, not escape codes (user-owned review deferred until after release on 2026-10-10); classic-console interpretation is already verified locally and in CI.
 - [x] Git Bash behavior is decided and tested (real terminal-shaped MSYS named pipe handles; live-shell limitation noted above).
 - [x] Hook output is colored only when Git runs it in a terminal.
 - [x] `task security` passes after the new dependency.
@@ -74,7 +75,7 @@ Tick every box before starting EB-07's release work.
 - All command and switcher output now goes through the existing `output.Writer`. Only diagnostic labels are red/yellow. The current branch name, active bucket names, and problem paths use per-stream styles. Missing/requested bucket names, informational messages, usage, and dry-run text stay plain. A positive-length hook argument guard makes the existing safe slice bounds explicit to the pinned gosec analyzer without suppressing its findings or changing hook behavior.
 - Report padding and width measurement use Lip Gloss with tab expansion disabled. Existing status label spacing and plain report fixtures remain byte-identical. Styling renders spans around CR/LF separately so Lip Gloss cannot normalize unusual path names. Tests cover ASCII, CJK, combining characters, emoji, tabs, whitespace, and line-break preservation.
 - Portable unit tests cover color policy, both stdout/stderr terminal combinations, diagnostic colors, hook prefixes, exact stripped text, visible column widths, real pipes/redirected files, descriptor forwarding, and idempotent restoration. Windows tests exercise failed/already-enabled console modes, a real hidden classic console, and actual MSYS terminal-shaped pipe detection through CLI reports and hook diagnostics. Tests use only synthetic fixture values.
-- The `colors` txtar script checks exact plain reports, usage, and hook warnings with captured streams, force-color variables, and non-empty `NO_COLOR` values. It needs no symlinks. [Status and branch mappings](../STATUS.md) documents the behavior. CI's existing Linux/macOS/Windows integration matrix now also runs `internal/output` and `internal/cli` unit tests so Windows-specific tests execute in CI; all previous gates and tool pins remain unchanged.
+- The `colors` txtar script checks exact plain reports, usage, and hook warnings with captured streams, force-color variables, and non-empty `NO_COLOR` values. It needs no symlinks. [Status and branch mappings](../../docs/status.md) documents the behavior. CI's existing Linux/macOS/Windows integration matrix now also runs `internal/output` and `internal/cli` unit tests so Windows-specific tests execute in CI; all previous gates and tool pins remain unchanged.
 
 ## Verification evidence (2026-10-10)
 
@@ -94,6 +95,11 @@ Tick every box before starting EB-07's release work.
 - Verified [ansi_windows.go](https://github.com/charmbracelet/lipgloss/blob/main/ansi_windows.go) against the installed v2.0.6 source. Corrected the scope/tradeoff claim that Lip Gloss cannot enable virtual terminal mode: its `EnableLegacyWindowsANSI` helper can enable it, but returns no result and has no restoration. Our wrapper is still needed for the ticket's fallback/restoration requirements. No Go code changed in this review; previous test evidence remains applicable.
 
 ## CI continuation (2026-10-10)
+
+**Later user instruction:** during EB-10, the user said "i'll check after release"
+for the Windows Terminal visual review. This explicitly supersedes the blocking
+statements in the earlier verification record below. Keep the manual checkbox
+open until observed; automated console/color gates remain required.
 
 - Committed EB-06 as `dfe3732` (`✨ feat(output): add per-stream terminal colors`) and pushed it to `feat/docs-demo` at the user's request. Local and remote commit IDs matched.
 - [Run 38024526850](https://github.com/sanketvgh/envbuckets/actions/runs/38024526850) passed six of seven jobs: Linux lint/unit/race/build/snapshot checks, Linux/Windows integration, and safeguards on all three platforms. The new macOS output/CLI unit step exposed an existing Unicode fixture assumption: Git precomposed the decomposed `café` ref into `café`, causing two exact-text expectations in `TestBranchesVariants` to fail. Output unit tests passed; the macOS integration scripts were skipped after that unit-step failure. Log: `tmp/eb06-ci-macos-failed.log`.

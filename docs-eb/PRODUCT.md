@@ -1,6 +1,6 @@
 # envbuckets product specification
 
-**Status:** plan for the next release. It replaces the scope-based alpha. The alpha's `.envbuckets.toml` is not read or migrated; delete it and run `envbuckets init`.
+**Status:** implemented for the next release; [EB-10](tickets/EB-10-pre-pr-gate.md) tracks final verification and [EB-07](tickets/EB-07-release.md) tracks release gates. It replaces the scope-based alpha. The alpha's `.envbuckets.toml` is not read or migrated; delete it and run `envbuckets init`.
 
 envbuckets keeps one set of local files per environment and links the right set into your project when you switch Git branches.
 
@@ -236,7 +236,7 @@ Branch names cannot contain `*`, `?`, or `[` (see `git check-ref-format`), so an
 - Removes envbuckets links whose path is not in the target bucket. The file stays in its bucket.
 - Skips and reports any path where a real file, or a symlink that envbuckets did not create, is in the way.
 - Ignores clutter in buckets: `.DS_Store`, `Thumbs.db`, `desktop.ini`, and names ending in `~` or `.swp`.
-- Replaces each link atomically. Skipped paths do not stop the others, and running `switch` again finishes the job.
+- Replaces each link with a temporary symlink and a rename. Each rename is atomic on Unix; Windows does not guarantee atomic rename. A multi-file switch is not a transaction. Skipped paths do not stop the others, and running `switch` again finishes the job.
 
 `switch` prints one line, like `git switch`. Links for files the target bucket lacks are removed quietly, the same way Git removes files the target branch does not have; `switch -n` shows them first. Each path that cannot be linked gets an `error:` line. When a switch leaves you on a bucket other than the branch's, a `hint:` line says how to go back.
 

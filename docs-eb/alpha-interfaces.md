@@ -1,5 +1,11 @@
 # T00 shared interfaces and handoff
 
+**Status:** historical alpha handoff, superseded by
+[PRODUCT.md](PRODUCT.md) and [EB-01 through EB-10](tickets/README.md). The scope
+APIs, branch pins, commands, and exit-code contract below describe the removed
+alpha implementation. They are retained as history and must not guide changes
+to the current CLI.
+
 Baseline source HEAD: `b670c5048b89a69f3b3b20a291d763ca5b9dc2ae`.
 Reviewed baseline paths added in Agent A's worktree: `IMPLEMENTATION_PROMPT.md`
 and `IMPLEMENTATION_TICKETS.md`. All other tracked source and tests came from

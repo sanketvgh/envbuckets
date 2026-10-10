@@ -6,6 +6,13 @@
 
 ## Phase checklist
 
+**EB-10 handoff (2026-10-10):** the Windows Terminal visual check is deferred
+until after release at the user's request and no longer blocks this ticket.
+Public guides now live under `docs/` with lowercase slug filenames. Verify the
+schema and public documentation URLs on remote `main` after merging the PR;
+the schema gate still blocks publication. The release-runner benchmark review
+remains owned by this ticket, using the budgets below.
+
 - [x] 1. Audit acceptance coverage; isolate the shared integration setup and gate golden updates.
 - [x] 2. Check PRODUCT.md examples against the real CLI, fill acceptance gaps, and measure the branch benchmark.
 - [ ] 3. Replace release documentation and help; document Windows limits and verify the schema URL.

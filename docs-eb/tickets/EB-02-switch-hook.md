@@ -4,7 +4,7 @@
 
 **Status:** Passed. All five phases and exit criteria are complete using the verification alternative accepted by the user on 2026-10-09. CI passed on `f1c2133` ([Actions run `37951292646`](https://github.com/sanketvgh/envbuckets/actions/runs/37951292646)). Local `task check` passed formatting, lint, schema validation, and unit tests; its integration stage failed solely because Windows lacks symlink privilege. Passing Linux/macOS/Windows CI integration results cover that stage. The user deferred a full local rerun and environment setup. Phase 1 was confirmed complete by the user.
 
-Implementation: `internal/switcher/`, `internal/cli/cmd_switch.go`, and `internal/block/hook.go`. User documentation: [Switching buckets](../SWITCH.md). Real-Git cases are in `testdata/script/{switch,checkout,hooks,hooks-paths,hooks-lfs,switch-safety,switch-unreadable}.txtar`; hook installation is exercised directly because `init` belongs to EB-03.
+Implementation: `internal/switcher/`, `internal/cli/cmd_switch.go`, and `internal/block/hook.go`. User documentation: [Switching buckets](../../docs/switch.md). Real-Git cases are in `testdata/script/{switch,checkout,hooks,hooks-paths,hooks-lfs,switch-safety,switch-unreadable}.txtar`; hook installation is exercised directly because `init` belongs to EB-03.
 
 References checked during implementation: installed Go 1.27.1 `go doc os.Root`, `os.Root.Rename`, `os.Root.MkdirAll`, and `os.Rename`; the current official [`os` documentation](https://pkg.go.dev/os) (Go 1.27.2 when fetched); and Grep MCP's current [`git-lfs/git-lfs` hook installer](https://github.com/git-lfs/git-lfs/blob/main/lfs/hook.go).
 

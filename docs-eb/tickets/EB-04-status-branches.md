@@ -90,7 +90,7 @@ remains unavailable and its setup remains deferred.
 - Branches use one sorted `git for-each-ref refs/heads/` call and match/filter in memory. Literal names retain input order, patterns expand sorted local names, and overlapping selectors are deduplicated. `--bucket` filters the configured mapping even when it falls back. Git trace asserts a single enumeration call. Full symbolic refs avoid ambiguity with a same-named tag; stripping only line endings preserves Unicode whitespace in names.
 - Plain column widths use the already-pinned `golang.org/x/text/width` module plus zero-width combining marks; its dependency is now direct, with no version change. Exact tests cover CJK and decomposed accents. EB-06 remains responsible for color and styled width measurement.
 - `task bench` uses `testing.B.Loop`, skips short runs, creates 999 additional refs in one `git update-ref --stdin` operation, and excludes setup from timings. Both cases use an empty bucket so measurements isolate reporting/hook inspection and Git startup, without needing symlink privilege. The hook never enumerates branch refs.
-- User documentation is in [Status and branch mappings](../STATUS.md); command help and the README link it. Local API references consulted: Go 1.27.2 `testing.B.Loop` and the pinned `width` package and `Properties.Kind` documentation.
+- User documentation is in [Status and branch mappings](../../docs/status.md); command help and the README link it. Local API references consulted: Go 1.27.2 `testing.B.Loop` and the pinned `width` package and `Properties.Kind` documentation.
 
 ## Verification evidence (2026-10-09)
 

@@ -12,8 +12,8 @@ envbuckets switch -c prod         # create empty files at the current bucket's p
 The repository needs `.envbuckets.json` and bucket directories under `.env.d/`.
 Run `envbuckets init` to create config, the default bucket, and the hook, then
 `envbuckets add <file>` for files other than local environment files.
-A bucket file has the same path
-inside the bucket as its working path in the repository:
+A bucket file has the same path inside the bucket as its working path in the
+repository:
 
 ```text
 .env.d/dev/.env
@@ -24,15 +24,14 @@ inside the bucket as its working path in the repository:
 Switching to `dev` creates relative links at `.env` and `apps/api/key.json`.
 Switching to `prod` replaces `.env` and removes the working `key.json` link;
 its real file stays in the `dev` bucket. Managed file contents are never opened
-or printed. Running `switch` again repairs missing links and finishes a switch
-interrupted between individual link replacements.
+or printed. If a switch stops halfway through, run it again to finish. It also
+recreates missing links.
 
-Real files, foreign symlinks, tracked paths, and unsafe bucket entries are
-preserved. Each blocked path gets an `error:` line; other safe paths still
-switch, and the command exits 1. A dry run reports the same planned errors and
-exit status without changing links or creating directories. Filesystem failures
-that occur while applying changes, such as permissions changing after planning,
-are reported by the real run.
+If a real file or a link envbuckets doesn't manage is in the way, `switch`
+reports an `error:` and leaves it alone. Tracked files and unsafe paths are also
+left alone. The other files still switch, but the command exits with code 1.
+Use `switch -n` to preview the changes and any known problems. Files or
+permissions can still change before the real command runs.
 
 If the branch's bucket is missing, plain `switch` uses the default bucket with
 a warning and a hint to create the missing bucket. If the default is also
@@ -42,8 +41,8 @@ plain `switch` has no branch mapping to return to.
 
 ## Checkout hook
 
-The `init` command installs the hook. It resolves the hooks
-directory through Git, honors an in-repository `core.hooksPath`, and uses Git's
+The `init` command installs the hook. It asks Git for the hooks directory,
+honors an in-repository `core.hooksPath`, and uses Git's
 common metadata directory for linked worktrees. A custom hooks directory shared
 outside the repository is refused. Symlinked hook paths and hooks directories
 inside `.env.d/` are also refused.
@@ -63,12 +62,11 @@ run `envbuckets init` to restore it.
 ## Windows
 
 Symlink operations need Developer Mode or symlink privilege. `init` checks this
-before moving any file. Integration tests use the same operations and need that
-privilege too; run them in CI when it is unavailable locally.
+before moving any file.
 
 Go's Windows rename uses one `MoveFileEx(MOVEFILE_REPLACE_EXISTING)` call;
 envbuckets does not delete the existing link first. Microsoft does not document
 that call as atomic. A multi-file switch can also stop between paths on any
-platform. Resolve reported errors and rerun `switch` to converge on the selected
-bucket. See [Go's implementation](https://go.dev/src/internal/syscall/windows/syscall_windows.go)
+platform. Fix the reported problems and rerun `switch` to finish switching
+files. See [Go's implementation](https://go.dev/src/internal/syscall/windows/syscall_windows.go)
 and [Microsoft's API documentation](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexw).
