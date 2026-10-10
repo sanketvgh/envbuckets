@@ -94,26 +94,32 @@ func Build(repo *fsx.Repo, cfg config.Config, branch, explicit string) Plan {
 		p.fail(fmt.Sprintf("invalid bucket name '%s'", p.Bucket), "")
 		return p
 	}
-	files, unsafe, err := repo.ScanBucket(p.Bucket)
-	if os.IsNotExist(err) {
-		missing := p.Bucket
-		p.Hint = fmt.Sprintf("Create it with \"envbuckets switch -c %s\".", missing)
-		if explicit != "" {
-			p.fail(fmt.Sprintf("no bucket named '%s'", missing), p.Hint)
+	if explicit == "" {
+		resolution, err := Resolve(repo, cfg, branch)
+		if err != nil {
+			p.fail(fmt.Sprintf("cannot inspect bucket '%s': %s", p.Bucket, err), "")
 			return p
 		}
-		p.Bucket, p.Reason = cfg.Default, "default"
-		files, unsafe, err = repo.ScanBucket(p.Bucket)
-		if os.IsNotExist(err) {
-			warning := fmt.Sprintf("default bucket '%s' does not exist; links not changed", cfg.Default)
-			if missing != cfg.Default {
-				warning = fmt.Sprintf("bucket '%s' does not exist and %s", missing, warning)
+		p.Bucket = resolution.Bucket
+		if resolution.Missing {
+			missing := resolution.Requested
+			p.Reason = "default"
+			p.Hint = fmt.Sprintf("Create it with \"envbuckets switch -c %s\".", missing)
+			if p.Bucket == "" {
+				warning := fmt.Sprintf("default bucket '%s' does not exist; links not changed", cfg.Default)
+				if missing != cfg.Default {
+					warning = fmt.Sprintf("bucket '%s' does not exist and %s", missing, warning)
+				}
+				p.Warnings = append(p.Warnings, warning)
+				return p
 			}
-			p.Warnings = append(p.Warnings, warning)
-			p.Bucket = ""
-			return p
+			p.Warnings = append(p.Warnings, fmt.Sprintf("bucket '%s' does not exist; using '%s' (default)", missing, cfg.Default))
 		}
-		p.Warnings = append(p.Warnings, fmt.Sprintf("bucket '%s' does not exist; using '%s' (default)", missing, cfg.Default))
+	}
+	files, unsafe, err := repo.ScanBucket(p.Bucket)
+	if explicit != "" && os.IsNotExist(err) {
+		p.fail(fmt.Sprintf("no bucket named '%s'", explicit), fmt.Sprintf("Create it with \"envbuckets switch -c %s\".", explicit))
+		return p
 	}
 	if err != nil {
 		p.fail(fmt.Sprintf("cannot inspect bucket '%s': %s", p.Bucket, err), "")
@@ -133,7 +139,7 @@ func BuildFiles(repo *fsx.Repo, cfg config.Config, branch, bucket string, files 
 }
 
 func planFiles(repo *fsx.Repo, p Plan, files, unsafe []string) Plan {
-	links, err := managedLinks(repo)
+	links, err := ManagedLinks(repo)
 	if err != nil {
 		p.fail(fmt.Sprintf("cannot inspect working tree: %s", err), "")
 		return p
@@ -218,7 +224,8 @@ func BucketOf(name, target string) string {
 	return parts[1]
 }
 
-func managedLinks(repo *fsx.Repo) (map[string]string, error) {
+// ManagedLinks finds canonical bucket links without following their targets.
+func ManagedLinks(repo *fsx.Repo) (map[string]string, error) {
 	links := make(map[string]string)
 	err := fs.WalkDir(repo.Root.FS(), ".", func(name string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -249,7 +256,7 @@ func managedLinks(repo *fsx.Repo) (map[string]string, error) {
 // CurrentBucket uses managed links, or the branch mapping when no links exist.
 // A detached HEAD without links and a mixed set of links cannot select a bucket.
 func CurrentBucket(repo *fsx.Repo, cfg config.Config, branch string) (string, error) {
-	links, err := managedLinks(repo)
+	links, err := ManagedLinks(repo)
 	if err != nil {
 		return "", err
 	}

@@ -1,0 +1,53 @@
+# Reports need only metadata; bucket files and a blocking real file are unreadable.
+[windows] skip 'Unix mode bits required'
+exec git init -q
+exec git add README .envbuckets.json
+exec git commit -qm initial
+install-hook
+chmod 000 .env.d/dev/.env
+chmod 000 .env.d/prod/.env
+exec envbuckets switch
+exec envbuckets status
+cmp stdout status-linked
+exec envbuckets branches main
+cmp stdout branches-main
+readlink .env .env.d/dev/.env
+rm .env
+cp real .env
+chmod 000 .env
+exec envbuckets status
+cmp stdout status-real
+regular .env
+chmod 600 .env
+chmod 600 .env.d/dev/.env
+chmod 600 .env.d/prod/.env
+
+-- README --
+fixture
+-- .envbuckets.json --
+{"default":"dev"}
+-- .gitignore --
+.env.d/
+.env
+-- .env.d/dev/.env --
+SYNTHETIC_DEV
+-- .env.d/prod/.env --
+SYNTHETIC_PROD
+-- real --
+SYNTHETIC_REAL
+-- status-linked --
+On branch main
+Using bucket 'dev' (default)
+
+1 file linked
+-- branches-main --
+* main  dev  (default)
+-- status-real --
+On branch main
+Using bucket 'dev' (default)
+
+Files not linked:
+  (to keep a file, move it to the same path under .env.d/dev/, then use "envbuckets switch")
+	real file:   .env
+
+0 of 1 files linked

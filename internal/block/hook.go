@@ -15,17 +15,24 @@ import (
 // InstallRepoHook installs into Git's actual hooks directory. Linked worktrees
 // may use their shared Git metadata directory; unrelated shared hooks are refused.
 func InstallRepoHook(repoPath string) (HookResult, error) {
-	_, result, err := repoHook(repoPath, false)
+	_, result, err := repoHook(repoPath, false, false)
 	return result, err
 }
 
 // PreviewRepoHook performs installation preflight without writing anything.
 // The path is relative to the worktree when possible, for dry-run output.
 func PreviewRepoHook(repoPath string) (string, HookResult, error) {
-	return repoHook(repoPath, true)
+	return repoHook(repoPath, true, false)
 }
 
-func repoHook(repoPath string, dry bool) (string, HookResult, error) {
+// RepoHookInstalled checks the marker block using the installer's contained
+// metadata path checks. Missing or truncated blocks are reported as absent.
+func RepoHookInstalled(repoPath string) (bool, error) {
+	_, result, err := repoHook(repoPath, true, true)
+	return result == HookUnchanged && err == nil, err
+}
+
+func repoHook(repoPath string, dry, inspect bool) (string, HookResult, error) {
 	hooks, err := gitx.HooksDir(repoPath)
 	if err != nil {
 		return "", HookUnchanged, err
@@ -61,6 +68,26 @@ func repoHook(repoPath string, dry bool) (string, HookResult, error) {
 	}
 	if err := fsx.ValidateInternalPath(root, name); err != nil {
 		return "", HookUnchanged, err
+	}
+	if inspect {
+		info, err := root.Lstat(name)
+		if os.IsNotExist(err) {
+			return "", HookWritten, nil
+		}
+		if err != nil {
+			return "", HookUnchanged, err
+		}
+		if !info.Mode().IsRegular() {
+			return "", HookUnchanged, errors.New("hook is not a regular file")
+		}
+		content, err := root.ReadFile(name)
+		if err != nil {
+			return "", HookUnchanged, err
+		}
+		if Body(content) == nil {
+			return "", HookWritten, nil
+		}
+		return "", HookUnchanged, nil
 	}
 	path, err := filepath.Rel(repoPath, filepath.Join(hooks, "post-checkout"))
 	if err != nil {

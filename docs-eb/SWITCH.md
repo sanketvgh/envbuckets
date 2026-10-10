@@ -55,7 +55,8 @@ An earlier `exit` in a user's hook prevents the appended block running. An earli
 nonzero exit remains a failure from that user's hook. Git LFS normally refuses
 to overwrite a combined hook; `git lfs install --force` does overwrite it and
 removes the envbuckets block. Reinstalling the envbuckets hook restores the block
-alongside LFS. EB-04 will add status reporting for a missing hook block.
+alongside LFS. `envbuckets status` reports a missing hook block with a hint to
+run `envbuckets init` to restore it.
 
 ## CI verification
 

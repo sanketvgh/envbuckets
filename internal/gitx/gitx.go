@@ -25,14 +25,34 @@ func Root(dir string) (string, error) {
 
 // Branch returns the checked-out branch name, or "" on detached HEAD.
 func Branch(root string) (string, error) {
-	out, err := run(root, "symbolic-ref", "--short", "-q", "HEAD")
+	out, err := run(root, "symbolic-ref", "-q", "HEAD")
 	if err != nil {
 		if exitCode(err) == 1 {
 			return "", nil
 		}
 		return "", err
 	}
-	return out, nil
+	return strings.TrimPrefix(out, "refs/heads/"), nil
+}
+
+// Branches reads all short local branch names in sorted order with one Git call.
+func Branches(root string) ([]string, error) {
+	out, err := run(root, "for-each-ref", "--sort=refname", "--format=%(refname:strip=2)", "refs/heads/")
+	if err != nil {
+		return nil, err
+	}
+	if out == "" {
+		return nil, nil
+	}
+	return strings.Split(strings.ReplaceAll(out, "\r\n", "\n"), "\n"), nil
+}
+
+// DetachedName describes a detached HEAD using an exact tag or a short commit.
+func DetachedName(root string) (string, error) {
+	if tag, err := run(root, "describe", "--tags", "--exact-match", "HEAD"); err == nil {
+		return tag, nil
+	}
+	return run(root, "rev-parse", "--short", "HEAD")
 }
 
 // HooksDir returns the absolute hooks directory, honoring core.hooksPath.
@@ -115,5 +135,5 @@ func run(dir string, args ...string) (string, error) {
 	if len(args) > 0 && args[0] == "ls-files" {
 		return stdout.String(), nil // NUL-delimited filenames may contain whitespace.
 	}
-	return strings.TrimSpace(stdout.String()), nil
+	return strings.TrimRight(stdout.String(), "\r\n"), nil
 }

@@ -1,0 +1,94 @@
+# Exact plain output, actual checkout fallback, and no writes by reports.
+exec git init -q
+exec git add README .envbuckets.json
+exec git commit -qm initial
+install-hook
+exec envbuckets switch
+exec git branch release/1.0
+exec git branch feature/login
+exec envbuckets status
+cmp stdout status-main
+! stderr .
+readlink .env .env.d/dev/.env
+exec envbuckets branches
+cmp stdout branches-main
+! stderr .
+exec envbuckets branches feature/future 'release/**' main
+cmp stdout branches-filtered
+readlink .env .env.d/dev/.env
+
+exec envbuckets switch prod
+exec envbuckets branches main
+cmp stdout branches-temporary
+exec envbuckets status
+cmp stdout status-temporary
+readlink .env .env.d/prod/.env
+
+# The report predicts the same fallback as the installed hook.
+exec git switch -qc staging
+stderr 'bucket ''staging'' does not exist; using ''dev'''
+readlink .env .env.d/dev/.env
+exec envbuckets branches staging
+cmp stdout branches-fallback
+exec envbuckets status
+cmp stdout status-fallback
+! stderr .
+readlink .env .env.d/dev/.env
+
+# A tool overwrites the hook; status detects that without reinstalling it.
+cp replacement-hook .git/hooks/post-checkout
+exec envbuckets status
+cmp stdout status-missing-hook
+cmp .git/hooks/post-checkout replacement-hook
+
+-- README --
+fixture
+-- .envbuckets.json --
+{"default":"dev","rules":[{"branch":"release/**","bucket":"prod"},{"branch":"staging","bucket":"staging"}]}
+-- .gitignore --
+.env.d/
+.env
+-- .env.d/dev/.env --
+SYNTHETIC_DEV
+-- .env.d/prod/.env --
+SYNTHETIC_PROD
+-- replacement-hook --
+#!/bin/sh
+# overwritten by a tool
+-- status-main --
+On branch main
+Using bucket 'dev' (default)
+
+1 file linked
+-- branches-main --
+* main         dev   (default)
+  release/1.0  prod  (rule 'release/**')
+-- branches-filtered --
+  feature/future  dev   (default)
+  release/1.0     prod  (rule 'release/**')
+* main            dev   (default)
+-- branches-temporary --
+* main  dev  (default), using 'prod' for now
+-- status-temporary --
+On branch main
+Using bucket 'prod', but this branch uses 'dev' (default)
+  (use "envbuckets switch" to go back to 'dev')
+
+1 file linked
+-- branches-fallback --
+* staging  staging  (rule 'staging', missing; falls back to 'dev')
+-- status-fallback --
+On branch staging
+Using bucket 'dev' (default), because 'staging' (rule 'staging') does not exist
+  (use "envbuckets switch -c staging" to create it)
+
+1 file linked
+-- status-missing-hook --
+On branch staging
+Using bucket 'dev' (default), because 'staging' (rule 'staging') does not exist
+  (use "envbuckets switch -c staging" to create it)
+
+Hook not installed:
+  (use "envbuckets init" to install it)
+
+1 file linked

@@ -30,6 +30,8 @@ Usage:
   envbuckets init [-n]
   envbuckets add [-n] <file>...
   envbuckets switch [-n] [-c] [<bucket>]
+  envbuckets status
+  envbuckets branches [--bucket <name>] [<branch or pattern>...]
   envbuckets hook [post-checkout arguments]
 `
 
@@ -54,6 +56,10 @@ func Run(args []string, env Env) int {
 		return runInit(args[1:], env)
 	case "add":
 		return runAdd(args[1:], env)
+	case "status":
+		return runStatus(args[1:], env)
+	case "branches":
+		return runBranches(args[1:], env)
 	default:
 		fmt.Fprintln(env.Stderr, "usage: envbuckets <command>")
 		return ExitUsage

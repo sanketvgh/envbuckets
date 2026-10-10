@@ -10,11 +10,11 @@ import (
 )
 
 type repo struct {
-	t    *testing.T
+	t    testing.TB
 	root string
 }
 
-func newRepo(t *testing.T) *repo {
+func newRepo(t testing.TB) *repo {
 	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not on PATH")

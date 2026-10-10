@@ -109,6 +109,13 @@ tasks:
     cmds:
       - go test -tags integration -shuffle=on -run TestScript -count=1 .
 
+  bench:
+    desc: Benchmark branches and checkout hooks with 1 and 1000 local branches.
+    env:
+      GOCACHE: '{{.ROOT_DIR}}/tmp/gocache'
+    cmds:
+      - go test -run '^$' -bench BenchmarkReports -benchmem ./internal/cli
+
   pattern:fixture:
     desc: Regenerate recorded Git branch-pattern answers.
     env:
