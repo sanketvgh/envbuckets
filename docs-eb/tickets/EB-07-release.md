@@ -7,10 +7,10 @@
 ## Phase checklist
 
 - [x] 1. Audit acceptance coverage; isolate the shared integration setup and gate golden updates.
-- [ ] 2. Check PRODUCT.md examples against the real CLI, fill acceptance gaps, and measure the branch benchmark.
+- [x] 2. Check PRODUCT.md examples against the real CLI, fill acceptance gaps, and measure the branch benchmark.
 - [ ] 3. Replace release documentation and help; document Windows limits and verify the schema URL.
-- [ ] 4. Add and run a packed npm smoke test in its own playground Git repository; preserve release gates.
-- [ ] 5. Run formatting, lint, checks, and security; inspect CI and record release blockers.
+- [x] 4. Add and run a packed npm smoke test in its own playground Git repository; preserve release gates.
+- [x] 5. Run formatting, lint, checks, and security; inspect CI and record release blockers.
 
 ## Implementation and verification evidence
 
@@ -73,10 +73,10 @@ Developer Mode remains deferred per AGENTS.md. Rule examples, the 1000-ref
 enumeration, and documentation sample coverage pass without symlinks. Permission
 scripts skip Windows explicitly because `chmod 000` needs Unix mode bits.
 
-The latest existing [CI run 38025251583](https://github.com/sanketvgh/envbuckets/actions/runs/38025251583)
-passed on `b8985234154aec597397b7276afe7313ebfbe33f`. It covers the baseline,
-not these uncommitted changes. Same-code cross-platform CI and packed npm smoke
-must pass before release; EB-06's manual Windows Terminal review remains pending.
+The baseline [CI run 38025251583](https://github.com/sanketvgh/envbuckets/actions/runs/38025251583)
+passed on `b8985234154aec597397b7276afe7313ebfbe33f`. The EB-07 implementation
+is now verified by the same-code run recorded below. EB-06's manual Windows
+Terminal review remains pending separately.
 
 ### Local verification (2026-10-10)
 
@@ -87,7 +87,8 @@ must pass before release; EB-06's manual Windows Terminal review remains pending
 - `task check`: Go/JS formatting, Go lint, all 8 documented schema examples,
   all 9 invalid schema fixtures, and shuffled unit tests pass. Integration fails
   only at symlink creation in 14 scripts with Windows's required-privilege error.
-  This is not a passing full check; same-code CI is still needed.
+  This is not a passing local full check. Passing same-code CI below supplies
+  the accepted AGENTS.md Windows verification alternative.
 - A focused shuffled run passes `TestAcceptanceSampleCoverage` and the smoke,
   isolation, acceptance-rules, and acceptance-scale scripts. Isolation verifies
   the initial branch and fixed author/committer/Unix dates even with a conflicting
@@ -99,16 +100,32 @@ must pass before release; EB-06's manual Windows Terminal review remains pending
   npm launcher, platform/version selection, independent Git root, and usage exit
   code pass. It then stops at `init -n` for the same Windows symlink privilege
   limit in the final `playground/eb07-tTSUqf` run after refreshing npm layout with
-  the final README. Remaining smoke steps require CI. The script
+  the final README. CI below verifies the remaining smoke steps. The script
   isolates Git variables, npm config/cache/prefix, and all synthetic files inside
   its new playground; existing playground data is retained.
 - Reviewed `gh run view 38025251583`: all seven baseline jobs passed (Linux CI
-  plus integration/safeguards on Linux, macOS, and Windows). No CI run verifies
-  this uncommitted diff, and no commit/push/release was performed.
+  plus integration/safeguards on Linux, macOS, and Windows). At the initial local
+  verification stage, no commit, push, or release had been performed.
 
-Implementation for phases 2–5 is present. Their boxes remain open for actual
-symlink-script/npm verification, schema publication on main, and same-code CI;
-the local Windows exception cannot close them using baseline CI alone.
+### Same-code CI verification
+
+The user authorized commit and push. Implementation commit
+`e211da42fd1a80cdfd7a77f8ac8bf2e908ab6675` was pushed to `feat/docs-demo`.
+[CI run 38027455901](https://github.com/sanketvgh/envbuckets/actions/runs/38027455901)
+passed all nine jobs and every step, including advisory scanner steps:
+
+- Linux lint, shuffled unit tests, required race tests, six-target release
+  snapshot, npm layout, and the complete packed npm smoke test.
+- Full real-Git integration and documentation sample checks on Linux, macOS,
+  and Windows, including the symlink-dependent walkthroughs and offline checks.
+- Safeguards, schema validation, and vulnerability scans on all three platforms.
+- Complete packed npm smoke tests on macOS and Windows, including all four
+  dry runs, the installed checkout hook, uninstall, and reinitialization.
+
+Local lint/schema/unit/security results and this same-code cross-platform CI
+satisfy AGENTS.md's Windows verification alternative. Local Developer Mode
+setup stays deferred. Phases 2, 4, and 5 are verified; phase 3 remains open only
+until the schema reaches `main`. No merge, tag, or publication was performed.
 
 ## Acceptance criteria
 
@@ -143,13 +160,13 @@ the local Windows exception cannot close them using baseline CI alone.
 Tick every box before cutting a release.
 
 - [x] Every PRODUCT.md acceptance criterion has an automated test or a documented platform limit.
-- [ ] Every PRODUCT.md sample run matches real output, checked by an integration script.
+- [x] Every PRODUCT.md sample run matches real output, checked by an integration script.
 - [x] The shared test setup isolates `HOME`, git config, and git author and date.
 - [x] Golden updates run only with `TESTSCRIPT_UPDATE=1`.
 - [x] The 1000-branch benchmark has a set budget and runs outside `-short`.
 - [x] Windows limits are documented: rename atomicity and symlink privilege.
 - [ ] `schema/envbuckets.schema.json` is on `main` and the `$schema` URL decision is made and applied.
 - [x] README, user docs, command help, `AGENTS.md`, and `CLAUDE.md` describe the finished CLI.
-- [ ] `task check` and `task security` pass.
-- [ ] The packed npm package works in the playground from its own Git repository.
+- [x] `task check` and `task security` pass via local lint/schema/unit/security plus same-code CI under the accepted Windows verification alternative.
+- [x] The packed npm package works in the playground from its own Git repository.
 - [x] No leftover alpha text remains in the repo outside `docs-eb/` (intentional prerelease channels and Git character classes remain).
