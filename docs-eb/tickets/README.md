@@ -14,7 +14,7 @@ These tickets split [`../PRODUCT.md`](../PRODUCT.md) into reviewable pieces. Eac
 | EB-07 | [Release and acceptance](EB-07-release.md)              | EB-01 to EB-06 | CI passed (run `38027455901` on `e211da4`); schema on main pending |
 | EB-08 | [Earlier lint and format safeguards](EB-08-lint-safeguards.md) | EB-07   | Done (Actions run `37954669747` on `fcdfa8c`) |
 | EB-09 | [Stricter bug-catching checks](EB-09-strict-checks.md) | EB-08 | Passed (Actions run `37966549169` on `8d49af3`; local/CI verification accepted) |
-| EB-10 | [Final documentation and pre-PR gate](EB-10-pre-pr-gate.md) | EB-00 to EB-09 | Local docs/packaging verified; final same-code CI pending |
+| EB-10 | [Final documentation and pre-PR gate](EB-10-pre-pr-gate.md) | EB-00 to EB-09 | Passed (Actions run `38030155164` on `7d6dd44`); ready for PR |
 
 Each ticket ends with an exit checklist. Move to the next ticket only when every box in the previous one is ticked.
 

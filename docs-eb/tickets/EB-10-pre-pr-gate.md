@@ -3,12 +3,12 @@
 **Goal:** make the finished CLI, shipped user documentation, and verification
 evidence ready for a PR to `main`.
 
-**Status:** local implementation and documentation review complete; fresh
-same-code CI is pending. Local integration/npm smoke are blocked only by the
-documented Windows symlink privilege limit. The passing baseline CI predates
-these packaging changes and cannot close this ticket. The user authorized final
-documentation review, commit, and push on 2026-10-10, and explicitly asked not
-to create a PR. Merge, tag, and publication require separate instructions.
+**Status:** passed; all phases complete. Final implementation, public guides,
+and packaging are verified by [CI on `7d6dd44`](https://github.com/sanketvgh/envbuckets/actions/runs/38030155164).
+Local integration/npm smoke have the documented Windows symlink privilege limit;
+same-code cross-platform CI covers them. The user authorized final review,
+commit, push, and subsequently a PR to `main` on 2026-10-10. Merge, tag, and
+publication require separate instructions.
 
 **Depends on:** review EB-00 through EB-09, especially EB-06's remaining terminal
 check and EB-07's release documentation and schema gate. Existing implementation
@@ -24,8 +24,8 @@ requirements in EB-07.
 - [x] Phase 1: audit every ticket's exit checklist and record remaining blockers.
 - [x] Phase 2: finish and review README, user guides, help, and contributor docs.
 - [x] Phase 3: verify packaged documentation, examples, and links.
-- [ ] Phase 4: review final-code checks and CI evidence; resolve actual failures.
-- [ ] Phase 5: review the PR diff and record a ready/blocked decision with evidence.
+- [x] Phase 4: review final-code checks and CI evidence; resolve actual failures.
+- [x] Phase 5: review the PR diff and record a ready/blocked decision with evidence.
 
 Update this checklist and the ticket index after each phase. Continue from the
 first unfinished phase when implementing this ticket.
@@ -104,18 +104,18 @@ first unfinished phase when implementing this ticket.
 
 Tick every box before recording this ticket as ready for the PR to `main`.
 
-- [x] Every earlier ticket is reviewed; remaining work has an owner. Final same-code CI is tracked separately below.
+- [x] Every earlier ticket is reviewed; remaining work has an owner. Final same-code CI is recorded below.
 - [x] EB-06's Windows Terminal visual review has an explicit user-approved post-release deferral; automated console/color checks remain required.
 - [x] README, user guides, help, and contributor docs describe the final behavior.
 - [x] Repository links/anchors work; public guide and schema targets are present for inclusion in the PR.
 - [x] The packed npm package contains the final README/license; public documentation URLs target files included in the planned PR and must resolve after merge.
 - [x] PRODUCT.md examples and acceptance coverage agree with the final CLI; sample coverage passes locally and symlink-dependent transcripts await same-code CI.
-- [ ] Final-code checks, security, snapshot, and cross-platform npm smoke have passing evidence, with accepted platform limits documented.
-- [ ] CI evidence identifies the tested SHA and any subsequent changes; no unverified code change is covered by an older run.
+- [x] Final-code checks, security, snapshot, and cross-platform npm smoke have passing evidence, with accepted platform limits documented.
+- [x] CI evidence identifies the tested SHA and any subsequent changes; no unverified code change is covered by an older run.
 - [x] The task diff and overall PR scope are reviewed for whitespace, stale docs, accidental generated artifacts, and private paths, without reading real environment-file contents.
 - [x] The ticket index is accurate; EB-07 retains its post-merge schema/publishing gate.
 - [x] A PR title and description are prepared with scope, behavior, validation, and remaining post-merge work; the title follows `<gitmoji> <type>(<scope>): <summary>`.
-- [x] The current decision and supporting evidence are recorded below; a ready decision still requires fresh CI.
+- [x] The ready decision and supporting same-code CI evidence are recorded below.
 
 ## Evidence and handoff
 
@@ -143,7 +143,7 @@ Tick every box before recording this ticket as ready for the PR to `main`.
   binary archives omitted the README and guides. Added license copies for all
   npm packages, packed license assertions, a synthetic packaging unit test,
   and README/guide inclusion in binary archives. Local packaging verification
-  passed as recorded below; fresh CI remains pending.
+  passed as recorded below; final CI subsequently passed as recorded below.
 - Fresh `gh` inspection of [CI run 38027668071](https://github.com/sanketvgh/envbuckets/actions/runs/38027668071)
   confirmed all nine jobs passed on baseline HEAD
   `f0fdf1dcee108379568c9e62cf99781e42bcfa4f`, including race, snapshots,
@@ -165,6 +165,9 @@ Tick every box before recording this ticket as ready for the PR to `main`.
   Archived the obsolete root alpha handoff as `docs-eb/alpha-interfaces.md` with
   an explicit superseded notice, corrected historical Ajv/Lip Gloss references,
   and removed contributor-only implementation details from public guides.
+- Restored the user's early-alpha warning at the top of README: commands and
+  config may change, with the request to star or watch the repository. Refreshed
+  the snapshot and verified the packaged README again after this final request.
 - `task fix` passed with zero issues; reviewed the packaging diff and new test,
   then `task lint:go` passed with zero issues, including modernize. Logs:
   `tmp/eb10/fix-final.log`, `tmp/eb10/lint-go.log`.
@@ -199,8 +202,34 @@ Tick every box before recording this ticket as ready for the PR to `main`.
   docs, packaging, test, and ticket changes are in this task; snapshot outputs,
   temporary logs/scripts, and playground fixtures remain ignored. Go modules and
   the CLI runtime are unchanged. The user authorized commit and push after the
-  final review, with an explicit instruction not to create a PR. Tag and
-  publication are outside that request.
+  final review, then authorized a PR to `main`. Tag and publication are outside
+  those requests.
+
+### Final committed-code CI (2026-10-10)
+
+- Committed and pushed the reviewed changes as
+  `7d6dd44eedd40b8863e73cf9f9022a790eb6725c`
+  (`📝 docs(cli): finalize user guides and package documentation`). Local and
+  remote branch IDs matched; the working tree was clean.
+- [Run 38030155164](https://github.com/sanketvgh/envbuckets/actions/runs/38030155164)
+  passed all nine jobs on that SHA: Linux lint/unit/race/snapshot/npm smoke,
+  Linux/macOS/Windows integration and safeguards, and macOS/Windows npm smoke.
+  Inspected advisory scanner logs on all three platforms: each explicitly
+  reported **No vulnerabilities found.** Evidence: `tmp/eb10/ci-final.json`
+  and `tmp/eb10/ci-security-{linux,macos,windows}.log`.
+- Attempt 1 passed eight jobs. Windows integration failed only because Git Bash
+  printed `warning: could not find /tmp, please create!` during the checkout
+  script's silence assertion. Retried that job on a fresh runner with the same
+  code and unchanged assertions. Attempt 2 passed the full Windows suite,
+  including `checkout` and `TestAcceptanceSampleCoverage`; the temporary-directory
+  warning was absent. Logs: `tmp/eb10/ci-windows-integration-plain.log` and
+  `tmp/eb10/ci-windows-retry.log`. No test or gate was weakened.
+- The follow-up commit recording this evidence changes EB-10, EB-07, the ticket
+  index, and README's restored early-alpha warning. Runtime, packaging code,
+  schema, tests, and all public guides are identical to the tested SHA. The
+  refreshed local snapshot verifies the final README in every archive and the
+  umbrella npm package. The historical baseline run is not used to verify the
+  new packaging code; the follow-up push starts CI for the updated docs as well.
 
 ### PR draft for the completed branch
 
@@ -224,21 +253,21 @@ contain the license.
 **Validation:** local fix/lint, schema/unit checks, acceptance sample coverage,
 security, and six-platform snapshot/content verification passed. Local integration
 and full npm smoke require Windows symlink privilege. The prior all-platform CI
-on `f0fdf1d` passed, but final same-code CI must be recorded before this draft is
-ready to open. Windows Terminal visual review is deferred until after release at
-the user's request.
+on `7d6dd44` passed all nine jobs, including full cross-platform integration and
+npm smoke. Advisory scanners reported no vulnerabilities on all three platforms.
+Windows Terminal visual review is deferred until after release at the user's
+request.
 
 **After merge:** verify guide URLs and matching schema on remote `main`, then
 complete EB-07's release-runner benchmark review and publishing checklist.
 
 ### Decision and next step
 
-**Pending CI; not yet marked ready for the PR.** Local docs and packaging work
-are complete. The user authorized the reviewed changes to be committed and
-pushed. Inspect the new CI run
-for the final SHA, including advisory security outcomes and full cross-platform
-integration/npm smoke. Record the run here and in EB-07, then complete phases 4
-and 5. Do not reuse the baseline run for the new packaging code.
+**Ready for the PR to `main`.** Local docs and packaging verification, final
+same-code cross-platform CI, advisory security review, and the PR scope review
+are complete. The user authorized commit, push, and a PR. Keep EB-07's remote
+`main` schema and publishing gate after merge; the user owns the post-release
+Windows Terminal visual review.
 
 ### Historical planning baseline (2026-10-10)
 
@@ -252,9 +281,9 @@ and 5. Do not reuse the baseline run for the new packaging code.
   documentation is missing or already fully shipped.
 - At ticket creation, no implementation checks or fresh CI inspection had been
   performed. The local verification above supersedes that initial state; final
-  committed-SHA CI verification remains pending.
+  committed-SHA CI verification is recorded in the final CI section above.
 
 After merge, verify the public guide links and matching schema on remote `main`,
 record the evidence in EB-07, and complete its release exit checklist before any
-publication. Commit and push are authorized. Do not create a PR; merging,
-tagging, and publishing require separate user instructions.
+publication. Commit, push, and a PR to `main` are authorized. Merging, tagging,
+and publishing require separate user instructions.

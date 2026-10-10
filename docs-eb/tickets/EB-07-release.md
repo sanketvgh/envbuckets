@@ -13,6 +13,16 @@ schema and public documentation URLs on remote `main` after merging the PR;
 the schema gate still blocks publication. The release-runner benchmark review
 remains owned by this ticket, using the budgets below.
 
+**Final-code evidence:** [CI run 38030155164 on `7d6dd44`](https://github.com/sanketvgh/envbuckets/actions/runs/38030155164)
+passed all nine jobs, including cross-platform integration/npm smoke and
+Linux race checks. All three advisory vulnerability scanners explicitly reported
+no vulnerabilities. EB-10 records the Windows runner warning and successful
+unchanged-code retry. The subsequent handoff update changes only tickets and
+restores the user's early-alpha README warning; runtime, packaging code, schema,
+tests, and user guides match the tested SHA. The final README was reverified in
+a local snapshot. This completes the pre-PR verification; the remote `main`
+schema and release-runner benchmark gates remain open until after merge.
+
 - [x] 1. Audit acceptance coverage; isolate the shared integration setup and gate golden updates.
 - [x] 2. Check PRODUCT.md examples against the real CLI, fill acceptance gaps, and measure the branch benchmark.
 - [ ] 3. Replace release documentation and help; document Windows limits and verify the schema URL.

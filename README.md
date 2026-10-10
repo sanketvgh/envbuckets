@@ -7,6 +7,10 @@
 [![x](https://img.shields.io/badge/x-@sanketvgh-000?logo=x&logoColor=white)](https://x.com/sanketvgh)
 [![linkedin](https://img.shields.io/badge/linkedin-sanketvgh-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/sanketvgh)
 
+> [!WARNING]
+> Early alpha, under active development. Commands and config may change.
+> Star or watch the repo to stay tuned.
+
 Keep one set of local files per environment. envbuckets links the right set into
 your project when you switch Git branches. It works with `.env` files, service
 accounts, and other local settings without reading or printing their contents.
