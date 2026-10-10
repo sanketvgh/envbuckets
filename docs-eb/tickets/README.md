@@ -9,7 +9,7 @@ These tickets split [`../PRODUCT.md`](../PRODUCT.md) into reviewable pieces. Eac
 | EB-02 | [Switch engine and hook](EB-02-switch-hook.md)          | EB-01          | Passed (Actions run `37951292646` on `f1c2133`; local/CI verification accepted) |
 | EB-03 | [init, add, and switch -c](EB-03-init-add.md)           | EB-01, EB-02   | Passed (Actions run `37960285426` on `823e0d9`; local/CI verification accepted) |
 | EB-04 | [status and branches](EB-04-status-branches.md)         | EB-01, EB-02   | Passed (Actions run `38020427583` on `bbef602`; local/CI verification accepted) |
-| EB-05 | [uninstall](EB-05-uninstall.md)                         | EB-01, EB-02   | Implemented; local lint/schema/unit passed; same-code CI pending |
+| EB-05 | [uninstall](EB-05-uninstall.md)                         | EB-01, EB-02   | Passed (Actions run `38022429016` on `bcc6638`; local/CI verification accepted) |
 | EB-06 | [Colored output with Lip Gloss](EB-06-colors.md)        | EB-01, EB-04   | Not started                                         |
 | EB-07 | [Release and acceptance](EB-07-release.md)              | EB-01 to EB-06 | Not started                                         |
 | EB-08 | [Earlier lint and format safeguards](EB-08-lint-safeguards.md) | EB-07   | Done (Actions run `37954669747` on `fcdfa8c`) |

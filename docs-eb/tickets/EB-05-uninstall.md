@@ -2,8 +2,9 @@
 
 **Goal:** leave the project working without envbuckets, with no data lost.
 
-**Status:** implemented; local lint/schema/unit checks passed. Same-code
-cross-platform CI is still required before this ticket can be closed.
+**Status:** passed. Local lint/schema/unit checks and same-code cross-platform
+[CI run 38022429016](https://github.com/sanketvgh/envbuckets/actions/runs/38022429016)
+on `bcc6638` satisfy the Windows verification rule.
 
 **Scope:** find envbuckets links without reading the config: take the candidate paths from the files in `.env.d/*/` and keep the ones that are links into `.env.d/`, so the repo is never walked. Rename each link's target file from the active bucket over the link (one atomic rename, so the path never disappears and nothing is copied), then remove the hook block, including the alpha's `envbuckets v1` block. Other buckets, the config, and the ignore block stay. Print `Moving <bucket path> to <path>` per file, `Removing the envbuckets hook from .git/hooks/post-checkout`, and a hint that the other buckets are still in `.env.d/`. `uninstall -n` prints the same lines as `Would ...` and stops.
 
@@ -13,7 +14,7 @@ cross-platform CI is still required before this ticket can be closed.
 - [x] Phase 2: implement file restoration, contained hook removal, and CLI output.
 - [x] Phase 3: add unit/integration coverage and user documentation.
 - [x] Phase 4: run formatting, lint, and authorized local checks; review changes (Windows integration limitation recorded below).
-- [ ] Phase 5: inspect CI and record exit-criterion evidence or deferred verification (baseline inspected; same-code CI pending).
+- [x] Phase 5: inspect passing same-code CI and record all exit-criterion evidence.
 
 ## Acceptance criteria
 
@@ -51,17 +52,17 @@ cross-platform CI is still required before this ticket can be closed.
 
 Tick every box before starting EB-07's end-to-end work.
 
-- [ ] Each formerly linked path ends up as the active bucket's file, moved not copied; other buckets are unchanged.
-- [ ] Running `init` afterwards imports the same files again without collisions.
-- [ ] Broken links get an `error:` line and are left alone; the rest completes; exit 1.
-- [ ] Only the envbuckets hook block is removed; every other byte of the hook is unchanged and still executable; a hook with only a shebang or nothing left is deleted.
+- [x] Each formerly linked path ends up as the active bucket's file, moved not copied; other buckets are unchanged.
+- [x] Running `init` afterwards imports the same files again without collisions (default-bucket `.env` files; arbitrary files use `add`, as described above).
+- [x] Broken links get an `error:` line and are left alone; the rest completes; exit 1.
+- [x] Only the envbuckets hook block is removed; every other byte of the hook is unchanged and still executable; a hook with only a shebang or nothing left is deleted.
 - [x] The hook file is rewritten through a temp file and a rename.
-- [ ] Works with a missing or broken config.
-- [ ] Running twice, or on a repo never set up, does nothing and exits 0.
-- [ ] A foreign link whose target is outside `.env.d/` and its target remain unchanged.
-- [ ] An interrupted run leaves the project working and rerunning finishes it.
-- [ ] `uninstall -n` changes nothing and returns the real exit code.
-- [ ] `task check` passes.
+- [x] Works with a missing or broken config.
+- [x] Running twice, or on a repo never set up, does nothing and exits 0.
+- [x] A foreign link whose target is outside `.env.d/` and its target remain unchanged.
+- [x] An interrupted run leaves the project working and rerunning finishes it.
+- [x] `uninstall -n` changes nothing and returns the real exit code.
+- [x] `task check` requirement satisfied under the Windows verification rule: local lint/schema/unit checks plus passing same-code cross-platform CI; local integration is blocked only by symlink privilege.
 
 ## Implementation notes
 
@@ -90,3 +91,12 @@ Tick every box before starting EB-07's end-to-end work.
 - Committed EB-05 as `5c4baf4` (`✨ feat(cli): add safe uninstall`). The user pushed this commit to `feat/docs-demo`; the local and remote commit IDs matched. The implementation commit contains only the 18 reviewed EB-05 files.
 - [Run 38022199062](https://github.com/sanketvgh/envbuckets/actions/runs/38022199062) verified the implementation. The main Linux lint/unit/race/build/snapshot job, Windows integration, and Linux/macOS safeguards passed. Linux/macOS integration each failed only in `uninstall-unreadable`, because the pinned testscript `chmod` command requires exactly one path per invocation. The regular `uninstall` and `uninstall-empty` scripts passed on all three platforms.
 - Corrected both multi-path `chmod` lines to use one invocation per path. This changes only the permission fixture; production code, Go tests, dependencies, and CI/security gates are unchanged. Passing CI for the corrected fixture remains required before closing Phase 5.
+
+## Closing verification (2026-10-10)
+
+- Committed and pushed the fixture correction and failure evidence as `bcc6638` (`✅ test(uninstall): fix permission fixture commands`) to the existing `feat/docs-demo` branch. The implementation remains `5c4baf4`; the correction changes only the synthetic Unix script and this ticket.
+- [CI run 38022429016](https://github.com/sanketvgh/envbuckets/actions/runs/38022429016) on `bcc6638` **passed all seven jobs**: Linux/macOS/Windows integration and safeguards, plus the main Linux lint/unit/race/build/snapshot/npm-artifact job. All three advisory vulnerability scans passed too. No gate was weakened or skipped to obtain this result.
+- Audited the completed integration logs. `uninstall` and `uninstall-empty` passed on Linux, macOS, and Windows. `uninstall-unreadable` passed on Linux and macOS and skipped on Windows for its explicit Unix-mode-bits condition. Logs are saved in `tmp/eb05-ci-linux-pass.log`, `tmp/eb05-ci-macos-pass.log`, and `tmp/eb05-ci-windows-pass.log`.
+- Passing Linux unit/race tests and cross-platform filesystem/integration checks verify the locally skipped restoration, file identity, mixed-bucket, unsafe-symlink, foreign-link, and interrupted-run cases. The local lint/schema/unit evidence plus this same-code CI satisfy AGENTS.md's Windows verification rule. Symlink privilege setup remains deferred.
+- Reinitialization follows PRODUCT.md: `init` imports restored default-bucket `.env` paths without collisions, and `add` reimports an arbitrary restored file. Retained non-default/default collisions remain reported rather than overwriting another bucket, as documented under gaps and in the user guide. This preserves the product's existing import behavior and data safety.
+- All phases and exit criteria are closed. The subsequent ticket/index commit records verification only; the verified implementation and tests are unchanged.
