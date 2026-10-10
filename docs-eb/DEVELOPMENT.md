@@ -18,9 +18,13 @@ judgment. The pinned linter can also return an old `ifElseChain` diagnostic afte
 modernize has rewritten the chain; `lint:go` checks the resulting code. Do not
 ignore findings that remain on that second check.
 
-`task lint` runs Go checks, oxfmt, and config schema validation.
+Install repository tooling with `pnpm install`. `task fmt` formats Go and
+Markdown; `task lint` checks Go, Markdown/JSON formatting, and config schema
+validation. The formatter uses the repository's ignore rules.
 `task check` runs lint, followed by Go unit tests and real-Git integration tests.
-No pre-commit hook is installed by these commands.
+No pre-commit hook is installed by these commands. `task hooks` installs the
+pre-push hook for lint, unit tests, and security. It sets `core.hooksPath` to
+`.githooks`; account for existing hooks before changing that setting.
 
 CI runs `lint` on Linux, macOS, and Windows without rewriting the checkout.
 The existing build, release snapshot, and integration jobs remain.
@@ -42,7 +46,8 @@ have documented exclusions; six hook metadata call sites have explained
 suppressions. Root-contained `os.Root` methods and writer-directed `fmt.Fprint*`
 remain available.
 
-`task security` runs a separate vulnerability scan. Install the pinned scanner:
+`task security` checks Go vulnerabilities and runs `uvx zizmor --offline .github`
+to scan workflows. Install uv and the pinned Go scanner:
 
 ```sh
 go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
@@ -52,9 +57,12 @@ task security
 Its binary version and CI pin must match `GOVULNCHECK_VERSION` in the Taskfile.
 `lint:version` also checks the CI/release pins without requiring a local scanner. The
 scan contacts the Go vulnerability database and checks reachable Go code; it
-does not read managed environment files. It is advisory in the three-platform
-safeguards matrix and separate from `task check`. Existing gosec, build, lint,
-integration, and release gates remain blocking.
+does not read managed environment files. The three-platform safeguards scans
+remain advisory; CI's separate `security` job requires both the vulnerability
+and workflow scans to pass. CodeQL and dependency review also remain required
+PR gates. Pin actions to commit SHAs with version comments and keep release jobs
+free of caches. Existing gosec, build, lint, integration, and release gates remain
+blocking. Security is separate from local `task check`.
 
 The main Linux CI job also runs `go test -race -shuffle=on -count=1 ./...` as a
 required check. The initial trial found no races and added about ten seconds

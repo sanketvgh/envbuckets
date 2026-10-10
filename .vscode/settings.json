@@ -22,6 +22,10 @@
   "[go.mod]": {
     "editor.formatOnSave": true
   },
+  "[markdown]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode",
+    "editor.formatOnSave": true
+  },
   "files.insertFinalNewline": true,
   "files.trimTrailingWhitespace": true,
   "cSpell.words": [

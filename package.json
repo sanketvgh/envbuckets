@@ -4,10 +4,13 @@
   "description": "Formatting and schema validation tools for envbuckets.",
   "license": "MIT",
   "scripts": {
+    "fmt": "oxfmt \"**/*.md\"",
+    "fmt:check": "oxfmt --check \"**/*.md\"",
     "validate:schema": "node tools/validate-config-schema.mjs"
   },
   "devDependencies": {
     "ajv": "8.20.0",
     "oxfmt": "0.72.0"
-  }
+  },
+  "packageManager": "pnpm@12.9.1"
 }

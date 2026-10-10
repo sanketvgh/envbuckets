@@ -6,3 +6,4 @@ node_modules/
 /envbuckets.exe
 .private/
 /playground/
+/node_modules/

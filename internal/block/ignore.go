@@ -8,6 +8,7 @@ import (
 
 	"github.com/sanketvgh/envbuckets/internal/fsx"
 	"github.com/sanketvgh/envbuckets/internal/gitx"
+	"github.com/sanketvgh/envbuckets/internal/metadata"
 )
 
 // IgnorePlan holds a preflighted edit of the marker-guarded .gitignore block.
@@ -32,7 +33,7 @@ func PlanIgnore(repo *fsx.Repo, paths []string) (IgnorePlan, error) {
 	} else if !os.IsNotExist(err) {
 		return p, err
 	}
-	existing, err := repo.Root.ReadFile(".gitignore")
+	existing, err := metadata.ReadRegular(repo.Root, ".gitignore")
 	if err != nil && !os.IsNotExist(err) {
 		return p, err
 	}

@@ -6,6 +6,11 @@
 
 ## Phase checklist
 
+**PR #6 continuation:** integration of the newer `main` security/formatting
+commits adds metadata-read hardening and restores the blocking security,
+CodeQL, and dependency-review gates. EB-10 tracks fresh combined-code CI;
+the earlier `7d6dd44` run does not cover these subsequent changes.
+
 **EB-10 handoff (2026-10-10):** the Windows Terminal visual check is deferred
 until after release at the user's request and no longer blocks this ticket.
 Public guides now live under `docs/` with lowercase slug filenames. Verify the
@@ -71,12 +76,12 @@ measures branch-independent dispatch/planning, not a workload of file swaps.
 First local measurement: Windows/amd64, Go 1.27.2, Intel Core i5-12500H;
 `go test -run '^$' -bench BenchmarkReports -benchtime=3x -count=3 -benchmem ./internal/cli`.
 
-| Case | Three observed timings | Review budget on this machine |
-| --- | --- | --- |
-| `branches/1` | 264.46 / 220.37 / 229.22 ms/op | 500 ms/op |
-| `branches/1000` | 515.48 / 522.49 / 437.15 ms/op | 1,000 ms/op |
-| `hook/1` | 167.80 / 161.61 / 134.43 ms/op | 350 ms/op |
-| `hook/1000` | 131.72 / 125.40 / 179.32 ms/op | 350 ms/op |
+| Case            | Three observed timings         | Review budget on this machine |
+| --------------- | ------------------------------ | ----------------------------- |
+| `branches/1`    | 264.46 / 220.37 / 229.22 ms/op | 500 ms/op                     |
+| `branches/1000` | 515.48 / 522.49 / 437.15 ms/op | 1,000 ms/op                   |
+| `hook/1`        | 167.80 / 161.61 / 134.43 ms/op | 350 ms/op                     |
+| `hook/1000`     | 131.72 / 125.40 / 179.32 ms/op | 350 ms/op                     |
 
 All cases fit the budgets. These short, warm-cache samples establish a review
 baseline, not a cross-runner timing guarantee. Remeasure on the release runner

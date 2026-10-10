@@ -21,21 +21,21 @@ Pinned commits: `direnv/direnv@e24ea74873aff78d5e371c85061dc7fafdeedd5a`, `evilm
 
 ## 1. Go tooling to reuse
 
-| Need | Use | Ticket | Notes |
-| --- | --- | --- | --- |
-| Reject paths outside the repo, through symlinked folders, `..`, Windows device names | `os.OpenRoot` / `os.Root` (`Lstat`, `Readlink`, `Symlink`, `Link`, `Rename`, `Remove`, `MkdirAll`, `OpenRoot`, `FS`) | EB-01, 02, 03, 05 | Verified with `go doc`. Every method refuses to leave the root. Go's own `src/os/root_test.go` and `root_windows_test.go` cover case-insensitivity and `NUL`. |
-| Cheap lexical pre-check | `path/filepath.IsLocal` | EB-01, 03 | Rejects absolute, empty, escaping paths and Windows reserved names. Lexical only; keep as a first filter before `os.Root`. |
-| Scan buckets without following links | `os.Lstat`, `io/fs.WalkDir` over `Root.FS()` | EB-01, 04, 05 | Entry type comes from the directory read, no file contents touched. |
-| Atomic link swap | temp symlink then `os.Rename` (or the `Root` methods) | EB-01, 02 | `go doc os.Rename`: "on non-Unix platforms Rename is not an atomic operation". See section 3. |
-| Move into a bucket without the path vanishing | `os.Link`, then rename a symlink over the original | EB-01, 03 | Already the plan. |
-| Strict config parsing | `encoding/json/v2` with `RejectUnknownMembers(true)` | EB-01 | Tested on Go 1.27.1 (section 9a). v1's `DisallowUnknownFields` accepts duplicate keys and wrong-case keys; v2 rejects both, plus trailing data and invalid UTF-8, and errors carry a JSON pointer. |
-| Find the hooks directory | `git rev-parse --git-path hooks` | EB-02, 05 | **local**: honors `core.hooksPath` and, inside a linked worktree, resolves to the common dir's `hooks`. Do not hardcode `.git/hooks`. |
-| Run git | `os/exec` (`LookPath`, `Cmd.Environ`) | EB-02 to 04 | Already in `internal/gitx`. |
-| Version string | `runtime/debug.ReadBuildInfo` (`vcs.revision`) | EB-07 | asdf's `cmd/asdf/main.go` does exactly this (**read**). |
-| Plain-text columns | `text/tabwriter` | EB-04 | Frozen, and it counts ANSI bytes, so it cannot align colored output. |
-| Flag parsing | `flag.FlagSet` per subcommand | EB-03 to 05 | `flag` stops at the first non-flag argument, so `branches 'release/**' --bucket prod` fails and `branches --bucket prod 'release/**'` works. Decide before EB-04. |
-| Fake FS in tests | `testing/fstest` | EB-01 | Read-only; symlink and rename tests need real `t.TempDir`. |
-| Tests that call the real binary | `testscript.Main` | EB-02, 07 | See section 5. |
+| Need                                                                                 | Use                                                                                                                  | Ticket            | Notes                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reject paths outside the repo, through symlinked folders, `..`, Windows device names | `os.OpenRoot` / `os.Root` (`Lstat`, `Readlink`, `Symlink`, `Link`, `Rename`, `Remove`, `MkdirAll`, `OpenRoot`, `FS`) | EB-01, 02, 03, 05 | Verified with `go doc`. Every method refuses to leave the root. Go's own `src/os/root_test.go` and `root_windows_test.go` cover case-insensitivity and `NUL`.                                      |
+| Cheap lexical pre-check                                                              | `path/filepath.IsLocal`                                                                                              | EB-01, 03         | Rejects absolute, empty, escaping paths and Windows reserved names. Lexical only; keep as a first filter before `os.Root`.                                                                         |
+| Scan buckets without following links                                                 | `os.Lstat`, `io/fs.WalkDir` over `Root.FS()`                                                                         | EB-01, 04, 05     | Entry type comes from the directory read, no file contents touched.                                                                                                                                |
+| Atomic link swap                                                                     | temp symlink then `os.Rename` (or the `Root` methods)                                                                | EB-01, 02         | `go doc os.Rename`: "on non-Unix platforms Rename is not an atomic operation". See section 3.                                                                                                      |
+| Move into a bucket without the path vanishing                                        | `os.Link`, then rename a symlink over the original                                                                   | EB-01, 03         | Already the plan.                                                                                                                                                                                  |
+| Strict config parsing                                                                | `encoding/json/v2` with `RejectUnknownMembers(true)`                                                                 | EB-01             | Tested on Go 1.27.1 (section 9a). v1's `DisallowUnknownFields` accepts duplicate keys and wrong-case keys; v2 rejects both, plus trailing data and invalid UTF-8, and errors carry a JSON pointer. |
+| Find the hooks directory                                                             | `git rev-parse --git-path hooks`                                                                                     | EB-02, 05         | **local**: honors `core.hooksPath` and, inside a linked worktree, resolves to the common dir's `hooks`. Do not hardcode `.git/hooks`.                                                              |
+| Run git                                                                              | `os/exec` (`LookPath`, `Cmd.Environ`)                                                                                | EB-02 to 04       | Already in `internal/gitx`.                                                                                                                                                                        |
+| Version string                                                                       | `runtime/debug.ReadBuildInfo` (`vcs.revision`)                                                                       | EB-07             | asdf's `cmd/asdf/main.go` does exactly this (**read**).                                                                                                                                            |
+| Plain-text columns                                                                   | `text/tabwriter`                                                                                                     | EB-04             | Frozen, and it counts ANSI bytes, so it cannot align colored output.                                                                                                                               |
+| Flag parsing                                                                         | `flag.FlagSet` per subcommand                                                                                        | EB-03 to 05       | `flag` stops at the first non-flag argument, so `branches 'release/**' --bucket prod` fails and `branches --bucket prod 'release/**'` works. Decide before EB-04.                                  |
+| Fake FS in tests                                                                     | `testing/fstest`                                                                                                     | EB-01             | Read-only; symlink and rename tests need real `t.TempDir`.                                                                                                                                         |
+| Tests that call the real binary                                                      | `testscript.Main`                                                                                                    | EB-02, 07         | See section 5.                                                                                                                                                                                     |
 
 `go doc` and `go/doc` inspect Go source, not repos, so they do not help the product. Already adopted: `go-internal/testscript`, `git-lfs/wildmatch/v2`.
 
@@ -45,12 +45,12 @@ Pinned commits: `direnv/direnv@e24ea74873aff78d5e371c85061dc7fafdeedd5a`, `evilm
 
 Sources: the hook subagent (git-lfs, lefthook, husky, pre-commit; **summary** unless noted), DeepWiki on git-lfs, and my own check of lefthook's tree.
 
-| Tool | Foreign hook | Own-hook marker | Missing binary | `core.hooksPath` | Uninstall |
-| --- | --- | --- | --- | --- | --- |
-| git-lfs (`lfs/hook.go`, summary) | Refuses unless the file is empty or a known older LFS version; `--manual` prints lines to paste | Compares full content with current and `upgradeables` | Hook script prints a message and exits 2 | Reads it via `config.HookDir()` | Removes the hook only if content matches a known LFS version |
-| lefthook (`internal/command/install.go`, `lefthook.go` `cleanHook`; install.go is not at `internal/lefthook/`) | Renames to `<name>.old` | Marker line plus md5 checksum file under the git info dir | n/a | Refuses unless `--force` or `--reset-hooks-path` | Deletes its hook, renames `.old` back |
-| pre-commit (`install_uninstall.py`, `hook-tmpl`) | Moves to `<hook>.legacy`, runs it in "migration mode" | Hash of known template versions | Prints an error and **exits 1**, which blocks Git | Refuses to install | Only if it is our script; restores `.legacy` |
-| husky (`index.js`) | Not preserved | none | Install returns an error string | Sets `core.hooksPath` to `.husky/_` | n/a |
+| Tool                                                                                                           | Foreign hook                                                                                    | Own-hook marker                                           | Missing binary                                    | `core.hooksPath`                                 | Uninstall                                                    |
+| -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------ |
+| git-lfs (`lfs/hook.go`, summary)                                                                               | Refuses unless the file is empty or a known older LFS version; `--manual` prints lines to paste | Compares full content with current and `upgradeables`     | Hook script prints a message and exits 2          | Reads it via `config.HookDir()`                  | Removes the hook only if content matches a known LFS version |
+| lefthook (`internal/command/install.go`, `lefthook.go` `cleanHook`; install.go is not at `internal/lefthook/`) | Renames to `<name>.old`                                                                         | Marker line plus md5 checksum file under the git info dir | n/a                                               | Refuses unless `--force` or `--reset-hooks-path` | Deletes its hook, renames `.old` back                        |
+| pre-commit (`install_uninstall.py`, `hook-tmpl`)                                                               | Moves to `<hook>.legacy`, runs it in "migration mode"                                           | Hash of known template versions                           | Prints an error and **exits 1**, which blocks Git | Refuses to install                               | Only if it is our script; restores `.legacy`                 |
+| husky (`index.js`)                                                                                             | Not preserved                                                                                   | none                                                      | Install returns an error string                   | Sets `core.hooksPath` to `.husky/_`              | n/a                                                          |
 
 What this means for EB-02 and EB-05:
 
@@ -162,22 +162,23 @@ Each item below was tested on this machine (Windows, Git 2.54.0) rather than arg
    - Removal is `git config --unset-all`, with nothing left behind.
 
    It would remove four risks of the marker-block plan: Git LFS overwriting the hook, an earlier `exit` in a user's hook, exact byte-range removal on uninstall, and a shared `core.hooksPath`. Cost of adopting it: two install paths (the block is still needed for Git older than 2.54, such as Ubuntu 24.04's 2.43) and a Git version check.
+
 2. **Matcher: tested against real Git, one bug fixed.** 40 cases (the Patterns table, the rule examples, and extra classes and edge cases) went through `git config includeIf.onbranch:<pattern>` on a branch of that name, and through `internal/pattern`. 39 agree; `[]a]` does not. A leading `]` rewritten to `\]` fixes it. This closes the open question about `foo/`: real Git says `release/` does not match `release` but matches `release/1.2/rc1`. The 40 cases and Git's answers become a committed fixture.
 3. **Windows rename: less uncertain, still not provable here.** Go's Windows `os.Rename` is one `MoveFileEx` call with `MOVEFILE_REPLACE_EXISTING` (read in Go's source under `GOROOT/src/os/file_windows.go` and `internal/syscall/windows`), and our code does no delete before it. Microsoft does not promise atomicity, so the ticket wording stays "converges on rerun". I could not run it: on this machine `os.Symlink` fails with "A required privilege is not held by the client", so Developer Mode is off. That confirms the error the `init` probe must detect, and it means symlink tests need CI or Developer Mode.
 4. **`$schema` pinning (proposal, not applied).** The `$schema` URL in PRODUCT.md points at `main`. SchemaStore's own history shows raw GitHub URLs breaking when branches or hosting change. Pinning to a release tag removes that risk, but `init` would need the version at build time and dev builds would omit `$schema`. This changes PRODUCT.md, so it needs your decision.
 
 5. **Config parsing: `encoding/json/v2` instead of v1.** Run on Go 1.27.1, with no `GOEXPERIMENT` set. The package is in Go's `api/go1.27.txt` and `JSONv2` is in the default experiment baseline (`internal/buildcfg/exp.go`). Same ten inputs through v1 (`DisallowUnknownFields` plus a trailing-data check) and v2 (`RejectUnknownMembers(true)`):
 
-   | Input | v1 | v2 |
-   | --- | --- | --- |
-   | unknown key | rejected | rejected |
-   | unknown key in a rule | rejected | rejected, with `/rules/0` |
-   | duplicate key | **accepted** (last wins) | rejected |
-   | wrong-case key (`Default`) | **accepted** | rejected |
-   | invalid UTF-8 | **accepted** | rejected |
-   | trailing data | rejected (with an extra check) | rejected |
-   | trailing comma, wrong value type | rejected | rejected, with position or pointer |
-   | missing `default` | accepted | accepted (no `required` option; check after decoding) |
+   | Input                            | v1                             | v2                                                    |
+   | -------------------------------- | ------------------------------ | ----------------------------------------------------- |
+   | unknown key                      | rejected                       | rejected                                              |
+   | unknown key in a rule            | rejected                       | rejected, with `/rules/0`                             |
+   | duplicate key                    | **accepted** (last wins)       | rejected                                              |
+   | wrong-case key (`Default`)       | **accepted**                   | rejected                                              |
+   | invalid UTF-8                    | **accepted**                   | rejected                                              |
+   | trailing data                    | rejected (with an extra check) | rejected                                              |
+   | trailing comma, wrong value type | rejected                       | rejected, with position or pointer                    |
+   | missing `default`                | accepted                       | accepted (no `required` option; check after decoding) |
 
    v1 would have let two typo classes through that the JSON Schema rejects, so the CLI and the schema would have disagreed (acceptance criterion 3 in PRODUCT.md). v2's error text can change between releases, so messages are built from `SemanticError.JSONPointer` and `ErrUnknownName`. EB-01 is updated.
 

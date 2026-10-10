@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/sanketvgh/envbuckets/internal/metadata"
 	"github.com/sanketvgh/envbuckets/internal/pattern"
 )
 
@@ -104,14 +105,10 @@ func pointerName(pointer jsontext.Pointer) string {
 
 // Load reads and strictly parses .envbuckets.json through the repository root.
 func Load(root *os.Root) (Config, error) {
-	info, err := root.Lstat(".envbuckets.json")
-	if err != nil {
-		return Config{}, fmt.Errorf(".envbuckets.json: %w", err)
-	}
-	if !info.Mode().IsRegular() {
+	b, err := metadata.ReadRegular(root, ".envbuckets.json")
+	if errors.Is(err, metadata.ErrNotRegular) {
 		return Config{}, errors.New(".envbuckets.json: config must be a regular file, not a symlink")
 	}
-	b, err := root.ReadFile(".envbuckets.json")
 	if err != nil {
 		return Config{}, fmt.Errorf(".envbuckets.json: %w", err)
 	}

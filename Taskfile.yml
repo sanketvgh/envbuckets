@@ -13,10 +13,11 @@ tasks:
       - go build -trimpath -o {{.EXE}} .
 
   fmt:
-    desc: Format Go code (gofumpt + goimports via golangci-lint).
+    desc: Format Go code and Markdown.
     cmds:
       - task: lint:version
       - golangci-lint fmt ./...
+      - pnpm --config.verifyDepsBeforeRun=false run fmt
 
   lint:version:
     internal: true
@@ -71,9 +72,10 @@ tasks:
       - golangci-lint run --build-tags integration ./...
 
   lint:
-    desc: Check Go lint and formatting, JSON formatting, and config schema validation.
+    desc: Check Go/Markdown/JSON formatting, lint, and config schema validation.
     cmds:
       - task: lint:go
+      - pnpm --config.verifyDepsBeforeRun=false run fmt:check
       - pnpm --config.verifyDepsBeforeRun=false exec oxfmt --check schema/envbuckets.schema.json schema/testdata/invalid/*.json tools/validate-config-schema.mjs tools/npm-smoke.mjs package.json
       - pnpm --config.verifyDepsBeforeRun=false run validate:schema
 
@@ -106,10 +108,16 @@ tasks:
       - 'true'
 
   security:
-    desc: Check reachable Go vulnerabilities (advisory in CI, separate from check).
+    desc: Check reachable Go vulnerabilities and scan workflows with zizmor.
     cmds:
       - task: security:version
       - govulncheck ./...
+      - uvx zizmor --offline .github
+
+  hooks:
+    desc: Install the pre-push hook for lint, unit tests, and security.
+    cmds:
+      - git config core.hooksPath .githooks
 
   test:
     desc: Run Go unit tests.

@@ -1,7 +1,14 @@
 # envbuckets
 
 [![ci](https://github.com/sanketvgh/envbuckets/actions/workflows/ci.yml/badge.svg)](https://github.com/sanketvgh/envbuckets/actions/workflows/ci.yml)
+[![codeql](https://github.com/sanketvgh/envbuckets/actions/workflows/codeql.yml/badge.svg)](https://github.com/sanketvgh/envbuckets/actions/workflows/codeql.yml)
+[![dependency review](https://github.com/sanketvgh/envbuckets/actions/workflows/dependency-review.yml/badge.svg)](https://github.com/sanketvgh/envbuckets/actions/workflows/dependency-review.yml)
 [![npm](https://img.shields.io/npm/v/envbuckets?label=npm)](https://www.npmjs.com/package/envbuckets)
+[![release](https://img.shields.io/github/v/release/sanketvgh/envbuckets?include_prereleases&label=release)](https://github.com/sanketvgh/envbuckets/releases)
+[![downloads](https://img.shields.io/npm/dm/envbuckets)](https://www.npmjs.com/package/envbuckets)
+[![go](https://img.shields.io/github/go-mod/go-version/sanketvgh/envbuckets)](https://github.com/sanketvgh/envbuckets/blob/main/go.mod)
+[![node](https://img.shields.io/node/v/envbuckets)](https://www.npmjs.com/package/envbuckets)
+[![platforms](https://img.shields.io/badge/platform-linux%20%7C%20macOS%20%7C%20windows-blue)](https://github.com/sanketvgh/envbuckets/releases)
 [![license](https://img.shields.io/github/license/sanketvgh/envbuckets)](https://github.com/sanketvgh/envbuckets/blob/main/LICENSE)
 [![website](https://img.shields.io/badge/heysanket.com-333?logo=googlechrome&logoColor=white)](https://heysanket.com)
 [![x](https://img.shields.io/badge/x-@sanketvgh-000?logo=x&logoColor=white)](https://x.com/sanketvgh)
@@ -156,16 +163,16 @@ the schema. The URL follows `main`, which remains the published schema branch.
 
 ## Commands
 
-| Command | Behavior |
-| --- | --- |
-| `init [-n]` | Set up config, the default bucket, ignores, and the hook; import local environment files. |
-| `add [-n] <file>...` | Move files into the current bucket and leave links; validate every path before changing any. |
-| `switch [-n] [<bucket>]` | Use a bucket now, or return to the branch's bucket without a name. |
-| `switch [-n] -c <bucket>` | Create empty files at the current bucket's paths, then switch. |
-| `status` | Show the active bucket, mapping, and paths needing attention. |
+| Command                                               | Behavior                                                                                                  |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `init [-n]`                                           | Set up config, the default bucket, ignores, and the hook; import local environment files.                 |
+| `add [-n] <file>...`                                  | Move files into the current bucket and leave links; validate every path before changing any.              |
+| `switch [-n] [<bucket>]`                              | Use a bucket now, or return to the branch's bucket without a name.                                        |
+| `switch [-n] -c <bucket>`                             | Create empty files at the current bucket's paths, then switch.                                            |
+| `status`                                              | Show the active bucket, mapping, and paths needing attention.                                             |
 | `branches [--bucket <name>] [<branch or pattern>...]` | List current and rule-matched branches, check future names, or filter local branches. Use `'**'` for all. |
-| `uninstall [-n]` | Move active files back to their working paths and remove the hook; keep other buckets. |
-| `help`, `--version` | Show command help or the installed version. |
+| `uninstall [-n]`                                      | Move active files back to their working paths and remove the hook; keep other buckets.                    |
+| `help`, `--version`                                   | Show command help or the installed version.                                                               |
 
 `-n` / `--dry-run` lists planned changes without applying them. Reports write
 to stdout; warnings, hints, and errors use stderr. Output is plain when piped.

@@ -10,6 +10,7 @@ import (
 
 	"github.com/sanketvgh/envbuckets/internal/fsx"
 	"github.com/sanketvgh/envbuckets/internal/gitx"
+	"github.com/sanketvgh/envbuckets/internal/metadata"
 )
 
 // InstallRepoHook installs into Git's actual hooks directory. Linked worktrees
@@ -100,7 +101,7 @@ func repoHook(repoPath string, op hookOperation) (string, HookResult, error) {
 		if !info.Mode().IsRegular() {
 			return "", HookUnchanged, errors.New("hook is not a regular file")
 		}
-		content, err := root.ReadFile(name)
+		content, err := metadata.ReadRegular(root, name)
 		if err != nil {
 			return "", HookUnchanged, err
 		}
@@ -172,7 +173,7 @@ func hookContent(root *os.Root, name string) ([]byte, []byte, error) {
 	} else if err != nil && !os.IsNotExist(err) {
 		return nil, nil, err
 	}
-	existing, err := root.ReadFile(name)
+	existing, err := metadata.ReadRegular(root, name)
 	if err != nil && !os.IsNotExist(err) {
 		return nil, nil, err
 	}

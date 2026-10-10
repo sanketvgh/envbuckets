@@ -2,6 +2,7 @@
   "recommendations": [
     "golang.go",
     "task.vscode-task",
+    "oxc.oxc-vscode",
     "davidanson.vscode-markdownlint",
     "streetsidesoftware.code-spell-checker"
   ]

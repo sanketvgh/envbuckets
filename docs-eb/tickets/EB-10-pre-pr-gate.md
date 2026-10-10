@@ -3,12 +3,13 @@
 **Goal:** make the finished CLI, shipped user documentation, and verification
 evidence ready for a PR to `main`.
 
-**Status:** passed; all phases complete. Final implementation, public guides,
-and packaging are verified by [CI on `7d6dd44`](https://github.com/sanketvgh/envbuckets/actions/runs/38030155164).
-Local integration/npm smoke have the documented Windows symlink privilege limit;
-same-code cross-platform CI covers them. The user authorized final review,
-commit, push, and subsequently a PR to `main` on 2026-10-10. Merge, tag, and
-publication require separate instructions.
+**Status:** final review and [PR #6](https://github.com/sanketvgh/envbuckets/pull/6)
+complete; conflicts with `main` are resolved locally, awaiting combined-code CI.
+The earlier implementation, guides, and packaging passed
+[CI on `7d6dd44`](https://github.com/sanketvgh/envbuckets/actions/runs/38030155164),
+but that run does not verify the subsequent metadata/workflow merge. The user
+authorized commit, push, the PR, and preserving our work while resolving
+conflicts. Merging the PR into `main`, tagging, and publication remain separate.
 
 **Depends on:** review EB-00 through EB-09, especially EB-06's remaining terminal
 check and EB-07's release documentation and schema gate. Existing implementation
@@ -24,8 +25,8 @@ requirements in EB-07.
 - [x] Phase 1: audit every ticket's exit checklist and record remaining blockers.
 - [x] Phase 2: finish and review README, user guides, help, and contributor docs.
 - [x] Phase 3: verify packaged documentation, examples, and links.
-- [x] Phase 4: review final-code checks and CI evidence; resolve actual failures.
-- [x] Phase 5: review the PR diff and record a ready/blocked decision with evidence.
+- [ ] Phase 4: review final-code checks and CI evidence; resolve actual failures.
+- [ ] Phase 5: review the PR diff and record a ready/blocked decision with evidence.
 
 Update this checklist and the ticket index after each phase. Continue from the
 first unfinished phase when implementing this ticket.
@@ -110,24 +111,24 @@ Tick every box before recording this ticket as ready for the PR to `main`.
 - [x] Repository links/anchors work; public guide and schema targets are present for inclusion in the PR.
 - [x] The packed npm package contains the final README/license; public documentation URLs target files included in the planned PR and must resolve after merge.
 - [x] PRODUCT.md examples and acceptance coverage agree with the final CLI; sample coverage passes locally and symlink-dependent transcripts await same-code CI.
-- [x] Final-code checks, security, snapshot, and cross-platform npm smoke have passing evidence, with accepted platform limits documented.
-- [x] CI evidence identifies the tested SHA and any subsequent changes; no unverified code change is covered by an older run.
+- [ ] Final-code checks, security, snapshot, and cross-platform npm smoke have passing evidence, with accepted platform limits documented.
+- [ ] CI evidence identifies the tested SHA and any subsequent changes; no unverified code change is covered by an older run.
 - [x] The task diff and overall PR scope are reviewed for whitespace, stale docs, accidental generated artifacts, and private paths, without reading real environment-file contents.
 - [x] The ticket index is accurate; EB-07 retains its post-merge schema/publishing gate.
 - [x] A PR title and description are prepared with scope, behavior, validation, and remaining post-merge work; the title follows `<gitmoji> <type>(<scope>): <summary>`.
-- [x] The ready decision and supporting same-code CI evidence are recorded below.
+- [x] The current decision and evidence are recorded below; final merged-code CI is pending.
 
 ## Evidence and handoff
 
 ### Phase 1 audit and phase 2 documentation review (2026-10-10)
 
-| Ticket | Final audit result / owner |
-| --- | --- |
-| EB-00 | Passing historical pre-work status, but original checklist was never ticked. Added a reconciliation note; temporary skeleton behavior is superseded. Final-code checks belong to EB-10. |
-| EB-01 to EB-05 | All exit boxes checked; shared safety cases and command handoffs have recorded evidence. |
-| EB-06 | Automated checks passed. User explicitly deferred Windows Terminal visual confirmation until after release; user owns that follow-up. |
-| EB-07 | Schema availability/matching bytes on remote `main` and release-runner benchmark review remain post-merge release work. Publishing gate is preserved. |
-| EB-08, EB-09 | Exit checklists complete with recorded CI evidence; tool pins and required safeguards remain unchanged. |
+| Ticket         | Final audit result / owner                                                                                                                                                              |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| EB-00          | Passing historical pre-work status, but original checklist was never ticked. Added a reconciliation note; temporary skeleton behavior is superseded. Final-code checks belong to EB-10. |
+| EB-01 to EB-05 | All exit boxes checked; shared safety cases and command handoffs have recorded evidence.                                                                                                |
+| EB-06          | Automated checks passed. User explicitly deferred Windows Terminal visual confirmation until after release; user owns that follow-up.                                                   |
+| EB-07          | Schema availability/matching bytes on remote `main` and release-runner benchmark review remain post-merge release work. Publishing gate is preserved.                                   |
+| EB-08, EB-09   | Exit checklists complete with recorded CI evidence; tool pins and required safeguards remain unchanged.                                                                                 |
 
 - User guides are under `docs/`, using lowercase slugs as requested:
   `index.md`, `setup.md`, `monorepos.md`, `switch.md`, `status.md`,
@@ -231,7 +232,11 @@ Tick every box before recording this ticket as ready for the PR to `main`.
   umbrella npm package. The historical baseline run is not used to verify the
   new packaging code; the follow-up push starts CI for the updated docs as well.
 
-### PR draft for the completed branch
+### Historical PR draft for the completed branch
+
+The actual [PR #6](https://github.com/sanketvgh/envbuckets/pull/6) now uses the
+user-requested shorter feature list. The longer draft below records the original
+handoff scope and validation before integration of the newer `main` commits.
 
 **Title:** `✨ feat(cli): ship branch-based environment buckets`
 
@@ -263,11 +268,48 @@ complete EB-07's release-runner benchmark review and publishing checklist.
 
 ### Decision and next step
 
-**Ready for the PR to `main`.** Local docs and packaging verification, final
-same-code cross-platform CI, advisory security review, and the PR scope review
-are complete. The user authorized commit, push, and a PR. Keep EB-07's remote
-`main` schema and publishing gate after merge; the user owns the post-release
-Windows Terminal visual review.
+**PR open; final combined CI pending.** The original pre-PR verification passed.
+PR #6 exposed conflicts with newer `main` commits, and the user authorized their
+resolution without losing our work. Reopened phases 4 and 5 for the combined
+metadata/security/formatting changes below. Keep EB-07's remote `main` schema
+and publishing gate after merge; the user owns the post-release visual review.
+
+### Integration of current `main` (2026-10-10)
+
+- Merged `main` at `e22256c` into the feature branch with both histories retained.
+  Preserved our six-command rebuild, JSON schema, public guides, packaging,
+  acceptance fixtures, and README alpha warning. No file from our branch was
+  deleted to resolve the conflicts. Archived alpha notes remain explicitly
+  superseded; obsolete scope/purge APIs are not reintroduced.
+- Retained main's blocking `security` job, CodeQL, dependency review, pinned
+  actions (including pnpm/action-setup v6.1.0), Dependabot cooldown/npm updates,
+  editor formatting, pre-push hook/task, and Markdown checks. Kept our newer
+  linter/scanner pins, Linux race gate, schema checks, cross-platform safeguards,
+  snapshots, npm smoke, and pre-publication schema comparison. Release jobs
+  have no caches and use main's pinned npm version.
+- Ported main's metadata file-identity check into `internal/metadata` using
+  `os.Root`. Config, ignore, and hook reads compare the inspected, opened, and
+  current entries before reading bytes. Synthetic tests cover regular/missing/
+  directory/symlink/outside-root cases; the integration matrix runs the metadata
+  package on every platform.
+- Reviewed main's remaining alpha safety fixes against the rebuilt equivalents:
+  init preflight, contained hook paths, canonical managed links, unsafe bucket
+  scans, and uninstall revalidation/no-copy restoration are already implemented
+  and covered. Uninstall preserves other buckets and has no purge operation, so
+  the obsolete purge-confirmation script is not restored.
+- Local merged-code `task fix` and subsequent `task lint:go` passed with zero
+  issues. `task security` passed both **No vulnerabilities found** and the
+  zizmor workflow scan with no findings. The six-platform snapshot and archive/
+  npm layout inspection passed, and acceptance sample coverage passed. Evidence:
+  `tmp/eb10/merge-{fix,lint-go,security,snapshot,artifacts,coverage}.log`.
+- `task check` passed Markdown/JSON/Go formatting, lint, all eight documented
+  configs, nine invalid fixtures, and all shuffled unit packages (including the
+  new metadata package). Its 14 failing integration scripts each stop at the
+  documented Windows symlink privilege error; audited every failure. This is
+  not a passing full local check. Evidence: `tmp/eb10/merge-check.log` and
+  `tmp/eb10/merge-integration-failures.json`.
+- The combined branch requires new CI evidence before phases 4 and 5 close.
+  The earlier nine-job run is historical evidence, not coverage of this merge.
 
 ### Historical planning baseline (2026-10-10)
 

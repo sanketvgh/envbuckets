@@ -31,6 +31,15 @@ live under ignored `.env.d/`. Working paths are relative symlinks. Use the
   where supported by `go.mod`.
 - Preserve CI and security gates. Keep the golangci-lint pins in `Taskfile.yml`
   and both CI/release workflows aligned. Automatic fixes stay local.
+- Pin GitHub Actions to commit SHAs with version comments. Keep release jobs
+  free of caches, and run `task security` after dependency or workflow changes;
+  it checks Go vulnerabilities and workflows with zizmor (requires uv).
+- Install tooling with `pnpm install`. `task fmt` formats Go and Markdown;
+  `task lint` checks both plus JSON/schema validation. `task hooks` optionally
+  installs the pre-push hook for lint, unit tests, and security. Respect the
+  documented local Windows symlink limit when verifying integration in CI.
+- Preserve the protected `main` PR gates: `ci`, `security`, `integration`,
+  `analyze` (CodeQL), and `review` (dependency review). Never bypass them.
 - Integration fixtures are synthetic and use the shared isolated Git setup.
   Update goldens only through `task test:integration:update`, then review the diff.
 - Keep PRODUCT.md sample assertions and the acceptance coverage map current.

@@ -76,37 +76,44 @@
 Tick every box before starting EB-02. Later tickets build on these without reopening this one.
 
 **Paths**
+
 - [x] All repo file operations go through one `os.Root` opened at the repo root.
 - [x] Symlinked parent folders are refused by an explicit `Lstat` check on each parent component.
 - [x] `.git/` (any case, `GIT~1`), `.env.d/`, absolute, `..`, and tracked paths are refused.
 - [x] Path tests for EB-01's shared filesystem cases pass; command-level EB-00 attacks are assigned to the matching command tickets.
 
 **Bucket scan**
+
 - [x] Regular files only, clutter skipped, unsafe entries reported, no symlink followed, no content read.
 
 **Config**
+
 - [x] `encoding/json/v2` with `RejectUnknownMembers(true)`; missing `default` and bad bucket names checked after decoding.
 - [x] Tests cover unknown key, nested unknown key, duplicate key, wrong-case key, invalid UTF-8, trailing data, trailing comma, wrong type.
 - [x] Error messages are built from `JSONPointer` and `ErrUnknownName` as `.envbuckets.json: <problem>`.
 - [x] A leftover `.envbuckets.toml` is never read.
 
 **Schema**
+
 - [x] Draft-07 schema with `additionalProperties: false` everywhere and a description on every key.
 - [x] One bucket-name regex constant, valid in RE2 and ECMA, requiring a first character that is a letter or digit (tests: `-x`, `_x`, `x-`, `x_y` and an empty name).
 - [x] The structural drift test passes.
 - [x] PRODUCT.md configs pass the parser, the Go validator, and Ajv; invalid fixtures fail all three.
 
 **Matcher**
+
 - [x] First match wins; broken patterns are config errors.
 - [x] Leading-`]` fix in; `[]a]` matches `]` and `a`.
 - [x] The Git-recorded fixture (40+ cases) is committed with a regeneration task.
 - [x] Every row of the Patterns table has a test.
 
 **Helpers**
+
 - [x] Link and move helpers work, never read or copy contents, and pass the `chmod 000` test on Linux and macOS.
 - [x] A simulated crash between steps leaves the file safe and rerunning repairs the link.
 - [x] The output helper covers every prefix and the stdout/stderr split.
 
 **Hand-off**
+
 - [x] Names used by EB-02 to EB-06 are fixed and documented in the ticket.
 - [x] `task check` passes.

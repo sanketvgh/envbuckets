@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/sanketvgh/envbuckets/internal/fsx"
+	"github.com/sanketvgh/envbuckets/internal/metadata"
 )
 
 // Unlike installation's version migration, uninstall accepts only these exact
@@ -60,7 +61,7 @@ func removeHookRoot(root *os.Root, name string, dry bool) (HookResult, error) {
 	if !info.Mode().IsRegular() {
 		return HookUnchanged, errors.New("hook is not a regular file")
 	}
-	content, err := root.ReadFile(name)
+	content, err := metadata.ReadRegular(root, name)
 	if err != nil {
 		return HookUnchanged, err
 	}
