@@ -2,7 +2,7 @@
 
 **Goal:** answer "which files am I using, is anything wrong, and which branch uses which bucket?" in the shape of `git status` and `git branch`.
 
-**Status:** implemented; local lint/schema/unit checks verified; awaiting same-code cross-platform CI for symlink-dependent tests.
+**Status:** passed; local checks and same-code cross-platform CI accepted under the Windows verification rule.
 
 ## Phase checklist
 
@@ -10,7 +10,7 @@
 - [x] Phase 2: implement read-only status and branches with shared branch resolution and safe hook inspection.
 - [x] Phase 3: add exact-output unit/integration tests and restore benchmarks with 1 and 1000 branches.
 - [x] Phase 4: run fix, review the diff, run lint/checks and benchmarks, inspect CI, and record limitations.
-- [ ] Phase 5: after explicit user authorization, commit/push only EB-04 changes, verify same-code cross-platform CI, and close the exit checklist.
+- [x] Phase 5: user authorized commit/push; EB-04 changes pushed, same-code cross-platform CI verified, and exit checklist closed.
 
 ## status
 
@@ -76,11 +76,11 @@ Tick every box before starting EB-06 or EB-07.
 - [x] `branches` uses the same matcher and fallback as the hook, with a test that compares them.
 - [x] Branches are read with one `git for-each-ref` call.
 - [x] The 1000-branch benchmark exists and the hook time does not grow with the branch count.
-- [ ] `task check` passes.
+- [x] `task check` requirement satisfied under the Windows verification rule: local lint/schema/unit checks and same-code cross-platform CI passed; local integration is blocked only by symlink privilege.
 
-The checked coverage boxes record implementation, exact-output test coverage,
-portable test results, and static review. Symlink-dependent unit and integration
-cases still require passing CI for this code before the final check box can close.
+Every exit criterion is now verified. The Linux unit/race job and cross-platform
+integration jobs cover the cases skipped locally; local Windows symlink privilege
+remains unavailable and its setup remains deferred.
 
 ## Implementation notes
 
@@ -100,10 +100,18 @@ cases still require passing CI for this code before the final check box can clos
 - The new portable `TestScript/reports-empty` passed independently on the final implementation, verifying exact output, missing/invalid-config exit 1, literal future names, current marker, missing hook detection, and unchanged config/hook state. Log: `tmp/eb04-reports-empty.log`.
 - `task bench` passed. Windows amd64/i5-12500H: listing 1000 branches measured 435–732 ms across runs. Repeated two-second hook samples had medians of 152.7 ms (1 branch) and 130.4 ms (1000 branches), with about 3850 allocations in both cases: no branch-count increase observed. Timings fluctuate; no timing assertion or release budget is inferred. Logs: `tmp/eb04-bench.log`, `tmp/eb04-bench-final.log`, and `tmp/eb04-hook-bench.log`.
 - Inspected CI using `gh run list`, `gh run view`, and failed logs. Baseline [run 37965030776](https://github.com/sanketvgh/envbuckets/actions/runs/37965030776) passed on `db8e991`; the earlier failure was an unrelated EB-09 snapshot test. A later baseline [run 37966039031](https://github.com/sanketvgh/envbuckets/actions/runs/37966039031) on `5c6154e` was in progress at inspection. Neither verifies these EB-04 changes.
-- No EB-04 changes were staged, committed, or pushed. Concurrent EB-09 edits/commits were preserved. To finish this ticket, run cross-platform CI for these changes and audit the skipped symlink/mode-000 cases; then apply AGENTS.md's Windows verification rule and close the final exit box. EB-06/EB-07 remain gated by that verification.
+- At the initial handoff, no EB-04 changes were staged, committed, or pushed. Concurrent EB-09 edits/commits were preserved. Same-code CI was still needed to audit the skipped symlink/mode-000 cases and close the final exit box under AGENTS.md's Windows verification rule. The completed verification is recorded below.
 
 ## Continuation review (2026-10-10)
 
 - Re-reviewed the implementation, exact-output tests, integration fixtures, and task file list after EB-09 completed. `git diff --check` passed; the working tree contains only the reviewed EB-04 changes. Previous local verification remains applicable; no implementation changes were made during this review.
 - Current baseline `200189a` passed [CI run 37967269484](https://github.com/sanketvgh/envbuckets/actions/runs/37967269484). EB-04 is still uncommitted, so that run does not satisfy its same-code CI requirement.
-- The user explicitly authorized committing/pushing EB-04 and verifying CI on 2026-10-10. Phase 5 is now underway. Symlink setup remains deferred; the existing Windows verification rule will apply once CI passes for EB-04.
+- The user explicitly authorized committing/pushing EB-04 and verifying CI on 2026-10-10. Symlink setup remains deferred; Phase 5 is completed by the verification below.
+
+## Closing verification (2026-10-10)
+
+- Committed and pushed implementation `bbef602` (`✨ feat(cli): add status and branch reports`) to `feat/docs-demo`. Reviewed all 22 staged files against baseline `200189a`: only EB-04 changes were included. In particular, the benchmark's two `testing.TB` substitutions are the only harness changes; EB-09's maintenance fix was already committed in the baseline.
+- [CI run 38020427583](https://github.com/sanketvgh/envbuckets/actions/runs/38020427583) on `bbef602` **passed all seven jobs**: Linux/macOS/Windows integration and safeguards, plus the main Linux Go lint/unit/race/build/snapshot/npm-artifact job. Advisory vulnerability scans also passed on all three platforms.
+- Audited completed integration logs: `reports` and `reports-empty` passed on Linux, macOS, and Windows. `reports-unreadable` passed on Linux and macOS and skipped on Windows with the explicit Unix-mode-bits reason. This verifies actual checkout fallback, exact stdout, hook overwrite detection, and operation with mode-000 managed files.
+- The local lint/schema/unit evidence above plus passing cross-platform CI for this implementation satisfy AGENTS.md's Windows verification rule. All exit boxes are closed; EB-04 is passed. Local integration still encounters Windows error 1314, and symlink setup remains deferred.
+- The subsequent ticket/index commit changes documentation only; the verified production code and tests are unchanged.
