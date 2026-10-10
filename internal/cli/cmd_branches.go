@@ -5,13 +5,11 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"unicode"
-
-	"golang.org/x/text/width"
 
 	"github.com/sanketvgh/envbuckets/internal/config"
 	"github.com/sanketvgh/envbuckets/internal/fsx"
 	"github.com/sanketvgh/envbuckets/internal/gitx"
+	"github.com/sanketvgh/envbuckets/internal/output"
 	"github.com/sanketvgh/envbuckets/internal/pattern"
 	"github.com/sanketvgh/envbuckets/internal/switcher"
 )
@@ -59,17 +57,18 @@ func runBranches(args []string, env Env) int {
 	}
 	branchWidth, bucketWidth := 0, 0
 	for _, row := range rows {
-		branchWidth = max(branchWidth, displayWidth(row.name))
-		bucketWidth = max(bucketWidth, displayWidth(row.bucket))
+		branchWidth = max(branchWidth, output.Width(row.name))
+		bucketWidth = max(bucketWidth, output.Width(row.bucket))
 	}
 	for _, row := range rows {
 		marker := " "
+		name := row.name
 		if row.name == branch {
 			marker = "*"
+			name = output.Green(env.Stdout, name)
 		}
-		fmt.Fprintf(env.Stdout, "%s %s%s  %s%s  %s\n", marker, row.name,
-			strings.Repeat(" ", branchWidth-displayWidth(row.name)), row.bucket,
-			strings.Repeat(" ", bucketWidth-displayWidth(row.bucket)), row.reason)
+		env.output(false).List("%s %s  %s  %s\n", marker, output.Pad(name, branchWidth),
+			output.Pad(row.bucket, bucketWidth), row.reason)
 	}
 	return ExitOK
 }
@@ -171,22 +170,4 @@ func branchRows(repo *fsx.Repo, cfg config.Config, names, filters []string, bran
 		rows = append(rows, branchRow{name, requested, reason})
 	}
 	return rows, nil
-}
-
-// displayWidth keeps CJK and combining characters aligned in plain output.
-// EB-06 will use the same terminal-width policy when styling these columns.
-func displayWidth(s string) int {
-	n := 0
-	for _, r := range s {
-		if unicode.Is(unicode.Mn, r) || unicode.Is(unicode.Me, r) || unicode.Is(unicode.Cf, r) {
-			continue
-		}
-		switch width.LookupRune(r).Kind() {
-		case width.EastAsianWide, width.EastAsianFullwidth:
-			n += 2
-		default:
-			n++
-		}
-	}
-	return n
 }

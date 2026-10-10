@@ -2,7 +2,7 @@ package cli
 
 // runHook ignores file checkouts and malformed calls, and never blocks Git.
 func runHook(args []string, env Env) int {
-	if len(args) == 4 && args[0] == "post-checkout" {
+	if len(args) > 0 && args[0] == "post-checkout" && len(args) == 4 {
 		args = args[1:]
 	}
 	if len(args) != 3 || args[2] != "1" {

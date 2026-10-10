@@ -14,7 +14,8 @@ import (
 func reportConfig(repo *fsx.Repo, env Env) (config.Config, bool) {
 	cfg, err := config.Load(repo.Root)
 	if errors.Is(err, os.ErrNotExist) {
-		fmt.Fprintln(env.Stderr, "fatal: .envbuckets.json is missing\nhint: Run \"envbuckets init\" to set up this repository.")
+		env.output(false).Fatal(".envbuckets.json is missing")
+		env.output(false).Hint("Run \"envbuckets init\" to set up this repository.")
 		return cfg, false
 	}
 	if err != nil {
@@ -22,7 +23,7 @@ func reportConfig(repo *fsx.Repo, env Env) (config.Config, bool) {
 		return cfg, false
 	}
 	if _, err := repo.Root.Lstat(".envbuckets.toml"); err == nil {
-		fmt.Fprintln(env.Stderr, "warning: .envbuckets.toml is unused and can be deleted")
+		env.output(false).Warning(".envbuckets.toml is unused and can be deleted")
 	} else if !os.IsNotExist(err) {
 		switchFailure(env, false, err)
 		return cfg, false

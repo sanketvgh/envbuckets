@@ -53,6 +53,8 @@ jobs:
           go-version-file: go.mod
       - name: Run filesystem helper tests
         run: go test -shuffle=on ./internal/fsx/...
+      - name: Run terminal output tests
+        run: go test -shuffle=on -count=1 ./internal/output ./internal/cli
       - run: go test -tags integration -shuffle=on -run TestScript -count=1 -v .
 
   safeguards:

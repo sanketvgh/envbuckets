@@ -54,9 +54,9 @@ func createBucket(env Env, bucket string, dry bool) int {
 		return switchFailure(env, false, err)
 	}
 	if dry {
-		fmt.Fprintf(env.Stdout, "Would create bucket '%s'\n", bucket)
+		env.output(false).List("Would create bucket '%s'\n", bucket)
 		for _, name := range files {
-			fmt.Fprintf(env.Stdout, "Would create empty %s/%s\n", base, name)
+			env.output(false).List("Would create empty %s/%s\n", base, name)
 		}
 		return switcher.Execute(repo, p, true, false, env.Stdout, env.Stderr)
 	}
@@ -82,7 +82,7 @@ func createBucket(env Env, bucket string, dry bool) int {
 	// Execute the checked plan while replacing its standard success line.
 	code := switcher.Execute(repo, p, false, false, io.Discard, env.Stderr)
 	if code == ExitOK {
-		fmt.Fprintf(env.Stdout, "Switched to a new bucket '%s'\n", bucket)
+		env.output(false).List("Switched to a new bucket '%s'\n", bucket)
 	}
 	return code
 }

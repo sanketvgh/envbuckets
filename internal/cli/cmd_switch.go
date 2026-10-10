@@ -22,16 +22,17 @@ func runSwitch(args []string, env Env) int {
 		case !positional && arg == "-c":
 			create = true
 		case !positional && strings.HasPrefix(arg, "-"):
-			fmt.Fprintf(env.Stderr, "error: unknown option '%s'\nusage: envbuckets switch [-n] [-c] [<bucket>]\n", arg)
+			env.output(false).Error("unknown option '%s'", arg)
+			env.output(false).Usage("envbuckets switch [-n] [-c] [<bucket>]")
 			return ExitUsage
 		case bucket == "":
 			if arg == "" {
-				fmt.Fprintln(env.Stderr, "fatal: invalid bucket name ''")
+				env.output(false).Fatal("invalid bucket name ''")
 				return ExitError
 			}
 			bucket = arg
 		default:
-			fmt.Fprintln(env.Stderr, "usage: envbuckets switch [-n] [-c] [<bucket>]")
+			env.output(false).Usage("envbuckets switch [-n] [-c] [<bucket>]")
 			return ExitUsage
 		}
 	}
@@ -75,9 +76,9 @@ func switchBucket(env Env, bucket string, dry, hook bool) int {
 
 func switchFailure(env Env, hook bool, err error) int {
 	if hook {
-		fmt.Fprintf(env.Stderr, "envbuckets: warning: %s; links not changed\n", err)
+		env.output(true).Warning("%s; links not changed", err)
 		return ExitOK
 	}
-	fmt.Fprintf(env.Stderr, "fatal: %s\n", err)
+	env.output(false).Fatal("%s", err)
 	return ExitError
 }

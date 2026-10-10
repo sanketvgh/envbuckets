@@ -118,8 +118,8 @@ func parseDryArgs(args []string) (bool, []string, error) {
 
 func commandUsage(env Env, command string, err error) int {
 	if err != nil {
-		fmt.Fprintf(env.Stderr, "error: %s\n", err)
+		env.output(false).Error("%s", err)
 	}
-	fmt.Fprintf(env.Stderr, "usage: envbuckets %s\n", command)
+	env.output(false).Usage("envbuckets %s", command)
 	return ExitUsage
 }

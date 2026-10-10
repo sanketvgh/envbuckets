@@ -13,6 +13,7 @@ import (
 
 	"github.com/sanketvgh/envbuckets/internal/config"
 	"github.com/sanketvgh/envbuckets/internal/fsx"
+	"github.com/sanketvgh/envbuckets/internal/output"
 )
 
 // Kind identifies a planned filesystem action.
@@ -309,35 +310,32 @@ func inspectDestination(repo *fsx.Repo, name, previous string) error {
 // Execute renders the plan or applies it. Diagnostics use Git-style prefixes;
 // hooks add the envbuckets prefix and always override the returned code to 0.
 func Execute(repo *fsx.Repo, p Plan, dry, hook bool, stdout, stderr io.Writer) int {
-	prefix := ""
-	if hook {
-		prefix = "envbuckets: "
-	}
+	w := output.Writer{Out: stdout, Err: stderr, Hook: hook}
 	for _, warning := range p.Warnings {
-		fmt.Fprintf(stderr, "%swarning: %s\n", prefix, warning)
+		w.Warning("%s", warning)
 	}
 	code := p.ExitCode()
 	for _, a := range p.Actions {
 		if a.Kind == PreflightError {
-			fmt.Fprintf(stderr, "%sfatal: %s\n", prefix, a.Reason)
+			w.Fatal("%s", a.Reason)
 		}
 	}
 	if !p.Blocked() {
 		for _, a := range p.Actions {
 			if a.Kind == Skip {
-				fmt.Fprintf(stderr, "%serror: cannot switch '%s': %s\n", prefix, a.Path, a.Reason)
+				w.Error("cannot switch '%s': %s", a.Path, a.Reason)
 				continue
 			}
 			if dry {
 				if a.Kind == Link {
-					fmt.Fprintf(stdout, "Would link %s to bucket '%s'\n", a.Path, p.Bucket)
+					w.Would("link %s to bucket '%s'", a.Path, p.Bucket)
 				} else {
-					fmt.Fprintf(stdout, "Would remove link %s (not in bucket '%s')\n", a.Path, p.Bucket)
+					w.Would("remove link %s (not in bucket '%s')", a.Path, p.Bucket)
 				}
 				continue
 			}
 			if err := apply(repo, a); err != nil {
-				fmt.Fprintf(stderr, "%serror: cannot switch '%s': %s\n", prefix, a.Path, err)
+				w.Error("cannot switch '%s': %s", a.Path, err)
 				code = 1
 			}
 		}
@@ -345,20 +343,20 @@ func Execute(repo *fsx.Repo, p Plan, dry, hook bool, stdout, stderr io.Writer) i
 			switch {
 			case hook:
 				if p.Current != p.Bucket {
-					fmt.Fprintf(stderr, "%sSwitched to bucket '%s' (%s)\n", prefix, p.Bucket, p.Reason)
+					w.Info("Switched to bucket '%s' (%s)", p.Bucket, p.Reason)
 				}
 			case p.Current == p.Bucket:
-				fmt.Fprintf(stdout, "Already on bucket '%s'\n", p.Bucket)
+				w.List("Already on bucket '%s'\n", p.Bucket)
 			default:
-				fmt.Fprintf(stdout, "Switched to bucket '%s'\n", p.Bucket)
+				w.List("Switched to bucket '%s'\n", p.Bucket)
 			}
 		}
 		if !dry && !hook && p.BranchBucket != "" && p.Bucket != p.BranchBucket {
-			fmt.Fprintf(stderr, "hint: This branch uses '%s'. Run \"envbuckets switch\" to go back.\n", p.BranchBucket)
+			w.Hint("This branch uses '%s'. Run \"envbuckets switch\" to go back.", p.BranchBucket)
 		}
 	}
 	if p.Hint != "" {
-		fmt.Fprintf(stderr, "%shint: %s\n", prefix, p.Hint)
+		w.Hint("%s", p.Hint)
 	}
 	return code
 }

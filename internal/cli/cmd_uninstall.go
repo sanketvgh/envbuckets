@@ -28,14 +28,14 @@ func runUninstall(args []string, env Env) int {
 	names, scanErrors := uninstallCandidates(repo)
 	code := ExitOK
 	for _, err := range scanErrors {
-		fmt.Fprintf(env.Stderr, "error: cannot inspect buckets: %s\n", err)
+		env.output(false).Error("cannot inspect buckets: %s", err)
 		code = ExitError
 	}
 	changed := false
 	for _, name := range names {
 		source, target, err := uninstallSource(repo, name)
 		if err != nil {
-			fmt.Fprintf(env.Stderr, "error: cannot restore '%s': %s\n", name, err)
+			env.output(false).Error("cannot restore '%s': %s", name, err)
 			code = ExitError
 			continue
 		}
@@ -43,31 +43,31 @@ func runUninstall(args []string, env Env) int {
 			continue
 		}
 		if dry {
-			fmt.Fprintf(env.Stdout, "Would move %s to %s\n", source, name)
+			env.output(false).List("Would move %s to %s\n", source, name)
 			continue
 		}
 		if err := fsx.RestoreBucketFile(repo, name, source, target); err != nil {
-			fmt.Fprintf(env.Stderr, "error: cannot restore '%s': %s\n", name, err)
+			env.output(false).Error("cannot restore '%s': %s", name, err)
 			code = ExitError
 			continue
 		}
-		fmt.Fprintf(env.Stdout, "Moving %s to %s\n", source, name)
+		env.output(false).List("Moving %s to %s\n", source, name)
 		changed = true
 	}
 	path, result, err := block.RemoveRepoHook(repo.Path, dry)
 	if err != nil {
-		fmt.Fprintf(env.Stderr, "error: cannot remove envbuckets hook: %s\n", err)
+		env.output(false).Error("cannot remove envbuckets hook: %s", err)
 		code = ExitError
 	} else if result != block.HookUnchanged {
 		if dry {
-			fmt.Fprintf(env.Stdout, "Would remove the envbuckets hook from %s\n", path)
+			env.output(false).List("Would remove the envbuckets hook from %s\n", path)
 		} else {
-			fmt.Fprintf(env.Stdout, "Removing the envbuckets hook from %s\n", path)
+			env.output(false).List("Removing the envbuckets hook from %s\n", path)
 			changed = true
 		}
 	}
 	if changed {
-		fmt.Fprintln(env.Stderr, "hint: Your other buckets are still in .env.d/. Delete it when you no longer need them.")
+		env.output(false).Hint("Your other buckets are still in .env.d/. Delete it when you no longer need them.")
 	}
 	return code
 }

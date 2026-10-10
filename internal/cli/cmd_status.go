@@ -11,6 +11,7 @@ import (
 	"github.com/sanketvgh/envbuckets/internal/config"
 	"github.com/sanketvgh/envbuckets/internal/fsx"
 	"github.com/sanketvgh/envbuckets/internal/gitx"
+	"github.com/sanketvgh/envbuckets/internal/output"
 	"github.com/sanketvgh/envbuckets/internal/switcher"
 )
 
@@ -20,6 +21,7 @@ type statusReport struct {
 	problems, ignored  []string
 	linked, total      int
 	hookMissing        bool
+	activeBuckets      []string
 }
 
 func runStatus(args []string, env Env) int {
@@ -72,6 +74,7 @@ func inspectStatus(repo *fsx.Repo, cfg config.Config, branch string) (statusRepo
 		}
 	}
 	p.bucket, p.hint = statusBucket(buckets, resolution, cfg.Default, branch == "")
+	p.activeBuckets = buckets
 	p.fileHint = "to keep a file, move it to the same path under .env.d/<bucket>/, then use \"envbuckets switch\""
 	if len(buckets) == 1 {
 		p.fileHint = "to keep a file, move it to the same path under .env.d/" + buckets[0] + "/, then use \"envbuckets switch\""
@@ -199,35 +202,43 @@ func statusBucket(buckets []string, r switcher.Resolution, defaultBucket string,
 }
 
 func renderStatus(p statusReport, env Env) {
-	fmt.Fprintf(env.Stdout, "%s\n%s\n", p.head, p.bucket)
-	if p.hint != "" {
-		fmt.Fprintf(env.Stdout, "  (%s)\n", p.hint)
+	// Only the active bucket names are green; requested/missing buckets stay plain.
+	line := p.bucket
+	for _, bucket := range p.activeBuckets {
+		line = strings.Replace(line, "'"+bucket+"'", "'"+output.Green(env.Stdout, bucket)+"'", 1)
 	}
-	fmt.Fprintln(env.Stdout)
+	w := env.output(false)
+	w.List("%s\n%s\n", p.head, line)
+	if p.hint != "" {
+		w.List("  (%s)\n", p.hint)
+	}
+	w.List("\n")
 	if len(p.problems) > 0 {
-		fmt.Fprintln(env.Stdout, "Files not linked:")
-		fmt.Fprintf(env.Stdout, "  (%s)\n", p.fileHint)
+		w.List("Files not linked:\n")
+		w.List("  (%s)\n", p.fileHint)
 		for _, problem := range p.problems {
-			fmt.Fprintf(env.Stdout, "\t%s\n", problem)
+			label, path, _ := strings.Cut(problem, ":   ")
+			// Keep the existing label column and three-space gap byte-identical.
+			w.List("\t%s%s\n", output.Pad(label+":", output.Width(label+":")+3), output.Red(env.Stdout, path))
 		}
-		fmt.Fprintln(env.Stdout)
+		w.List("\n")
 	}
 	if len(p.ignored) > 0 {
-		fmt.Fprintln(env.Stdout, "Not ignored by Git:\n  (add them to .gitignore)")
+		w.List("Not ignored by Git:\n  (add them to .gitignore)\n")
 		for _, name := range p.ignored {
-			fmt.Fprintf(env.Stdout, "\t%s\n", name)
+			w.List("\t%s\n", output.Red(env.Stdout, name))
 		}
-		fmt.Fprintln(env.Stdout)
+		w.List("\n")
 	}
 	if p.hookMissing {
-		fmt.Fprint(env.Stdout, "Hook not installed:\n  (use \"envbuckets init\" to install it)\n\n")
+		w.List("Hook not installed:\n  (use \"envbuckets init\" to install it)\n\n")
 	}
 	switch {
 	case p.linked != p.total:
-		fmt.Fprintf(env.Stdout, "%d of %d files linked\n", p.linked, p.total)
+		w.List("%d of %d files linked\n", p.linked, p.total)
 	case p.total == 1:
-		fmt.Fprintln(env.Stdout, "1 file linked")
+		w.List("1 file linked\n")
 	default:
-		fmt.Fprintf(env.Stdout, "all %d files linked\n", p.total)
+		w.List("all %d files linked\n", p.total)
 	}
 }

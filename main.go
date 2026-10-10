@@ -26,6 +26,7 @@ func main() {
 		Stdin:   os.Stdin,
 		Stdout:  os.Stdout,
 		Stderr:  os.Stderr,
+		Getenv:  os.Getenv,
 		Version: fmt.Sprintf("%s (%s, %s)", version, commit, date),
 	}))
 }

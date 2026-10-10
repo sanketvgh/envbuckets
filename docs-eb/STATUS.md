@@ -24,6 +24,17 @@ Both commands write their report to stdout and change nothing. Diagnostics use
 stderr. They inspect managed file metadata and link targets without opening file
 contents. Column alignment handles wide and combining characters in branch names.
 
+In a terminal, the current branch in `branches` and the bucket in use in `status`
+are green. Problem paths are red. Diagnostic prefixes `fatal:` and `error:` are
+red; `warning:` and `hint:` are yellow. Piped or redirected streams stay plain,
+and each stream is detected separately. Set `NO_COLOR` to any non-empty value
+(including `yes`, `false`, or `0`) to disable color. `TERM=dumb` also disables it.
+These settings apply to checkout hooks too; all message text stays the same.
+
+Windows console output enables virtual terminal processing for the command and
+restores the previous mode afterwards. Consoles that cannot enable it get plain
+text. Git Bash and mintty terminal pipes support color without console mode changes.
+
 `task bench` measures the real CLI's branch listing and checkout hook with 1 and
 1000 local branches. Setup uses one `git update-ref --stdin` call and is excluded
 from the timings. Hooks do not enumerate branches. Short Go test runs skip these

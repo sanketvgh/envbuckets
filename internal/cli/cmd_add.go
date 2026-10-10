@@ -58,7 +58,8 @@ func runAdd(args []string, env Env) int {
 		f, err := planImport(repo, bucket, name)
 		if err != nil {
 			if strings.Contains(err.Error(), "is tracked by Git") {
-				fmt.Fprintf(env.Stderr, "fatal: cannot add '%s': it is tracked by Git\nhint: Copy it to an untracked file such as '.env', then add that.\n", name)
+				env.output(false).Fatal("cannot add '%s': it is tracked by Git", name)
+				env.output(false).Hint("Copy it to an untracked file such as '.env', then add that.")
 				return ExitError
 			}
 			return switchFailure(env, false, fmt.Errorf("cannot add '%s': %w", name, err))
@@ -74,10 +75,10 @@ func runAdd(args []string, env Env) int {
 	}
 	if dry {
 		for _, f := range files {
-			fmt.Fprintf(env.Stdout, "Would add %s to bucket '%s'\n", f.path, bucket)
+			env.output(false).List("Would add %s to bucket '%s'\n", f.path, bucket)
 		}
 		if ignore.Changed {
-			fmt.Fprintln(env.Stdout, "Would update .gitignore")
+			env.output(false).Would("update .gitignore")
 		}
 		return ExitOK
 	}

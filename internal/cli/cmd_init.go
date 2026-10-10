@@ -116,26 +116,26 @@ func runInit(args []string, env Env) int {
 	defer repo.Close()
 	p, err := planInit(repo)
 	for _, warning := range p.warnings {
-		fmt.Fprintf(env.Stderr, "warning: %s\n", warning)
+		env.output(false).Warning("%s", warning)
 	}
 	if err != nil {
 		return switchFailure(env, false, err)
 	}
 	if dry {
 		if p.createConfig {
-			fmt.Fprintln(env.Stdout, "Would create .envbuckets.json")
+			env.output(false).Would("create .envbuckets.json")
 		}
 		if p.createBucket {
-			fmt.Fprintf(env.Stdout, "Would create bucket '%s'\n", p.bucket)
+			env.output(false).List("Would create bucket '%s'\n", p.bucket)
 		}
 		for _, f := range p.files {
-			fmt.Fprintf(env.Stdout, "Would add %s to bucket '%s'\n", f.path, p.bucket)
+			env.output(false).List("Would add %s to bucket '%s'\n", f.path, p.bucket)
 		}
 		if p.ignore.Changed {
-			fmt.Fprintln(env.Stdout, "Would update .gitignore")
+			env.output(false).Would("update .gitignore")
 		}
 		if p.hookChange {
-			fmt.Fprintf(env.Stdout, "Would install %s\n", p.hookPath)
+			env.output(false).List("Would install %s\n", p.hookPath)
 		}
 		return ExitOK
 	}
@@ -168,14 +168,14 @@ func runInit(args []string, env Env) int {
 	}
 	for _, f := range p.files {
 		if err := f.apply(repo); err != nil {
-			fmt.Fprintf(env.Stderr, "warning: cannot import '%s': %s\n", f.path, err)
+			env.output(false).Warning("cannot import '%s': %s", f.path, err)
 			continue
 		}
-		fmt.Fprintf(env.Stdout, "Adding %s to bucket '%s'\n", f.path, p.bucket)
+		env.output(false).List("Adding %s to bucket '%s'\n", f.path, p.bucket)
 	}
-	fmt.Fprintf(env.Stdout, "Initialized envbuckets in %s/.env.d/\n", filepath.ToSlash(repo.Path))
+	env.output(false).List("Initialized envbuckets in %s/.env.d/\n", filepath.ToSlash(repo.Path))
 	if len(p.files) == 0 {
-		fmt.Fprintln(env.Stderr, "hint: No local files found. Create them, then run \"envbuckets add <file>\".")
+		env.output(false).Hint("No local files found. Create them, then run \"envbuckets add <file>\".")
 	}
 	return ExitOK
 }

@@ -14,7 +14,14 @@ type Writer struct {
 }
 
 func (w Writer) message(stream io.Writer, kind, format string, args ...any) {
-	prefix := kind + ": "
+	label := kind + ":"
+	switch kind {
+	case "fatal", "error":
+		label = Red(stream, label)
+	case "warning", "hint":
+		label = yellow(stream, label)
+	}
+	prefix := label + " "
 	if w.Hook {
 		prefix = "envbuckets: " + prefix
 	}
@@ -46,3 +53,6 @@ func (w Writer) Info(format string, args ...any) {
 
 // List writes a status or branch listing to stdout.
 func (w Writer) List(format string, args ...any) { fmt.Fprintf(w.Out, format, args...) }
+
+// Usage writes plain usage text to stderr.
+func (w Writer) Usage(format string, args ...any) { fmt.Fprintf(w.Err, "usage: "+format+"\n", args...) }
