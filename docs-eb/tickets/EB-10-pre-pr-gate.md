@@ -311,6 +311,23 @@ and publishing gate after merge; the user owns the post-release visual review.
 - The combined branch requires new CI evidence before phases 4 and 5 close.
   The earlier nine-job run is historical evidence, not coverage of this merge.
 
+### Combined-code CI follow-up (2026-10-10)
+
+- [PR CI on `ba05bfd`](https://github.com/sanketvgh/envbuckets/actions/runs/38032229984)
+  passed nine of ten jobs, including all three integration/safeguard platforms
+  and both npm smoke platforms. CodeQL and dependency review also passed.
+  The blocking security job's vulnerability scan found no vulnerabilities, but
+  online zizmor reported seven `ref-version-mismatch` findings. Offline local
+  scanning did not cover that audit.
+- Verified the pinned commits against GitHub's tag API: setup-node's existing
+  SHA is `v7.0.0`; CodeQL's existing SHA is `v4.38.2` (dereferenced annotated
+  tag). Updated four setup-node and three CodeQL comments to those exact
+  versions. The action SHAs, permissions, scanner settings, and gates remain
+  unchanged.
+- Authenticated online zizmor passed with no findings after the correction.
+  Evidence: `tmp/eb10/ci-fix-online-zizmor.log`. A fresh committed-code CI run
+  must pass before phases 4 and 5 close.
+
 ### Historical planning baseline (2026-10-10)
 
 - EB-06 records [CI run 38024972163 on `a50e2cf`](https://github.com/sanketvgh/envbuckets/actions/runs/38024972163)
