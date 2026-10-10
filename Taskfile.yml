@@ -28,19 +28,31 @@ tasks:
       # Use shell builtins so this also works on Windows without grep on PATH.
       - sh: |
           cr=$(printf '\r')
-          while IFS= read -r line; do
-            test "${line%"$cr"}" != '  GOLANGCI_LINT_VERSION: {{.GOLANGCI_LINT_VERSION}}' || exit 0
-          done < .github/workflows/ci.yml
-          exit 1
-        msg: 'ci.yml must pin GOLANGCI_LINT_VERSION to {{.GOLANGCI_LINT_VERSION}}, matching Taskfile.yml'
+          for workflow in .github/workflows/ci.yml .github/workflows/release.yml; do
+            matched=false
+            while IFS= read -r line; do
+              if test "${line%"$cr"}" = '  GOLANGCI_LINT_VERSION: {{.GOLANGCI_LINT_VERSION}}'; then
+                matched=true
+                break
+              fi
+            done < "$workflow"
+            test "$matched" = true || exit 1
+          done
+        msg: 'ci.yml and release.yml must pin GOLANGCI_LINT_VERSION to {{.GOLANGCI_LINT_VERSION}}, matching Taskfile.yml'
       # Check the advisory scanner's CI pin without requiring its local binary.
       - sh: |
           cr=$(printf '\r')
-          while IFS= read -r line; do
-            test "${line%"$cr"}" != '  GOVULNCHECK_VERSION: {{.GOVULNCHECK_VERSION}}' || exit 0
-          done < .github/workflows/ci.yml
-          exit 1
-        msg: 'ci.yml must pin GOVULNCHECK_VERSION to {{.GOVULNCHECK_VERSION}}, matching Taskfile.yml'
+          for workflow in .github/workflows/ci.yml .github/workflows/release.yml; do
+            matched=false
+            while IFS= read -r line; do
+              if test "${line%"$cr"}" = '  GOVULNCHECK_VERSION: {{.GOVULNCHECK_VERSION}}'; then
+                matched=true
+                break
+              fi
+            done < "$workflow"
+            test "$matched" = true || exit 1
+          done
+        msg: 'ci.yml and release.yml must pin GOVULNCHECK_VERSION to {{.GOVULNCHECK_VERSION}}, matching Taskfile.yml'
     cmds:
       - 'true'
 
@@ -49,20 +61,20 @@ tasks:
     cmds:
       - task: lint:version
       - golangci-lint fmt ./...
-      - golangci-lint run --fix ./...
+      - golangci-lint run --fix --build-tags integration ./...
 
   lint:go:
     desc: Lint Go code and fail if formatting differs.
     cmds:
       - task: lint:version
       - golangci-lint fmt --diff ./...
-      - golangci-lint run ./...
+      - golangci-lint run --build-tags integration ./...
 
   lint:
     desc: Check Go lint and formatting, JSON formatting, and config schema validation.
     cmds:
       - task: lint:go
-      - pnpm --config.verifyDepsBeforeRun=false exec oxfmt --check schema/envbuckets.schema.json schema/testdata/invalid/*.json tools/validate-config-schema.mjs package.json
+      - pnpm --config.verifyDepsBeforeRun=false exec oxfmt --check schema/envbuckets.schema.json schema/testdata/invalid/*.json tools/validate-config-schema.mjs tools/npm-smoke.mjs package.json
       - pnpm --config.verifyDepsBeforeRun=false run validate:schema
 
   security:version:
@@ -105,9 +117,16 @@ tasks:
       - go test -shuffle=on ./...
 
   test:integration:
-    desc: Run the txtar scripts against real git (needs symlink support; use WSL on Windows).
+    desc: Run the txtar scripts against real git (Windows needs symlink privilege).
     cmds:
-      - go test -tags integration -shuffle=on -run TestScript -count=1 .
+      - go test -tags integration -shuffle=on -run 'TestScript|TestAcceptanceSampleCoverage' -count=1 .
+
+  test:integration:update:
+    desc: Explicitly update txtar golden files; review the diff afterwards.
+    env:
+      TESTSCRIPT_UPDATE: "1"
+    cmds:
+      - task: test:integration
 
   bench:
     desc: Benchmark branches and checkout hooks with 1 and 1000 local branches.
@@ -141,16 +160,15 @@ tasks:
       - go run ./tools/npmpkg
 
   playground:
-    desc: Build a snapshot and install its npm packages in ./playground (gitignored).
+    desc: Build a snapshot and smoke-test packed npm packages in a private playground Git repo.
     deps: [snapshot]
     cmds:
-      - rm -rf playground/.packs playground/node_modules playground/package-lock.json
-      - mkdir -p playground/.packs
-      - cd npm/dist/envbuckets && npm pack --silent --pack-destination ../../../playground/.packs
-      - cd npm/dist/@envbuckets/$(node -p "process.platform+'-'+process.arch") && npm pack --silent --pack-destination ../../../../playground/.packs
-      - cd playground && (test -f package.json || npm init -y >/dev/null)
-      - cd playground && npm install --no-audit --no-fund ./.packs/*.tgz
-      - cd playground && npx envbuckets --version
+      - task: test:npm
+
+  test:npm:
+    desc: Pack and exercise the existing snapshot through npm in a new playground Git repo.
+    cmds:
+      - node tools/npm-smoke.mjs
 
   next-version:
     desc: Show what the next release would be tagged. PRE=alpha|beta|rc for a prerelease.

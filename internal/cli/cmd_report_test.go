@@ -81,7 +81,7 @@ func TestBranchesDetachedAndMissingDefault(t *testing.T) {
 	expectReport(t, r, "  main  dev  (default, missing; links stay as they are)\n", "branches", "main")
 }
 
-func TestReportFailuresAndAlphaWarning(t *testing.T) {
+func TestReportFailuresAndLegacyWarning(t *testing.T) {
 	r := newRepo(t)
 	for _, cmd := range []string{"status", "branches"} {
 		res := r.run(cmd)
@@ -102,7 +102,7 @@ func TestReportFailuresAndAlphaWarning(t *testing.T) {
 		before := snapshotRepo(t, r)
 		res := r.run(cmd)
 		if res.code != ExitOK || res.stderr != "warning: .envbuckets.toml is unused and can be deleted\n" || strings.Contains(res.all(), "SYNTHETIC") || !reflect.DeepEqual(before, snapshotRepo(t, r)) {
-			t.Fatalf("alpha %s: %+v", cmd, res)
+			t.Fatalf("legacy %s: %+v", cmd, res)
 		}
 	}
 	for _, args := range [][]string{{"status", "-n"}, {"status", "extra"}, {"branches", "-n"}, {"branches", "--all"}, {"branches", "--bucket"}, {"branches", "--bucket", "../bad"}, {"branches", "bad["}, {"branches", ""}} {

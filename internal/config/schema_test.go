@@ -88,8 +88,8 @@ func checkObjectTags(t *testing.T, schema map[string]any, typ reflect.Type, requ
 	}
 }
 
-func TestProductJSONConfigsParse(t *testing.T) {
-	configs := productConfigs(t)
+func TestAcceptanceJSONConfigsParse(t *testing.T) {
+	configs := acceptanceConfigs(t)
 	for i, example := range configs {
 		if _, err := Parse(example); err != nil {
 			t.Errorf("PRODUCT.md JSON example %d: %v", i+1, err)
@@ -97,9 +97,9 @@ func TestProductJSONConfigsParse(t *testing.T) {
 	}
 }
 
-func TestProductJSONConfigsValidateSchema(t *testing.T) {
+func TestAcceptanceJSONConfigsValidateSchema(t *testing.T) {
 	schema := loadSchema(t)
-	for i, example := range productConfigs(t) {
+	for i, example := range acceptanceConfigs(t) {
 		value, err := jsonschema.UnmarshalJSON(strings.NewReader(string(example)))
 		if err != nil {
 			t.Fatalf("decode PRODUCT.md JSON example %d: %v", i+1, err)
@@ -159,7 +159,7 @@ func loadSchema(t *testing.T) *jsonschema.Schema {
 	return schema
 }
 
-func productConfigs(t *testing.T) [][]byte {
+func acceptanceConfigs(t *testing.T) [][]byte {
 	t.Helper()
 	data, err := os.ReadFile("../../docs-eb/PRODUCT.md")
 	if err != nil {

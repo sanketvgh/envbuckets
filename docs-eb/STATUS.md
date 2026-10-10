@@ -38,4 +38,5 @@ text. Git Bash and mintty terminal pipes support color without console mode chan
 `task bench` measures the real CLI's branch listing and checkout hook with 1 and
 1000 local branches. Setup uses one `git update-ref --stdin` call and is excluded
 from the timings. Hooks do not enumerate branches. Short Go test runs skip these
-benchmarks; EB-07 will establish release budgets across runners.
+benchmarks. EB-07 records the measured baseline and review budgets; timings are
+reviewed, not asserted in tests.

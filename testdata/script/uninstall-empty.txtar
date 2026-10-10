@@ -11,11 +11,11 @@ exec envbuckets uninstall
 cp broken-config .envbuckets.json
 exec git config core.hooksPath .hooks
 mkdir .hooks
-cp alpha-hook .hooks/post-checkout
+cp legacy-hook .hooks/post-checkout
 exec envbuckets uninstall -n
 stdout '^Would remove the envbuckets hook from .hooks/post-checkout$'
 ! stderr .
-cmp .hooks/post-checkout alpha-hook
+cmp .hooks/post-checkout legacy-hook
 exec envbuckets uninstall
 stdout '^Removing the envbuckets hook from .hooks/post-checkout$'
 ! exists .hooks/post-checkout
@@ -35,10 +35,10 @@ cmp .hooks/post-checkout truncated-hook
 synthetic fixture
 -- broken-config --
 {"default": broken
--- alpha-hook --
+-- legacy-hook --
 #!/bin/sh
 # >>> envbuckets v1 >>>
-old alpha command
+old legacy command
 # <<< envbuckets v1 <<<
 -- truncated-hook --
 #!/bin/sh

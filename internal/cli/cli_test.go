@@ -1,9 +1,20 @@
 package cli
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 )
+
+func TestHelpWithoutRepository(t *testing.T) {
+	for _, args := range [][]string{nil, {"help"}, {"--help"}, {"-h"}} {
+		var stdout, stderr bytes.Buffer
+		code := Run(args, Env{Cwd: t.TempDir(), Stdout: &stdout, Stderr: &stderr})
+		if code != ExitOK || stderr.Len() != 0 || stdout.String() != helpText {
+			t.Fatalf("help %v: code=%d stdout=%q stderr=%q", args, code, stdout.String(), stderr.String())
+		}
+	}
+}
 
 func TestVersionAndHook(t *testing.T) {
 	r := newRepo(t)

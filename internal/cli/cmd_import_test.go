@@ -116,7 +116,7 @@ func TestInitImportsAndReruns(t *testing.T) {
 	}
 }
 
-func TestInitAlphaCollisionAndFreshClone(t *testing.T) {
+func TestInitLegacyCollisionAndFreshClone(t *testing.T) {
 	r := newRepo(t)
 	requireRepoSymlinks(t, r)
 	r.write(".envbuckets.json", `{"default":"local","rules":[]}`)
@@ -128,7 +128,7 @@ func TestInitAlphaCollisionAndFreshClone(t *testing.T) {
 	r.write(".env.local", "SYNTHETIC_SAFE")
 	res := r.run("init")
 	if res.code != ExitOK || !strings.Contains(res.stderr, "cannot import '.env'") || !strings.Contains(res.stderr, ".envbuckets.toml is unused") {
-		t.Fatalf("alpha: %+v", res)
+		t.Fatalf("legacy: %+v", res)
 	}
 	for _, name := range []string{".gitignore", ".git/hooks/post-checkout"} {
 		content, err := os.ReadFile(r.path(name))

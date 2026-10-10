@@ -1,5 +1,5 @@
-// Package fsx provides symlink inspection, atomic symlink swaps, and
-// atomic file writes staged inside the project.
+// Package fsx provides symlink inspection and rename-based replacements staged
+// inside the project. Rename is atomic on Unix; Windows does not promise that.
 package fsx
 
 import (
@@ -46,8 +46,9 @@ func Inspect(path string) (Status, error) {
 	return s, nil
 }
 
-// SetSymlink atomically makes link point at target, staging a temporary
-// link in stageDir and renaming it into place so link never disappears.
+// SetSymlink makes link point at target, staging a temporary link in stageDir
+// and renaming it into place without deleting link first. The replacement is
+// atomic on Unix; on Windows rerunning repairs an interrupted replacement.
 // It reports whether the link changed.
 func SetSymlink(link, target, stageDir string) (bool, error) {
 	err := os.Symlink(filepath.FromSlash(target), link)
@@ -75,7 +76,7 @@ func SetSymlink(link, target, stageDir string) (bool, error) {
 }
 
 // StageSymlinkRoot creates a uniquely named link beneath root for a later
-// atomic rename. Root keeps path traversal inside the repository even if a
+// rename. Root keeps path traversal inside the repository even if a
 // directory component changes to a symlink between validation and the write.
 func StageSymlinkRoot(root *os.Root, target, stageDir string) (string, error) {
 	stageDir = rootPath(stageDir)

@@ -37,6 +37,11 @@ jobs:
           version: ${{ env.GORELEASER_VERSION }}
           args: release --snapshot --clean
       - run: go run ./tools/npmpkg
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Smoke-test packed npm snapshot offline
+        run: node tools/npm-smoke.mjs
 
   integration:
     strategy:
@@ -55,7 +60,33 @@ jobs:
         run: go test -shuffle=on ./internal/fsx/...
       - name: Run terminal output tests
         run: go test -shuffle=on -count=1 ./internal/output ./internal/cli
-      - run: go test -tags integration -shuffle=on -run TestScript -count=1 -v .
+      - run: go test -tags integration -shuffle=on -run 'TestScript|TestAcceptanceSampleCoverage' -count=1 -v .
+
+  npm-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: ${{ env.GORELEASER_VERSION }}
+          args: release --snapshot --clean
+      - run: go run ./tools/npmpkg
+      - name: Smoke-test packed npm snapshot offline
+        run: node tools/npm-smoke.mjs
 
   safeguards:
     strategy:

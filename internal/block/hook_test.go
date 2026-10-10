@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestInstallHookMovesAndDeduplicatesAlphaBlocks(t *testing.T) {
+func TestInstallHookMovesAndDeduplicatesLegacyBlocks(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "post-checkout")
 	content := "#!/bin/sh\necho before\n# >>> envbuckets v1 >>>\nold command\n# <<< envbuckets v1 <<<\necho after\n" + Begin + "\nduplicate\n" + End + "\n"

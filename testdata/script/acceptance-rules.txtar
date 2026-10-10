@@ -1,0 +1,51 @@
+# PRODUCT.md rule examples, tested directly against the documented text.
+exec git init -q
+exec git add README
+exec git commit -qm initial
+exec git switch -qc sample
+cp git-flow .envbuckets.json
+exec envbuckets branches main develop release/2.4 hotfix/login-crash feature/cart
+sample 'Git Flow' 1
+cp exceptions .envbuckets.json
+exec envbuckets branches release/2.0-rc1 release/2.0
+sample 'Exceptions first' 1
+cp tickets .envbuckets.json
+exec envbuckets branches PAY-142-refunds feature/PAY-7-webhooks PAY-docs
+sample 'Ticket IDs' 1
+cp experiments .envbuckets.json
+exec envbuckets branches spike-cache alice/spike-cache alice/fix-spikes
+sample 'Experiments anywhere' 1
+cp several .envbuckets.json
+exec envbuckets branches main master trunk
+cp many .envbuckets.json
+exec git branch hotfix/42
+exec git branch release/1.2
+exec git branch release/1.3
+exec git switch -qc feature/login
+exec envbuckets branches
+sample 'Many branches' 1
+
+-- README --
+synthetic fixture
+-- git-flow --
+{"default":"dev","rules":[{"branch":"main","bucket":"prod"},{"branch":"release/","bucket":"staging"},{"branch":"hotfix/","bucket":"staging"}]}
+-- exceptions --
+{"default":"dev","rules":[{"branch":"release/*-rc*","bucket":"staging"},{"branch":"release/**","bucket":"prod"}]}
+-- tickets --
+{"default":"dev","rules":[{"branch":"**/PAY-[0-9]*","bucket":"payments"}]}
+-- experiments --
+{"default":"dev","rules":[{"branch":"**/spike-*","bucket":"sandbox"}]}
+-- several --
+{"default":"dev","rules":[{"branch":"main","bucket":"staging"},{"branch":"master","bucket":"staging"},{"branch":"trunk","bucket":"staging"}]}
+-- many --
+{"default":"dev","rules":[{"branch":"release/**","bucket":"prod"},{"branch":"hotfix/[0-9]*","bucket":"prod"}]}
+-- .env.d/dev/.env --
+SYNTHETIC_DEV
+-- .env.d/prod/.env --
+SYNTHETIC_PROD
+-- .env.d/staging/.env --
+SYNTHETIC_STAGING
+-- .env.d/payments/.env --
+SYNTHETIC_PAYMENTS
+-- .env.d/sandbox/.env --
+SYNTHETIC_SANDBOX

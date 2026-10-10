@@ -2,7 +2,7 @@ exec git init -q
 exec git add README .envbuckets.json
 exec git commit -qm initial
 
-# Alpha blocks are replaced once; collisions warn and the safe import succeeds.
+# Legacy blocks are replaced once; collisions warn and the safe import succeeds.
 exec envbuckets init
 stderr '.envbuckets.toml is unused'
 stderr 'warning: cannot import ''.env'''
@@ -45,7 +45,7 @@ synthetic fixture
 -- .envbuckets.json --
 {"default":"dev","rules":[]}
 -- .envbuckets.toml --
-unused synthetic alpha config
+unused synthetic legacy config
 -- .gitignore --
 # user rule
 # >>> envbuckets v1 >>>

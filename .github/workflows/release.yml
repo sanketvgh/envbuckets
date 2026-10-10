@@ -19,7 +19,8 @@ permissions:
 env:
   SVU_VERSION: v3.4.1
   GORELEASER_VERSION: v2.18.1
-  GOLANGCI_LINT_VERSION: v2.13.2
+  GOLANGCI_LINT_VERSION: v2.14.0
+  GOVULNCHECK_VERSION: v1.8.0
 
 jobs:
   release:
@@ -46,11 +47,34 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
       - run: npm install -g npm@latest
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.9.1
+      - run: pnpm install --frozen-lockfile
+      - name: Install release check tools
+        run: |
+          go install github.com/go-task/task/v3/cmd/task@v3.53.1
+          go install golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}
 
       - uses: golangci/golangci-lint-action@v9
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
-      - run: go test ./...
+          install-only: true
+      - run: task check
+      - run: task security
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser
+          version: ${{ env.GORELEASER_VERSION }}
+          args: release --snapshot --clean
+      - run: go run ./tools/npmpkg
+      - name: Smoke-test packed npm snapshot before tagging
+        run: node tools/npm-smoke.mjs
+      - name: Verify editor schema is available on main
+        run: |
+          mkdir -p tmp/release
+          curl --fail --silent --show-error https://raw.githubusercontent.com/sanketvgh/envbuckets/main/schema/envbuckets.schema.json -o tmp/release/envbuckets.schema.json
+          cmp schema/envbuckets.schema.json tmp/release/envbuckets.schema.json
 
       - name: Cache svu
         id: cache-svu

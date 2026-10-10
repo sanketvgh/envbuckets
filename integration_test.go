@@ -31,10 +31,13 @@ func TestScript(t *testing.T) {
 		Dir:                 filepath.Join("testdata", "script"),
 		RequireExplicitExec: true,
 		Setup:               sandboxGit,
+		UpdateScripts:       os.Getenv("TESTSCRIPT_UPDATE") == "1",
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
 			"readlink":     cmdReadlink,
 			"regular":      cmdRegular,
 			"install-hook": cmdInstallHook,
+			"sample":       cmdSample,
+			"branches1000": cmdBranches1000,
 		},
 	})
 }
@@ -61,7 +64,7 @@ func cmdInstallHook(ts *testscript.TestScript, neg bool, args []string) {
 	}
 }
 
-const gitconfig = "[user]\n\tname = envbuckets test\n\temail = test@example.com\n[commit]\n\tgpgsign = false\n[init]\n\tdefaultBranch = main\n"
+const gitconfig = "[user]\n\tname = envbuckets test\n\temail = test@example.com\n[commit]\n\tgpgsign = false\n[init]\n\tdefaultBranch = main\n[maintenance]\n\tautoDetach = false\n[core]\n\tautocrlf = false\n[color]\n\tui = false\n"
 
 func sandboxGit(env *testscript.Env) error {
 	git, err := exec.LookPath("git")
@@ -75,11 +78,23 @@ func sandboxGit(env *testscript.Env) error {
 	env.Vars = append(env.Vars,
 		"HOME="+env.WorkDir,
 		"USERPROFILE="+env.WorkDir,
+		"XDG_CONFIG_HOME="+filepath.Join(env.WorkDir, "xdg"),
 		"GIT_CONFIG_GLOBAL="+cfg,
 		"GIT_CONFIG_NOSYSTEM=1",
 		"GIT_TERMINAL_PROMPT=0",
 		"GIT_EXE="+git,
+		"GIT_AUTHOR_NAME=envbuckets test",
+		"GIT_AUTHOR_EMAIL=test@example.com",
+		"GIT_COMMITTER_NAME=envbuckets test",
+		"GIT_COMMITTER_EMAIL=test@example.com",
+		"GIT_AUTHOR_DATE=2000-01-01T00:00:00+0000",
+		"GIT_COMMITTER_DATE=2000-01-01T00:00:00+0000",
 	)
+	samples, err := acceptanceSamples()
+	if err != nil {
+		return err
+	}
+	env.Values["acceptance-samples"] = samples
 	return nil
 }
 

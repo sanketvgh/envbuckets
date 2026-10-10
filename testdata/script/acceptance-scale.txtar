@@ -1,0 +1,33 @@
+# This acceptance check needs Git but no symlinks; it also runs on Windows.
+exec git init -q
+exec git add README .envbuckets.json
+exec git commit -qm initial
+exec git branch release/3.0-rc1
+exec git branch release/3.0
+exec git branch hotfix/88-payment-timeout
+exec git branch release/2.9
+exec git branch bugfix/payment-retry
+exec git switch -qc search/fuzzy-match
+branches1000
+env GIT_TRACE=$WORK/git.trace
+exec envbuckets branches
+sample 'A repo with 1000 branches' 1
+grep -count=1 'built-in: git for-each-ref' git.trace
+env GIT_TRACE=
+exec envbuckets branches --bucket staging
+sample 'A repo with 1000 branches' 2
+exec envbuckets branches '**/*payment*'
+sample 'A repo with 1000 branches' 3
+exec envbuckets branches '**'
+stdout -count=1000 '^. '
+
+-- README --
+synthetic fixture
+-- .envbuckets.json --
+{"default":"dev","rules":[{"branch":"main","bucket":"staging"},{"branch":"release/*-rc*","bucket":"staging"},{"branch":"release/**","bucket":"prod"},{"branch":"hotfix/[0-9]*","bucket":"prod"}]}
+-- .env.d/dev/.env --
+SYNTHETIC_DEV
+-- .env.d/staging/.env --
+SYNTHETIC_STAGING
+-- .env.d/prod/.env --
+SYNTHETIC_PROD

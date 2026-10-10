@@ -1,16 +1,18 @@
 # Switching buckets
 
-EB-02 adds these commands to the rebuild:
+Choose a bucket now or return to the current branch's bucket:
 
 ```sh
 envbuckets switch                 # use the current branch's bucket
 envbuckets switch prod            # use prod until the next branch checkout
 envbuckets switch -n prod         # preview changes without applying them
+envbuckets switch -c prod         # create empty files at the current bucket's paths
 ```
 
 The repository needs `.envbuckets.json` and bucket directories under `.env.d/`.
-The `init`, `add`, and `switch -c` setup commands arrive in EB-03. Until then,
-prepare those directories and config manually. A bucket file has the same path
+Run `envbuckets init` to create config, the default bucket, and the hook, then
+`envbuckets add <file>` for files other than local environment files.
+A bucket file has the same path
 inside the bucket as its working path in the repository:
 
 ```text
@@ -40,14 +42,14 @@ plain `switch` has no branch mapping to return to.
 
 ## Checkout hook
 
-The hook installer is ready for EB-03's `init` command. It resolves the hooks
+The `init` command installs the hook. It resolves the hooks
 directory through Git, honors an in-repository `core.hooksPath`, and uses Git's
 common metadata directory for linked worktrees. A custom hooks directory shared
 outside the repository is refused. Symlinked hook paths and hooks directories
 inside `.env.d/` are also refused.
 
 The installer appends one marked block after existing hook content, replaces
-alpha blocks, and makes the hook executable. The envbuckets block ignores file
+legacy blocks, and makes the hook executable. The envbuckets block ignores file
 checkouts and detached HEAD, is silent when the bucket stays the same, and exits
 0 on missing binary, broken config, or switch errors.
 
@@ -58,15 +60,15 @@ removes the envbuckets block. Reinstalling the envbuckets hook restores the bloc
 alongside LFS. `envbuckets status` reports a missing hook block with a hint to
 run `envbuckets init` to restore it.
 
-## CI verification
+## Windows
 
-Unit tests cover the planner, CLI behavior, value blindness, and hook installation.
-The txtar scripts cover real Git checkouts, fallback, blocked paths, hook conflicts,
-Git LFS install orders, symlink safety, and linked worktrees. The LFS script skips
-when `git-lfs` is unavailable; the unreadable-file script uses Unix mode bits.
-The existing CI workflow runs unit tests on Linux and scripts on Linux, macOS,
-and Windows. [Run `37951292646`](https://github.com/sanketvgh/envbuckets/actions/runs/37951292646)
-passed those jobs on `f1c2133`. Local formatting, lint, schema validation, and unit
-tests also passed. The local integration stage requires symlink privilege that
-this Windows session lacks; the user accepted the passing CI results for that
-stage and deferred environment setup. EB-02 is passed.
+Symlink operations need Developer Mode or symlink privilege. `init` checks this
+before moving any file. Integration tests use the same operations and need that
+privilege too; run them in CI when it is unavailable locally.
+
+Go's Windows rename uses one `MoveFileEx(MOVEFILE_REPLACE_EXISTING)` call;
+envbuckets does not delete the existing link first. Microsoft does not document
+that call as atomic. A multi-file switch can also stop between paths on any
+platform. Resolve reported errors and rerun `switch` to converge on the selected
+bucket. See [Go's implementation](https://go.dev/src/internal/syscall/windows/syscall_windows.go)
+and [Microsoft's API documentation](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexw).

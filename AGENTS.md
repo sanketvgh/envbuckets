@@ -1,5 +1,10 @@
 # Working on envbuckets
 
+envbuckets is a local, offline CLI: `init`, `add`, `switch`, `status`, `branches`,
+and `uninstall`. Shared rules live in `.envbuckets.json`; private bucket files
+live under ignored `.env.d/`. Working paths are relative symlinks. Use the
+[README](README.md) for the user workflow and PRODUCT.md for exact behavior.
+
 ## Workflow
 
 1. Read [PRODUCT.md](docs-eb/PRODUCT.md) and the relevant
@@ -25,7 +30,10 @@
 - Prefer clear standard-library APIs, including `errors.New` and `errors.AsType`
   where supported by `go.mod`.
 - Preserve CI and security gates. Keep the golangci-lint pins in `Taskfile.yml`
-  and `.github/workflows/ci.yml` aligned. Automatic fixes stay local.
+  and both CI/release workflows aligned. Automatic fixes stay local.
+- Integration fixtures are synthetic and use the shared isolated Git setup.
+  Update goldens only through `task test:integration:update`, then review the diff.
+- Keep PRODUCT.md sample assertions and the acceptance coverage map current.
 - See [DEVELOPMENT.md](docs-eb/DEVELOPMENT.md) for check details.
 
 ## Windows verification
@@ -41,3 +49,7 @@ Symlink setup is deferred; revisit only when requested or the environment change
   `✨ feat(cli): add readiness checks`.
 - `.github/workflows/release.yml` publishes releases; `task snapshot` builds
   artifacts locally without publishing.
+- `task playground` builds and tests packed npm packages in a new synthetic Git
+  repository under ignored `playground/`. `task test:npm` tests an existing snapshot.
+- Before publishing, require passing checks/security/npm smoke and a matching
+  schema on remote `main`. Record same-code CI evidence in EB-07.

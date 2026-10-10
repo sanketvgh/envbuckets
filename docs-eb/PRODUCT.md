@@ -461,8 +461,8 @@ $ envbuckets add apps/api/service-account.json
 
 $ envbuckets switch -n prod
 Would link .env to bucket 'prod'
-Would link apps/web/.env.local to bucket 'prod'
 Would remove link apps/api/service-account.json (not in bucket 'prod')
+Would link apps/web/.env.local to bucket 'prod'
 
 $ envbuckets switch prod
 Switched to bucket 'prod'
@@ -680,14 +680,14 @@ usage: envbuckets switch [-n] [-c] [<bucket>]
 ```console
 $ envbuckets uninstall -n
 Would move .env.d/dev/.env to .env
-Would move .env.d/dev/apps/web/.env.local to apps/web/.env.local
 Would move .env.d/dev/apps/api/service-account.json to apps/api/service-account.json
+Would move .env.d/dev/apps/web/.env.local to apps/web/.env.local
 Would remove the envbuckets hook from .git/hooks/post-checkout
 
 $ envbuckets uninstall
 Moving .env.d/dev/.env to .env
-Moving .env.d/dev/apps/web/.env.local to apps/web/.env.local
 Moving .env.d/dev/apps/api/service-account.json to apps/api/service-account.json
+Moving .env.d/dev/apps/web/.env.local to apps/web/.env.local
 Removing the envbuckets hook from .git/hooks/post-checkout
 hint: Your other buckets are still in .env.d/. Delete it when you no longer need them.
 ```

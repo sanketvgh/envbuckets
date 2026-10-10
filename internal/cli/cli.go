@@ -35,7 +35,27 @@ Usage:
   envbuckets status
   envbuckets branches [--bucket <name>] [<branch or pattern>...]
   envbuckets uninstall [-n]
-  envbuckets hook [post-checkout arguments]
+
+Commands:
+  init       Set up config, buckets, ignores, and the checkout hook; import .env files.
+  add        Move local files into the current bucket and leave relative links.
+  switch     Use a named bucket, or return to this branch's bucket without a name.
+             -c creates a bucket with empty files at the current bucket's paths.
+  status     Show the active bucket, branch mapping, and paths needing attention.
+  branches   Show the current and rule-matched branches, or check names/patterns.
+  uninstall  Restore active files and remove the hook; keep other buckets.
+
+Options:
+  -n, --dry-run  Preview init, add, switch, or uninstall without changing files.
+  -h, --help     Show this help.
+  -v, --version  Show the version.
+
+Rules live in .envbuckets.json. The first matching Git glob wins; otherwise
+default is used. Buckets are folders under .env.d/ with files at their repo paths.
+Requires Git and symlink support (Windows Developer Mode or symlink privilege).
+Set NO_COLOR to a non-empty value to disable terminal color.
+
+The checkout hook runs envbuckets hook [post-checkout arguments] automatically.
 `
 
 // Run executes args and returns the process exit code.

@@ -1,0 +1,50 @@
+# Unreachable schema/proxy endpoints: the CLI only uses local files and Git.
+env HTTP_PROXY=http://127.0.0.1:1
+env HTTPS_PROXY=http://127.0.0.1:1
+env ALL_PROXY=http://127.0.0.1:1
+env NO_PROXY=
+exec git init -q
+exec git add README .envbuckets.json
+exec git commit -qm initial
+exec envbuckets init
+! stdout SYNTHETIC_SECRET
+! stderr SYNTHETIC_SECRET
+exec envbuckets add key.json
+! stdout .
+! stderr .
+exec envbuckets switch -c prod
+! stdout SYNTHETIC_SECRET
+! stderr SYNTHETIC_SECRET
+exec envbuckets status
+! stdout SYNTHETIC_SECRET
+! stderr SYNTHETIC_SECRET
+exec envbuckets branches main future
+! stdout SYNTHETIC_SECRET
+! stderr SYNTHETIC_SECRET
+exec envbuckets switch
+! stdout SYNTHETIC_SECRET
+! stderr SYNTHETIC_SECRET
+exec envbuckets hook old new 1
+! stdout SYNTHETIC_SECRET
+! stderr SYNTHETIC_SECRET
+exec git switch -qc release/1.0
+! stdout SYNTHETIC_SECRET
+! stderr SYNTHETIC_SECRET
+exec envbuckets uninstall
+! stdout SYNTHETIC_SECRET
+! stderr SYNTHETIC_SECRET
+exec envbuckets help
+! stdout SYNTHETIC_SECRET
+! stderr SYNTHETIC_SECRET
+exec envbuckets version
+! stdout SYNTHETIC_SECRET
+! stderr SYNTHETIC_SECRET
+
+-- README --
+synthetic fixture
+-- .envbuckets.json --
+{"$schema":"https://127.0.0.1:1/unreachable.json","default":"dev","rules":[{"branch":"release/**","bucket":"prod"}]}
+-- .env --
+SYNTHETIC_SECRET_ENV
+-- key.json --
+SYNTHETIC_SECRET_KEY

@@ -32,7 +32,7 @@ func RepoHookInstalled(repoPath string) (bool, error) {
 	return result == HookUnchanged && err == nil, err
 }
 
-// RemoveRepoHook removes only complete, exactly matched current or alpha v1
+// RemoveRepoHook removes only complete, exactly matched current or legacy v1
 // blocks from Git's validated hook path. A dry run performs the same inspection.
 func RemoveRepoHook(repoPath string, dry bool) (string, HookResult, error) {
 	op := hookRemove

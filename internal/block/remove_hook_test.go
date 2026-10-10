@@ -15,8 +15,8 @@ func TestRemoveHookExactRanges(t *testing.T) {
 			between := "\t# keep whitespace\necho '# >>> envbuckets >>>'\n"
 			after := "echo after\n# >>> envbuckets v2 >>>\nfuture block\n# <<< envbuckets v2 <<<\nlast byte"
 			current := Begin + "\ncustom edits inside removed range\n" + End + "\n"
-			alpha := "# >>> envbuckets v1 >>>\nold command\n# <<< envbuckets v1 <<<\n"
-			content := strings.ReplaceAll(before+current+between+alpha+current+after, "\n", newline)
+			legacy := "# >>> envbuckets v1 >>>\nold command\n# <<< envbuckets v1 <<<\n"
+			content := strings.ReplaceAll(before+current+between+legacy+current+after, "\n", newline)
 			want := strings.ReplaceAll(before+between+after, "\n", newline)
 			path := filepath.Join(t.TempDir(), "post-checkout")
 			if err := os.WriteFile(path, []byte(content), 0o751); err != nil {

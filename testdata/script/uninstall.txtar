@@ -75,7 +75,7 @@ SYNTHETIC_UNLINKED
 #!/bin/sh
 # custom before
 # >>> envbuckets v1 >>>
-old alpha command
+old legacy command
 # <<< envbuckets v1 <<<
 # custom between
 # >>> envbuckets >>>

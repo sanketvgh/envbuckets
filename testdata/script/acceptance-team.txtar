@@ -1,0 +1,30 @@
+exec git init -q
+exec git add README .envbuckets.json
+exec git commit -qm initial
+install-hook
+exec envbuckets switch
+exec git switch -qc setup
+exec git switch main
+sample 'A team with more rules' 1
+exec git switch -c release/3.0-rc1
+! stderr envbuckets
+exec git switch -c release/3.0
+sample 'A team with more rules' 2
+exec git switch -c hotfix/88-payment-timeout
+! stderr envbuckets
+exec git switch -c hotfix/docs-typo
+sample 'A team with more rules' 3
+
+-- README --
+synthetic fixture
+-- .envbuckets.json --
+{"default":"dev","rules":[{"branch":"main","bucket":"staging"},{"branch":"release/*-rc*","bucket":"staging"},{"branch":"release/**","bucket":"prod"},{"branch":"hotfix/[0-9]*","bucket":"prod"}]}
+-- .gitignore --
+.env.d/
+.env
+-- .env.d/dev/.env --
+SYNTHETIC_DEV
+-- .env.d/staging/.env --
+SYNTHETIC_STAGING
+-- .env.d/prod/.env --
+SYNTHETIC_PROD

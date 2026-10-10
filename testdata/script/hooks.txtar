@@ -1,8 +1,8 @@
-# Alpha blocks and duplicate blocks are replaced, leaving one block at the end.
+# Legacy blocks and duplicate blocks are replaced, leaving one block at the end.
 exec git init -q
 exec git add README .envbuckets.json
 exec git commit -qm initial
-cp alpha .git/hooks/post-checkout
+cp legacy .git/hooks/post-checkout
 install-hook
 cmp .git/hooks/post-checkout expected-hook
 install-hook
@@ -58,7 +58,7 @@ fixture
 synthetic dev
 -- .env.d/prod/.env --
 synthetic prod
--- alpha --
+-- legacy --
 #!/bin/sh
 echo legacy-before >&2
 # >>> envbuckets v1 >>>
