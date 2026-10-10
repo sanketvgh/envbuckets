@@ -3,11 +3,10 @@
 **Goal:** make the finished CLI, shipped user documentation, and verification
 evidence ready for a PR to `main`.
 
-**Status:** final review and [PR #6](https://github.com/sanketvgh/envbuckets/pull/6)
-complete; conflicts with `main` are resolved locally, awaiting combined-code CI.
-The earlier implementation, guides, and packaging passed
-[CI on `7d6dd44`](https://github.com/sanketvgh/envbuckets/actions/runs/38030155164),
-but that run does not verify the subsequent metadata/workflow merge. The user
+**Status:** passed; [PR #6](https://github.com/sanketvgh/envbuckets/pull/6) is open
+with conflicts resolved and [all ten CI jobs on `032178f`](https://github.com/sanketvgh/envbuckets/actions/runs/38038426065)
+passing. CodeQL and dependency review also passed. The earlier implementation,
+guides, and packaging evidence is retained below. The user
 authorized commit, push, the PR, and preserving our work while resolving
 conflicts. Merging the PR into `main`, tagging, and publication remain separate.
 
@@ -25,8 +24,8 @@ requirements in EB-07.
 - [x] Phase 1: audit every ticket's exit checklist and record remaining blockers.
 - [x] Phase 2: finish and review README, user guides, help, and contributor docs.
 - [x] Phase 3: verify packaged documentation, examples, and links.
-- [ ] Phase 4: review final-code checks and CI evidence; resolve actual failures.
-- [ ] Phase 5: review the PR diff and record a ready/blocked decision with evidence.
+- [x] Phase 4: review final-code checks and CI evidence; resolve actual failures.
+- [x] Phase 5: review the PR diff and record a ready/blocked decision with evidence.
 
 Update this checklist and the ticket index after each phase. Continue from the
 first unfinished phase when implementing this ticket.
@@ -110,13 +109,13 @@ Tick every box before recording this ticket as ready for the PR to `main`.
 - [x] README, user guides, help, and contributor docs describe the final behavior.
 - [x] Repository links/anchors work; public guide and schema targets are present for inclusion in the PR.
 - [x] The packed npm package contains the final README/license; public documentation URLs target files included in the planned PR and must resolve after merge.
-- [x] PRODUCT.md examples and acceptance coverage agree with the final CLI; sample coverage passes locally and symlink-dependent transcripts await same-code CI.
-- [ ] Final-code checks, security, snapshot, and cross-platform npm smoke have passing evidence, with accepted platform limits documented.
-- [ ] CI evidence identifies the tested SHA and any subsequent changes; no unverified code change is covered by an older run.
+- [x] PRODUCT.md examples and acceptance coverage agree with the final CLI; sample coverage passes locally and symlink-dependent transcripts pass in same-code CI.
+- [x] Final-code checks, security, snapshot, and cross-platform npm smoke have passing evidence, with accepted platform limits documented.
+- [x] CI evidence identifies the tested SHA and any subsequent changes; no unverified code change is covered by an older run.
 - [x] The task diff and overall PR scope are reviewed for whitespace, stale docs, accidental generated artifacts, and private paths, without reading real environment-file contents.
 - [x] The ticket index is accurate; EB-07 retains its post-merge schema/publishing gate.
 - [x] A PR title and description are prepared with scope, behavior, validation, and remaining post-merge work; the title follows `<gitmoji> <type>(<scope>): <summary>`.
-- [x] The current decision and evidence are recorded below; final merged-code CI is pending.
+- [x] The current decision and evidence are recorded below; final merged-code CI passed.
 
 ## Evidence and handoff
 
@@ -268,11 +267,11 @@ complete EB-07's release-runner benchmark review and publishing checklist.
 
 ### Decision and next step
 
-**PR open; final combined CI pending.** The original pre-PR verification passed.
-PR #6 exposed conflicts with newer `main` commits, and the user authorized their
-resolution without losing our work. Reopened phases 4 and 5 for the combined
-metadata/security/formatting changes below. Keep EB-07's remote `main` schema
-and publishing gate after merge; the user owns the post-release visual review.
+**Ready for review; PR open and final combined CI passed.** Conflicts with newer
+`main` commits were resolved while preserving our work. The combined metadata,
+security, formatting, and action-comment changes passed the checks below;
+phases 4 and 5 are complete. Keep EB-07's remote `main` schema and publishing
+gate after merge; the user owns the post-release visual review.
 
 ### Integration of current `main` (2026-10-10)
 
@@ -308,8 +307,8 @@ and publishing gate after merge; the user owns the post-release visual review.
   documented Windows symlink privilege error; audited every failure. This is
   not a passing full local check. Evidence: `tmp/eb10/merge-check.log` and
   `tmp/eb10/merge-integration-failures.json`.
-- The combined branch requires new CI evidence before phases 4 and 5 close.
-  The earlier nine-job run is historical evidence, not coverage of this merge.
+- Fresh combined-code CI passed as recorded below. The earlier nine-job run
+  remains historical evidence, not coverage of this merge.
 
 ### Combined-code CI follow-up (2026-10-10)
 
@@ -325,8 +324,24 @@ and publishing gate after merge; the user owns the post-release visual review.
   versions. The action SHAs, permissions, scanner settings, and gates remain
   unchanged.
 - Authenticated online zizmor passed with no findings after the correction.
-  Evidence: `tmp/eb10/ci-fix-online-zizmor.log`. A fresh committed-code CI run
-  must pass before phases 4 and 5 close.
+  Evidence: `tmp/eb10/ci-fix-online-zizmor.log`. Local `task security` also
+  passed; evidence: `tmp/eb10/ci-fix-security.log`.
+- [PR CI run 38038426065](https://github.com/sanketvgh/envbuckets/actions/runs/38038426065)
+  and [push CI run 38038422698](https://github.com/sanketvgh/envbuckets/actions/runs/38038422698)
+  both passed all ten jobs on `032178fa791cae207cdfbde3f8f40f5fb3b8b005`:
+  build/snapshot/unit/Linux race, blocking security, integration and safeguards
+  on Linux/macOS/Windows, and packed npm smoke on macOS/Windows.
+- [CodeQL](https://github.com/sanketvgh/envbuckets/actions/runs/38038426099)
+  and [dependency review](https://github.com/sanketvgh/envbuckets/actions/runs/38038426092)
+  passed on the same SHA. Inspected all three advisory scanner logs: each
+  explicitly reports **No vulnerabilities found**. The blocking security log
+  reports both **No vulnerabilities found** and **No findings to report**.
+- Final Markdown formatting, all 82 local documentation links/anchors across
+  27 files, seven lowercase public guide slugs, and README/monorepo config
+  examples passed locally. The follow-up changes only these ticket records;
+  runtime, workflows, README, user guides, schema, tests, and packaging match
+  the tested SHA. PR #6 retains a short shipped-feature description and the
+  original early-alpha warning. No merge, tag, or publication was performed.
 
 ### Historical planning baseline (2026-10-10)
 

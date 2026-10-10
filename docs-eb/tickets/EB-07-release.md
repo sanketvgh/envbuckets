@@ -8,8 +8,12 @@
 
 **PR #6 continuation:** integration of the newer `main` security/formatting
 commits adds metadata-read hardening and restores the blocking security,
-CodeQL, and dependency-review gates. EB-10 tracks fresh combined-code CI;
-the earlier `7d6dd44` run does not cover these subsequent changes.
+CodeQL, and dependency-review gates. [Fresh CI on `032178f`](https://github.com/sanketvgh/envbuckets/actions/runs/38038426065)
+passed all ten jobs, including blocking security and all cross-platform
+integration, safeguards, and npm smoke. CodeQL and dependency review also
+passed; all three advisory scanners explicitly found no vulnerabilities.
+EB-10 records the action-comment correction and full evidence. The follow-up
+changes only tickets; the earlier `7d6dd44` record below remains historical.
 
 **EB-10 handoff (2026-10-10):** the Windows Terminal visual check is deferred
 until after release at the user's request and no longer blocks this ticket.
